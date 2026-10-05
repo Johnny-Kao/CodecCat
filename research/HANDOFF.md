@@ -2029,3 +2029,29 @@ Correctness gate:
 - 365/418;
 - exact final ranking mismatch = 0;
 - cache hit required.
+## P14 calibrator tournament — downstream winner selected, full-pipeline validation pending
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37343742851
+
+Implementation commits:
+- https://github.com/Johnny-Kao/CodecCat/commit/6aa8554cedd96f52d948af4113293399b41df39a
+- https://github.com/Johnny-Kao/CodecCat/commit/c520e4e6fe8f4c130261e6ca2ae7053e7b915a96
+
+Downstream-only same-run results on prebuilt locked-P12 contexts:
+- baseline: **~15.194 us/sample**
+- common-term hoist: **~13.569 us/sample**, ~1.1198x
+- route-local lookup: **~13.214 us/sample**, ~1.1498x
+- algebraic collapse: **~11.591 us/sample**, ~1.3108x
+- combined algebraic + route-local: **~11.356 us/sample**, **~1.3380x**, **~25.26% reduction**
+
+Correctness:
+- 365/418 for every candidate;
+- exact final ranking mismatch = 0.
+
+Selected candidate:
+- `combined`
+
+Important:
+- this timing isolates downstream and is not yet the formal P14 end-to-end acceptance result;
+- run one full-pipeline same-run A/B against locked P12 before locking P14.

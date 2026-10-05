@@ -35,8 +35,9 @@ class Ctx:
     high_byte_ratio: float
     nul_ratio: float
     sample_len_4k: int
+    replacement_rate: float | None
 
-def build_ctx(model_tuple,s,fused_model,with_map=False):
+def build_ctx(model_tuple,s,fused_model,lazy_rate):
     x=p2.features_combined(s["data"])
     raw=p2.fused_raw(fused_model,x)
     _,model=model_tuple
@@ -58,7 +59,8 @@ def build_ctx(model_tuple,s,fused_model,with_map=False):
         raw_scores=np.asarray(raw),
         classes=tuple(model.classes_),
         has_utf8_bom=bom, strict_utf8=strict, ascii_only=ascii_flag,
-        high_byte_ratio=high, nul_ratio=nul, sample_len_4k=len(arr)
+        high_byte_ratio=high, nul_ratio=nul, sample_len_4k=len(arr),
+        replacement_rate=None if lazy_rate else canon.replacement_rate(s["data"])
     )
 
 def score_of(ctx,label):
@@ -161,7 +163,9 @@ class DirectDownstream:
         sig=self.pair(self.sig,p1.SIG_PAIR,ctx,baseline)
         out=self.pair(self.gb,p1.GB_PAIR,ctx,sig)
         if out and sig and out[0]!=sig[0] and sig[0]=="gb18030" and out[0]=="utf-8":
-            rate=canon.replacement_rate(ctx.data) if self.lazy_rate else canon.replacement_rate(ctx.data)
+            rate=ctx.replacement_rate
+            if rate is None:
+                rate=canon.replacement_rate(ctx.data)
             if rate>p1.RATE_THRESHOLD: out=sig
         return out
 
@@ -169,7 +173,7 @@ def p2_reference(model_tuple,s,fused_model,fast_ds):
     ctx=p2.build_ctx(model_tuple,s,"combined","fused",fused_model,True)
     return fast_ds.run(ctx)
 
-CANDIDATES=("p2_baseline","lazy_rate","direct_scalar","direct_scalar_lazy")
+CANDIDATES=("p2_baseline","direct_scalar_eager","direct_scalar_lazy")
 
 def main():
     external,_,stats=base.collect_external()
@@ -202,13 +206,11 @@ def main():
             mt=models[s["route"]]
             # P2 baseline
             ctx2=p2.build_ctx(mt,s,"combined","fused",fused[s["route"]],True)
-            outs={
-                "p2_baseline":p2ds.run(ctx2),
-                "lazy_rate":p2ds.run(ctx2),
-            }
-            ctxd=build_ctx(mt,s,fused[s["route"]])
-            outs["direct_scalar"]=direct.run(ctxd)
-            outs["direct_scalar_lazy"]=direct.run(ctxd)
+            outs={"p2_baseline":p2ds.run(ctx2)}
+            ctxe=build_ctx(mt,s,fused[s["route"]],False)
+            ctxl=build_ctx(mt,s,fused[s["route"]],True)
+            outs["direct_scalar_eager"]=direct.run(ctxe)
+            outs["direct_scalar_lazy"]=direct.run(ctxl)
             for name,out in outs.items():
                 st=stats_fold[name]; st["n"]+=1; st["hits"]+=int(out and out[0]==s["label"]); st["mismatch"]+=int(list(out)!=list(ref))
 
@@ -218,11 +220,11 @@ def main():
             for _ in range(TIMING_REPEATS):
                 for s in rows:
                     mt=models[s["route"]]
-                    if name in ("p2_baseline","lazy_rate"):
+                    if name=="p2_baseline":
                         ctx=p2.build_ctx(mt,s,"combined","fused",fused[s["route"]],True)
                         out=p2ds.run(ctx)
                     else:
-                        ctx=build_ctx(mt,s,fused[s["route"]])
+                        ctx=build_ctx(mt,s,fused[s["route"]],name=="direct_scalar_lazy")
                         out=direct.run(ctx)
                     sink+=len(out)
             dt=time.perf_counter_ns()-t0

@@ -17,7 +17,7 @@ import charset_p4_residual_python_tournament as p4
 OUTER_FOLDS=4
 TRAIN_N=300
 TIMING_REPEATS=15
-# Retry-safe external corpus fetch is provided by the shared collector.
+# Retry-safe external corpus fetch is provided by the shared collector.\n# Retrigger after transient-range retry hardening.
 
 class P5Downstream(p4.P4Downstream):
     def __init__(self,*args,skip_cal_on_rule=False,precompute_cal_static=False,**kwargs):

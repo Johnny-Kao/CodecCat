@@ -1,0 +1,66 @@
+name: Clean package equivalence
+
+on:
+  push:
+    branches:
+      - staging/initial-package
+    paths:
+      - ".github/workflows/clean-package-equivalence.yml"
+      - "src/codeccat/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - "experiments/charset-normalizer-e2e-baseline/validate_clean_runtime.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      PAIR_A: utf-8
+      PAIR_B: utf-8-sig
+      PYTHONHASHSEED: "0"
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          path: test-data
+          fetch-depth: 1
+      - uses: actions/checkout@v4
+        with:
+          repository: Ousret/char-dataset
+          ref: master
+          path: char-dataset
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install validation dependencies
+        run: |
+          python -m pip install --no-cache-dir             numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1             joblib==1.6.0 requests==2.34.2 warcio==1.8.1             pytest==8.4.2 build==1.3.0
+          python -m pip install -e .
+      - name: Restore fitted fold state
+        id: fold-cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/codeccat/folds-v1.joblib
+          key: codeccat-fold-v1-py312-sklearn191-ccmain202639-training-v1
+      - name: Build fitted fold state on cache miss
+        if: steps.fold-cache.outputs.cache-hit != 'true'
+        run: |
+          python experiments/charset-normalizer-e2e-baseline/charset_cached_fold_state.py             --state .cache/codeccat/folds-v1.joblib
+      - name: Package unit tests
+        run: python -m pytest -q
+      - name: Build wheel and sdist
+        run: python -m build
+      - name: Canonical clean-runtime equivalence
+        working-directory: experiments/charset-normalizer-e2e-baseline
+        run: |
+          PYTHONPATH=../../src:. python validate_clean_runtime.py             --state ../../.cache/codeccat/folds-v1.joblib

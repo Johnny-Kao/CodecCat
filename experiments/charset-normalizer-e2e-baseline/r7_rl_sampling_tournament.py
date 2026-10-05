@@ -163,9 +163,9 @@ def main():
     state = joblib.load(args.state)
     legacy = legacy_rl_rows()
     canonical = canonical_development_rows(state)
-    external, _, stats = base.collect_external() if args.development_crawl == base.CRAWL else (None, None, None)
-
-    # Collect the selected development crawl without mutating any release holdout.
+    # Collect the selected development crawl exactly once. Avoid a redundant
+    # Common Crawl pass that can change the live range-request sample under
+    # transient availability/rate limiting.
     old_crawl = base.CRAWL
     old_url = base.WARC_PATHS_URL
     try:

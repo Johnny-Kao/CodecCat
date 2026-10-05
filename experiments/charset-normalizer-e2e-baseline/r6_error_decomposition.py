@@ -9,7 +9,8 @@ import joblib
 from charset_normalizer import from_bytes
 
 from codeccat import Detector
-from codeccat.features import route\nfrom codeccat.runtime import GB_PAIR, SIG_PAIR, _rule_rerank, build_context, family, replacement_rate
+from codeccat.features import route
+from codeccat.runtime import GB_PAIR, SIG_PAIR, _rule_rerank, build_context, family, replacement_rate
 
 import release_candidate_independent_holdout as rc
 

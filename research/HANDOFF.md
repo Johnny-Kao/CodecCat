@@ -2055,3 +2055,49 @@ Selected candidate:
 Important:
 - this timing isolates downstream and is not yet the formal P14 end-to-end acceptance result;
 - run one full-pipeline same-run A/B against locked P12 before locking P14.
+## P14 locked — calibrator algebraic collapse + route-local static lookup
+
+Full-pipeline acceptance run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37343941337
+
+Full-validation commits:
+- https://github.com/Johnny-Kao/CodecCat/commit/532127af2f3d3ec6e6cd257a9be65a4a91851026
+- https://github.com/Johnny-Kao/CodecCat/commit/af857787962fb3470546ad4bd3211f67491b78d7
+
+Selected mechanism:
+- hoist calibrator terms shared by the top-3 candidates;
+- algebraically collapse the score expression;
+- precompute rank-position terms;
+- replace repeated `(route, candidate)` tuple-key lookup with route-local candidate static lookup.
+
+Correctness:
+- evaluated: **418**
+- hits: **365**
+- Top-1: **87.3206%**
+- exact final ranking mismatch vs locked P12: **0**
+- fitted-state cache: **hit**
+- no retraining.
+
+Same-run full-pipeline runtime:
+- locked P12 baseline: **~97.116 us/sample**
+- P14 combined: **~90.585 us/sample**
+- speedup: **1.07210x**
+- runtime reduction: **~6.73%**
+
+Supporting downstream-only tournament:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37343742851
+
+Downstream-only winner:
+- baseline: ~15.194 us/sample
+- P14 combined: ~11.356 us/sample
+- ~1.3380x / ~25.26% downstream reduction.
+
+Decision:
+- **P14 is accepted and locked.**
+- P14 baseline now includes P7 scalar triad + P8 metadata/raw reuse + P9 ndarray argsort + P10 preallocated feature output + P11 uint8 bigram wrap + P12 in-place normalization + P14 calibrator collapse.
+- Preserve 365/418 and exact final ranking identity.
+- Public GitHub Actions remains benchmark authority.
+
+### P15 direction
+
+Re-profile the locked P14 full path before selecting the next optimization family. P14 materially changed the downstream share, so the P13 residual profile is no longer authoritative for prioritization.

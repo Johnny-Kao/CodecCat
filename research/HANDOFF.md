@@ -1261,3 +1261,32 @@ Decision:
 - P7 and later should reuse the cached fitted fold state and must not retrain identical folds.
 - Preserve 365/418 and exact ranking identity.
 - Public CodecCat GitHub Actions remains the benchmark authority.
+
+
+### P6 cache-hit verification complete
+
+Verification run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37336774166
+
+Result:
+- cache status: **hit**
+- corpus fingerprint unchanged:
+  `aea19348bfe9838fc68e1b1c8f5d95eb7d78097df6d89e801de36f8f31946d9f`
+- evaluated rows: 418
+- external rows: 420
+- no fold retraining performed
+- P6 `combined`: 365/418, 0 mismatch
+- same-run speedup vs P5: **1.023x**
+
+Interpretation:
+- fitted-state cache is now validated for cross-run reuse;
+- subsequent P7+ workflows should restore the cache and must not rebuild unless the cache key/schema changes;
+- cross-run absolute microsecond values remain non-comparable; use same-run relative speedups only.
+
+### P7 direction — specialist microkernel reduction
+
+Use cached state and test exact-equivalence candidates in one tournament:
+1. replace triad tiny NumPy vector accumulation with fixed-size scalar logits;
+2. inline specialist pair branch checks to avoid generic call/list overhead on no-op paths;
+3. combine both mechanisms;
+4. preserve 365/418 and exact ranking identity.

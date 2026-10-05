@@ -6,8 +6,16 @@ on:
       - research/charset-normalizer-e2e-baseline
     paths:
       - ".github/workflows/charset-canonical-guarded-final-validation.yml"
-      - "experiments/charset-normalizer-e2e-baseline/**"
-      - "research/**"
+      - "experiments/charset-normalizer-e2e-baseline/charset_canonical_guarded_final_validation.py"
+      - "experiments/charset-normalizer-e2e-baseline/charset_pair_specialist_ab.py"
+      - "experiments/charset-normalizer-e2e-baseline/charset_post_gate_050_error_decomposition.py"
+      - "experiments/charset-normalizer-e2e-baseline/charset_triad_specialist_ab.py"
+      - "experiments/charset-normalizer-e2e-baseline/charset_candidate_calibration_ab.py"
+      - "experiments/charset-normalizer-e2e-baseline/charset_minimal_reranker_ab.py"
+      - "experiments/charset-normalizer-e2e-baseline/charset_external_scorer_learning_curve.py"
+      - "experiments/charset-normalizer-e2e-baseline/charset_external_scorer_domain_shift_ab.py"
+      - "experiments/charset-normalizer-e2e-baseline/charset_training_tournament.py"
+      - "experiments/charset-normalizer-e2e-baseline/charset_cost_aware_routing_tree.py"
   workflow_dispatch:
 
 permissions:

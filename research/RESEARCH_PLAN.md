@@ -2919,3 +2919,47 @@ Before changing downstream semantics, measure the locked P7 downstream stages on
 6. branch activation frequencies.
 
 Use cached fitted state and locked P12 contexts. No retraining. Public GitHub Actions only.
+## P14 downstream profile complete — candidate calibrator is the dominant residual
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37343419015
+
+Profile commits:
+- https://github.com/Johnny-Kao/CodecCat/commit/65fcadee9af1a052772633e2e213958d92bef019
+- https://github.com/Johnny-Kao/CodecCat/commit/f1fdaafc5fa0a4da9846ba663251bd12ff0e3a03
+
+Cache:
+- fitted-state cache: **hit**
+- corpus fingerprint unchanged.
+
+Directional isolated downstream shares:
+- hybrid / candidate calibrator: **~48.35%**
+- triad gate: **~24.43%**
+- SIG pair: **~9.67%**
+- GB pair: **~5.95%**
+
+Activation rates:
+- rule override: **37/418 = 8.85%**
+- triad entry: **304/418 = 72.73%**; changed output **21/418 = 5.02%**
+- SIG entry: **226/418 = 54.07%**; changed output **4/418 = 0.96%**
+- GB entry: **228/418 = 54.55%**; changed output **9/418 = 2.15%**
+- replacement guard shape: **8/418 = 1.91%**
+
+Interpretation:
+- the candidate calibrator is the largest remaining downstream target;
+- pair branches are not the first priority despite frequent entry because their isolated cost is small;
+- P14 optimization should reduce repeated calibrator arithmetic/lookups without changing decision semantics.
+
+### P14 optimization tournament — calibrator common-term hoisting
+
+Test on the locked P12 full pipeline:
+1. P12/P7 downstream baseline;
+2. hoist per-context calibrator terms shared by all top-3 candidates;
+3. replace `(route, candidate)` tuple-key static lookup with route-local candidate lookup;
+4. algebraically collapse score coefficients and precompute rank-position terms;
+5. combined route-local + algebraic path.
+
+Correctness gate:
+- 365/418;
+- exact final ranking mismatch = 0;
+- cache hit required.

@@ -58,10 +58,11 @@ jobs:
           PYTHONPATH=src:experiments/charset-normalizer-e2e-baseline python \
             experiments/charset-normalizer-e2e-baseline/release_candidate_independent_holdout.py \
             --state .cache/codeccat/folds-v1.joblib \
-            --model-out artifacts/codeccat-release-candidate-v1.npz \
-            --holdout-crawl CC-MAIN-2026-34
+            --model-out artifacts/codeccat-release-candidate-v2.npz \
+            --additional-development-crawl CC-MAIN-2026-34 \
+            --holdout-crawl CC-MAIN-2026-30
       - uses: actions/upload-artifact@v4
         with:
-          name: codeccat-release-candidate-v1
-          path: artifacts/codeccat-release-candidate-v1.npz
+          name: codeccat-release-candidate-v2
+          path: artifacts/codeccat-release-candidate-v2.npz
           if-no-files-found: error

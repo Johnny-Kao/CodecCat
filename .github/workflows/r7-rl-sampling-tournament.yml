@@ -49,9 +49,15 @@ jobs:
           path: .cache/codeccat/folds-v1.joblib
           key: codeccat-fold-v1-py312-sklearn191-ccmain202639-training-v1
           fail-on-cache-miss: true
+      - name: Restore frozen R7 RL development corpus
+        uses: actions/cache@v4
+        with:
+          path: .cache/codeccat/r7-ccmain202634-rl-v1.joblib
+          key: codeccat-r7-ccmain202634-rl-v1
       - name: Run bundled RL sampling tournament
         run: |
           PYTHONPATH=src:experiments/charset-normalizer-e2e-baseline python \
             experiments/charset-normalizer-e2e-baseline/r7_rl_sampling_tournament.py \
             --state .cache/codeccat/folds-v1.joblib \
-            --development-crawl CC-MAIN-2026-34
+            --development-crawl CC-MAIN-2026-34 \
+            --development-corpus-cache .cache/codeccat/r7-ccmain202634-rl-v1.joblib

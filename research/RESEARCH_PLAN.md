@@ -2099,3 +2099,63 @@ Acceptance:
 - final ranking mismatch = 0;
 - measurable same-run end-to-end speedup over P4;
 - public GitHub Actions only.
+
+
+## P5 locked — branch elision + calibrator static precompute
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37331914730
+
+Winner: `skip_plus_static`
+
+Correctness:
+- evaluated: 418
+- hits: 365
+- Top-1: **87.3206%**
+- final ranking mismatches versus P4 baseline: **0**
+
+Same-run runtime:
+- P4 baseline: **~88.68 us/sample**
+- P5 winner: **~84.49 us/sample**
+- speedup vs P4: **1.0496x**
+- runtime reduction: **~4.73%**
+
+Component effects:
+- `precompute_cal_static`: ~1.044x
+- `skip_cal_on_rule`: ~1.010x
+- combined `skip_plus_static`: ~1.050x
+
+Research-harness finding:
+- fold training cost in this run: **~373.5 s**
+- inference optimization is now much faster than repeated model fitting, so subsequent
+  performance work should cache/reuse fitted fold state rather than retrain identical
+  models in every workflow run.
+
+Decision:
+- **P5 is accepted and locked.**
+- Runtime baseline now includes manual fixed-size small-op logic, calibrator static-term
+  precomputation, and rule-path calibrator elision.
+- Preserve 365/418 and exact final ranking identity.
+- Public CodecCat GitHub Actions remains the sole benchmark authority.
+
+### P6 direction — cached fitted state + residual hot path
+
+Infrastructure first:
+1. generate deterministic fitted state for all 4 folds once;
+2. serialize the minimal model/calibrator/specialist state plus corpus fingerprint;
+3. publish it as a GitHub Actions artifact and/or checked reproducibility fixture;
+4. downstream tournaments load identical fitted state and rows instead of retraining;
+5. reject cache reuse if corpus fingerprint / code schema mismatches.
+
+Then benchmark residual runtime candidates on identical loaded state:
+- top-k / ordering work;
+- specialist branch no-op fast paths;
+- remaining tiny NumPy allocations;
+- route-local/static metadata folding.
+
+Acceptance:
+- 365/418;
+- mismatch = 0;
+- same-run speedup over P5;
+- cached-state reproducibility check passes;
+- public GitHub Actions only.

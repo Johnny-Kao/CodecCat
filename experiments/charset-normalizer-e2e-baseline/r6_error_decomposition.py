@@ -94,7 +94,20 @@ def main():
         ctx, stages = stage_ranks(detector, row["data"])
         n = 1
         for name, rank in stages.items():
-            stage_hits[name] += int(top_label(rank) == truth)
+            hit = int(top_label(rank) == truth)
+            stage_hits[name] += hit
+            route_stage_hits[ctx.route][f"{name}_hit"] += hit
+
+        route_stage_hits[ctx.route]["n"] += 1
+        bom_key = "bom" if ctx.has_utf8_bom else "no_bom"
+        bom_stats[bom_key]["n"] += 1
+        bom_stats[bom_key]["truth_utf8"] += int(truth == "utf-8")
+        bom_stats[bom_key]["truth_utf8_sig"] += int(truth == "utf-8-sig")
+        bom_stats[bom_key]["raw_utf8"] += int(top_label(stages["raw"]) == "utf-8")
+        bom_stats[bom_key]["raw_utf8_sig"] += int(top_label(stages["raw"]) == "utf-8-sig")
+        bom_stats[bom_key]["final_utf8"] += int(top_label(stages["final"]) == "utf-8")
+        bom_stats[bom_key]["final_utf8_sig"] += int(top_label(stages["final"]) == "utf-8-sig")
+        bom_stats[bom_key]["final_hit"] += int(top_label(stages["final"]) == truth)
 
         raw_norm = [norm(x) for x in stages["raw"]]
         try:
@@ -195,6 +208,23 @@ def main():
                 "chardet_top1": pct(stats["cd_hit"], stats["n"]),
             }
             for route, stats in sorted(route_stats.items())
+        },
+        "stage_accuracy_by_route": {
+            route: {
+                "n": stats["n"],
+                **{
+                    name: {
+                        "hits": stats[f"{name}_hit"],
+                        "top1": pct(stats[f"{name}_hit"], stats["n"]),
+                    }
+                    for name in ("raw", "rule", "calibrated", "hybrid", "triad", "utf8_sig", "utf8_gb", "final")
+                },
+            }
+            for route, stats in sorted(route_stage_hits.items())
+        },
+        "bom_policy_diagnostic": {
+            key: dict(stats)
+            for key, stats in sorted(bom_stats.items())
         },
         "by_truth_family": {
             fam: {

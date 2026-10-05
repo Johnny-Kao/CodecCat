@@ -1590,3 +1590,49 @@ Acceptance:
 - measurable same-run speedup over locked P10;
 - cache hit required;
 - public GitHub Actions only.
+
+
+## P11 locked — uint8 wraparound bigram kernel
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37341994563
+
+Implementation commits:
+- https://github.com/Johnny-Kao/CodecCat/commit/2f8df28067fedbe87feebeb4fe8c8928384a4806
+- https://github.com/Johnny-Kao/CodecCat/commit/c0b5aa02a0057691315274c29c448714c81d5eca
+
+Winner: `hop1_uint8_op`
+
+Accepted mechanism:
+- replace the bigram-bin cast chain
+  `uint16(a[i]) + uint16(a[i+1]) -> & 255 -> int32`
+  with native uint8 addition;
+- uint8 overflow is modulo 256, exactly matching the existing `& 255` semantics;
+- eliminate multiple temporary cast arrays while preserving bin identity.
+
+Correctness:
+- evaluated: **418**
+- hits: **365**
+- Top-1: **87.3206%**
+- exact final ranking mismatch vs P10: **0**
+- fitted-state cache: **hit**
+- no retraining.
+
+Same-run pooled runtime:
+- P10 baseline: **~63.654 us/sample**
+- P11 uint8 wrap: **~60.048 us/sample**
+- speedup vs P10: **1.06004x**
+- runtime reduction: **~5.66%**
+
+Other candidates:
+- explicit `np.add(..., dtype=np.uint8)`: ~1.0544x, slightly slower than the plain uint8 operator.
+- normalization `divide(..., out=...)`: ~1.0134x alone.
+- uint8 + divide-out combinations: ~1.0557-1.0567x, slower than uint8 wrap alone.
+
+Decision:
+- **P11 is accepted and locked.**
+- Carry forward only plain uint8 wraparound bigram construction.
+- Do not carry normalization `out=` into P12 because it reduced the stronger winner.
+- P12 baseline = all locked P7-P11 mechanisms.
+- Preserve 365/418 and exact final ranking identity.
+- Cached fitted state remains mandatory.

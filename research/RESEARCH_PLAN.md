@@ -1870,3 +1870,60 @@ Priority:
 
 Do not change model weights, routing, calibration, specialists, or the 0.02
 replacement-rate guard during P2.
+
+
+## P2 locked — full-pipeline fused runtime baseline
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37320147496
+
+Winner:
+- `all_combined`
+
+Correctness:
+- evaluated: 418
+- hits: **365**
+- Top-1: **87.3206%**
+- final ranking mismatches: **0**
+- base rank mismatches: **0**
+
+Runtime:
+- P2 baseline: **~1.141 ms/sample**
+- all_combined: **~0.231 ms/sample**
+- speedup: **4.944x**
+- runtime reduction: **79.77%**
+
+Component results:
+- byte_fast: 1.054x
+- feature_combined: 1.036x
+- linear_fused: 1.294x
+- downstream_fused: 1.845x
+- downstream + linear: 3.722x
+- downstream + linear + byte: 4.304x
+- all_combined: 4.944x
+
+Decision:
+- **P2 is accepted and locked.**
+- The new runtime baseline is `all_combined`.
+- Preserve the fused scaler/linear path for both base scorer and downstream
+  calibrator/specialists.
+- Preserve exact 365/418 accuracy and zero ranking mismatch.
+
+### P3 — Python/control-path overhead reduction
+
+Next objective:
+- keep **365/418** and **0 mismatch**
+- reduce the remaining ~0.231 ms/sample without changing model behavior
+
+Candidate families to test in one multi-hop tournament:
+1. single byte-analysis pass reused for UTF-8/BOM/ASCII/high/nul/replacement signals;
+2. avoid per-sample dict construction for score_map; use indexed arrays / cached class indices;
+3. avoid full argsort when only top-3 plus full stable ranking reconstruction is needed;
+4. precompute downstream feature layout/index maps once per fitted fold;
+5. reduce temporary NumPy array/object construction in candidate/triad/pair features;
+6. combine the best safe candidates and benchmark end-to-end.
+
+Acceptance:
+- exact final ranking equivalence on all 418 samples;
+- 365 hits;
+- choose the fastest pooled candidate.

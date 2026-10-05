@@ -289,7 +289,7 @@ P16 remains convergence evidence; no P16 mechanism is part of the runtime.
 
 ### R2 — Clean package reconstruction
 
-Status: **initial implementation complete; validation in progress**.
+Status: **initial implementation complete and canonical validation passed**.
 
 The staging branch now contains:
 - `pyproject.toml`
@@ -301,6 +301,8 @@ The staging branch now contains:
 The package runtime does not import research experiment modules.
 
 ### R3 — Canonical equivalence
+
+Status: **PASS** — https://github.com/Johnny-Kao/CodecCat/actions/runs/37349822329
 
 Required gate:
 - 418 evaluated samples
@@ -315,6 +317,10 @@ The validator is:
 GitHub Actions is the validation authority.
 
 ### R4 — Formal three-way held-out benchmark
+
+Status: **PASS** — https://github.com/Johnny-Kao/CodecCat/actions/runs/37350744525
+
+Observed development result: CodecCat 87.3206%, charset-normalizer 87.0813%, chardet 7 95.9330%; median CodecCat latency was ~6.97× lower than charset-normalizer and ~7.41× lower than chardet 7 in the same run.
 
 Prepared harness:
 `benchmarks/heldout_three_way.py`

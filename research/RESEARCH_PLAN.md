@@ -3085,3 +3085,61 @@ Interpretation:
 - remaining feature cost is dominated by small scalar reductions, not histogram construction;
 - remaining score cost is dominated by the small matrix-vector product, not sorting;
 - P15 should test these two orthogonal families in one full-pipeline tournament.
+## P15 locked — reduceat scalar aggregation + direct weight-vector dot
+
+Acceptance run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37344697886
+
+Implementation commits:
+- https://github.com/Johnny-Kao/CodecCat/commit/485158afa592c664f882d7b2b7a50c29b0e710ba
+- https://github.com/Johnny-Kao/CodecCat/commit/5e5a7da007cb82ee5f032b96f04169344bccff6e
+
+Winner:
+- `reduceat_dot`
+
+Accepted mechanisms:
+1. replace two separate fixed-range scalar count reductions with one `np.add.reduceat` call;
+2. replace `x @ w.T + b` with `np.dot(w, x) + b` for the small route-local score kernel.
+
+Correctness:
+- evaluated: **418**
+- hits: **365**
+- Top-1: **87.3206%**
+- exact final ranking mismatch vs P14: **0**
+- fitted-state cache: **hit**
+- no retraining.
+
+Same-run full-pipeline runtime:
+- locked P14 baseline: **~87.157 us/sample**
+- P15 `reduceat_dot`: **~83.167 us/sample**
+- speedup vs P14: **1.04798x**
+- runtime reduction: **~4.58%**
+
+Other candidates:
+- feature `reduceat` only: ~1.01256x
+- feature mask-matmul only: ~1.01631x
+- score `np.dot` only: ~1.03481x
+- score `w @ x` only: ~1.00746x
+- score `einsum`: ~0.90529x (**reject**)
+- mask + dot: ~1.01075x
+- mask + w-matmul: ~1.02530x
+- reduceat + w-matmul: ~1.00354x
+
+Decision:
+- **P15 is accepted and locked.**
+- Carry only `reduceat` scalar aggregation + `np.dot(w, x)`.
+- Do not carry mask aggregation, `einsum`, or `w @ x`.
+- Preserve 365/418 and exact final ranking identity.
+- Public GitHub Actions remains benchmark authority.
+
+### P16 next direction
+
+Re-profile the locked P15 pipeline before selecting another optimization family. P14 and P15 changed both downstream and score/feature costs materially; older residual shares are no longer authoritative.
+
+Operational rules remain:
+- validated fitted-state cache only;
+- no identical-fold retraining;
+- public GitHub Actions only;
+- do not use the user's local computer;
+- same-run relative timing is authoritative;
+- every workflow/PR/comment must expose its exact GitHub URL.

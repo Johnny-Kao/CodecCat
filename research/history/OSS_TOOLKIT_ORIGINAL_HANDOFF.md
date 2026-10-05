@@ -1,0 +1,888 @@
+# Archived original research handoff
+
+> Historical snapshot migrated from `Johnny-Kao/OSS-Engineering-Toolkit`, branch `research/charset-normalizer-e2e-baseline`, path `research/charset-detection/HANDOFF.md`.
+>
+> This file is preserved for provenance only. The active source of truth is `../HANDOFF.md`.
+
+# Charset Detection Research Handoff
+
+Updated: 2026-10-05 JST  
+Branch: `research/charset-normalizer-e2e-baseline`
+
+## Objective
+
+Build a new charset/encoding detector, not a patch to charset-normalizer.
+
+Primary target:
+
+```text
+minimize expected compute
+subject to bounded end-to-end error
+```
+
+Long-term runtime goal:
+
+```text
+stable selector
++ stable native scoring kernel
++ retrainable parameter tables
+```
+
+## Current strongest empirical result
+
+A downstream-loss-aware routing tree with per-leaf 518-dim H/M/T-768 linear scorers
+beats the same universal scorer.
+
+Round-2 winner run:
+https://github.com/Johnny-Kao/OSS-Engineering-Toolkit/actions/runs/37205949226
+
+Winner config:
+- method D
+- C = 0.5
+- lambda_cost = 0
+- max_leaves = 5
+
+Winner:
+- Top-1 72.14%
+- Top-3 92.24%
+- Top-5 95.30%
+
+Universal baseline from same run:
+- Top-1 65.12%
+- Top-3 89.04%
+- Top-5 93.05%
+
+Delta:
+- Top-1 +7.01 pp
+- Top-3 +3.19 pp
+- Top-5 +2.25 pp
+
+## Stable selector discoveries
+
+Winner split-stability run:
+https://github.com/Johnny-Kao/OSS-Engineering-Toolkit/actions/runs/37207402007
+
+Across all 3 grouped folds:
+
+1. `utf8_valid_4k > 0.5`
+   - selected as root in 3/3 folds
+   - threshold exactly 0.5 in 3/3
+
+2. `nul_ratio > 0`
+   - selected in 3/3 folds
+   - threshold exactly 0 in 3/3
+
+These are currently the strongest selector facts.
+
+Interpretation:
+
+```text
+bytes
+├─ UTF-8-valid / ASCII / UTF-7-like area
+├─ NUL-bearing UTF-16 / UTF-32 family
+└─ non-UTF8 + non-NUL residual
+```
+
+The older MARKUP / RECORD / CODE / TEXT tree is NOT validated architecture.
+Current evidence favors encoding-mechanism routing instead.
+
+## Residual region
+
+Definition:
+
+```text
+utf8_valid_4k <= 0.5
+AND
+nul_ratio == 0
+```
+
+Current corpus:
+- 1,346 samples
+- 77 encodings
+
+Residual discovery run:
+https://github.com/Johnny-Kao/OSS-Engineering-Toolkit/actions/runs/37213243765
+
+A single third scalar split was unstable:
+- fold 0: high_byte_ratio
+- fold 1: known_text_ext
+- fold 2: no split
+
+Do not freeze a third scalar selector from that result alone.
+
+## Residual convergence batch
+
+Run:
+https://github.com/Johnny-Kao/OSS-Engineering-Toolkit/actions/runs/37214176887
+
+Compared shared residual scorer vs tiny 2–4 feature selectors.
+
+Best:
+- M2 depth 2
+- offered features: high_byte_ratio + ascii_only_4k
+- actual learned split feature: high_byte_ratio only
+
+Best residual:
+- Top-1 70.05%
+- Top-3 84.87%
+- Top-5 89.56%
+
+Shared residual:
+- Top-1 68.23%
+- Top-3 84.57%
+- Top-5 88.80%
+
+Delta:
+- Top-1 +1.82 pp
+- Top-3 +0.30 pp
+- Top-5 +0.76 pp
+
+Extra features such as comma_ratio, line_len_cv, lt_ratio, newline_ratio did not
+produce stable gains and often hurt.
+
+## High-byte-ratio threshold validation
+
+Run:
+https://github.com/Johnny-Kao/OSS-Engineering-Toolkit/actions/runs/37214743877
+
+Per-fold best threshold pairs:
+
+| Fold | t1 | t2 | Top-1 | Top-3 | Top-5 |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 0 | 0.02 | 0.25 | 72.28% | 86.14% | 89.60% |
+| 1 | 0.03 | 0.60 | 72.11% | 91.24% | 94.02% |
+| 2 | 0.03 | 0.60 | 74.52% | 87.98% | 91.83% |
+
+Median fold-best:
+- t1 = 0.03
+- t2 = 0.60
+
+Best fixed pair by mean cross-fold score:
+- t1 = 0.03
+- t2 = 0.25
+
+Fixed-pair residual results:
+- fold 0 Top-1 71.78%
+- fold 1 Top-1 71.31%
+- fold 2 Top-1 74.52%
+
+Interpretation:
+- lower cut is stable around 0.02–0.03
+- upper cut is not fully stable: 0.25 vs 0.60
+- do NOT freeze S4 yet
+- `t1=0.03, t2=0.25` is current robust fixed-pair candidate
+- note: this probe creates 3 buckets, while prior depth-2 tree had 4 leaves
+
+## S4 necessity / stability resolution
+
+Run:
+https://github.com/Johnny-Kao/OSS-Engineering-Toolkit/actions/runs/37250023917
+
+Direct fixed-architecture comparison on the 1,346-sample residual region:
+- 5 grouped out-of-fold folds
+- fixed S3 lower cut: high_byte_ratio <= 0.03
+- compared S3-only vs S3+S4 at 0.25 and 0.60
+- paired bootstrap resampled source-name groups (3,000 draws)
+- no threshold search in this run
+
+Pooled results:
+
+| Config | Top-1 | Top-3 | Top-5 | Composite score |
+| --- | ---: | ---: | ---: | ---: |
+| S3 only | 64.12% | 82.76% | 87.96% | 5.0996 |
+| S3 + S4=0.25 | 64.93% | 83.28% | 88.71% | 5.1501 |
+| S3 + S4=0.60 | 63.82% | 83.36% | 88.86% | 5.1085 |
+
+S4=0.25 vs S3-only:
+- Top-1: +0.82 pp
+- Top-3: +0.52 pp
+- Top-5: +0.74 pp
+- composite: +0.0505
+- composite positive in 4/5 folds
+- paired grouped-bootstrap composite 95% interval: [-0.0140, +0.1065]
+- bootstrap P(delta > 0): 94.2%
+
+S4=0.60 vs S3-only:
+- Top-1: -0.30 pp
+- Top-3: +0.59 pp
+- Top-5: +0.89 pp
+- composite: +0.0089
+- composite positive in only 2/5 folds
+- paired grouped-bootstrap composite 95% interval: [-0.0432, +0.0572]
+
+Decision:
+- **do not freeze S4**
+- the 0.25 cut has a suggestive but not statistically/stability-robust gain
+- the 0.60 cut is clearly unstable and trades away Top-1
+- current minimal runtime should stop at S3 and let one residual scorer handle
+  the remaining high-byte region
+- S4 may be reopened only if independent external/WARC data shows a repeatable gain
+
+## Current runtime hypothesis
+
+```text
+bounded sample
+→ S1 UTF-8 validity
+→ S2 NUL presence
+→ S3 high-byte-ratio low cut (~0.03)
+→ residual leaf scorer
+→ confidence / verifier
+```
+
+Current selector status:
+- S1: supported
+- S2: supported
+- S3: supported provisionally at ~0.02–0.03
+- S4 upper cut: **not accepted**
+
+The objective remains a minimal set of cheap selectors and small parameter
+profiles, but only empirically stable selectors should be frozen.
+
+## Important harness work
+
+The first tournament implementation was too slow because every candidate split
+retrained child scorers repeatedly.
+
+Optimized harness now uses:
+- one process
+- shared corpus/features/folds
+- coarse-to-fine split screening
+- exact downstream evaluation only for top proxy splits
+- global child-loss cache
+- workflow concurrency
+
+Round-1 optimized run:
+https://github.com/Johnny-Kao/OSS-Engineering-Toolkit/actions/runs/37201083741
+
+Stats:
+- ~139 sec
+- 431 scorer fits
+- 673 cache hits
+
+Relevant scripts:
+- `experiments/charset_training_tournament.py`
+- `experiments/charset_winner_split_stability.py`
+- `experiments/charset_residual_selector_discovery.py`
+- `experiments/charset_residual_convergence_batch.py`
+- `experiments/charset_high_byte_threshold_stability.py`
+
+## Corpus / benchmark warning
+
+Current combined training/development corpus:
+- chardet/test-data
+- Ousret/char-dataset
+- SHA-256 deduplicated
+- 2,952 unique byte sequences
+- 90 normalized encoding labels
+
+This is algorithm-development data, NOT a final real-network distribution.
+
+The strict-network subset is also provenance-skewed:
+- 351 files
+- mostly RSS/Atom XML
+
+Headline claims must wait for real WARC/HTTP response validation.
+
+## Next recommended work
+
+Priority order:
+
+1. **External validation of S1/S2/S3**
+   - real HTTP/WARC bytes
+   - natural-frequency distribution
+   - balanced legacy-encoding challenge set
+
+2. **External confirmation of the minimal S1/S2/S3 selector**
+   - current in-corpus evidence rejects freezing S4
+   - reopen S4 only if independent WARC/HTTP data shows a stable gain
+   - validate S3 lower cut around 0.02–0.03 under natural-frequency and
+     balanced legacy-encoding challenge distributions
+
+3. **Freeze minimal selector**
+   - only after S1/S2/S3 stability holds across external data
+
+4. **Then optimize scoring kernel**
+   - native array/LUT/integer implementation
+   - do not optimize Python control flow before selector/model stabilizes
+
+5. **Later**
+   - calibrated confidence
+   - expected fallback cost
+   - verifier cascade
+   - chardet 7 full end-to-end comparison
+
+## Do not repeat these failed directions
+
+- Do not assume more exact n-grams are better.
+- Do not split separate full W matrices only by length.
+- Do not use encoding entropy reduction alone to train routing.
+- Do not hard-code MARKUP / RECORD / CODE / TEXT.
+- Do not add random structural features to residual routing without held-out gain.
+- Do not interpret current corpus accuracy as real-web headline accuracy.
+
+## Start-next-session instruction
+
+Read:
+1. `research/charset-detection/HANDOFF.md`
+2. `research/charset-detection/RESEARCH_PLAN.md`
+3. latest relevant experiment scripts listed above
+
+Current resolved question:
+
+> S4 is not stable enough to freeze on the current corpus. Runtime should stop
+> at S3 and let one residual scorer handle the remaining high-byte region.
+
+Next session should prioritize independent external validation of S1/S2/S3,
+especially real WARC/HTTP bytes and a balanced legacy-encoding challenge set.
+Do not restart the project from architecture brainstorming.
+
+
+## External Common Crawl validation — first real-network result
+
+Natural-frequency fast run:
+https://github.com/Johnny-Kao/OSS-Engineering-Toolkit/actions/runs/37251360584
+
+Route-balanced residual run:
+https://github.com/Johnny-Kao/OSS-Engineering-Toolkit/actions/runs/37251555242
+
+Source:
+- Common Crawl `CC-MAIN-2026-39`
+- real `WARC-Type: response` records
+- deterministic WARC sampling
+- only high-confidence charset labels retained
+- Tier A: agreeing independent signals or BOM
+- Tier B: explicit HTTP charset + strict decode with no conflicting body declaration
+
+The first natural-frequency sample accepted 300 responses, but 283/300 were
+UTF-8-valid and only 17 reached the residual region. This confirmed that a
+naive web sample is too UTF-8-heavy to validate S3.
+
+The route-balanced rerun capped the UTF-8-valid route and collected:
+- 180 accepted responses
+- 168 Tier A / 12 Tier B
+- 120 residual non-UTF8/non-NUL cases
+- 60 UTF-8-valid cases
+- labels included cp1251, gb18030, Big5, ISO-8859-1/2, EUC-JP/KR, Shift-JIS,
+  UTF-8 and UTF-8-SIG
+
+External fixed-routing results:
+
+| Selector | Top-1 | Top-3 | Top-5 | Composite |
+| --- | ---: | ---: | ---: | ---: |
+| no S3 | 31.11% | 45.00% | 56.67% | 2.7111 |
+| S3 = 0.02 | 31.67% | 47.22% | 57.78% | 2.7889 |
+| S3 = 0.03 | 31.11% | 46.67% | 57.78% | 2.7556 |
+
+S3=0.02 vs no S3:
+- Top-1: +0.56 pp
+- Top-3: +2.22 pp
+- Top-5: +1.11 pp
+- composite: +0.0778
+
+S3=0.03 vs no S3:
+- Top-1: +0.00 pp
+- Top-3: +1.67 pp
+- Top-5: +1.11 pp
+- composite: +0.0444
+
+Interpretation:
+- S3 survives the first external real-network challenge as a useful split.
+- External evidence shifts the preferred lower cut toward **0.02**, not 0.03.
+- Do not freeze the exact threshold yet; current evidence supports a
+  `~0.02–0.03` band with 0.02 currently stronger externally.
+- S4 remains rejected.
+- The much larger problem is now scorer generalization: overall external Top-1
+  is only ~31%, despite routing improving relative performance.
+- Therefore the next bottleneck is **profile/scorer domain shift**, not adding
+  another selector.
+
+Current working runtime hypothesis:
+
+```text
+S1 UTF-8 validity
+→ S2 NUL presence
+→ S3 high-byte-ratio low cut (~0.02–0.03; external lean = 0.02)
+→ scorer/profile
+```
+
+Next priority:
+1. diagnose external scorer failure by encoding family / bucket;
+2. determine whether retraining the same 518-dim H/M/T scorer on real-network
+   bytes fixes the gap;
+3. only then freeze selector threshold and optimize the native kernel.
+
+
+## External scorer domain-shift A/B — decisive result
+
+Run:
+https://github.com/Johnny-Kao/OSS-Engineering-Toolkit/actions/runs/37252723794
+
+Question:
+> Is the external accuracy collapse mainly a training-distribution mismatch, or
+> does the 518-dimensional H/M/T scorer representation itself fail on real
+> network bytes?
+
+Setup:
+- selector fixed: S1 UTF-8 validity, S2 NUL presence, S3 high-byte-ratio = 0.02
+- same 518-dimensional H/M/T scorer representation
+- same logistic scorer family
+- Common Crawl `CC-MAIN-2026-39`
+- 260 high-confidence real HTTP responses
+- 2-fold domain holdout by WARC path
+- compare:
+  - legacy-only scorer training
+  - legacy + external scorer training using only the opposite WARC fold
+
+External sample:
+- 260 responses
+- 241 Tier A / 19 Tier B
+- routes: 149 RH, 31 RL, 80 U
+- labels include cp1251, Big5, GB18030, ISO-8859-1/2, EUC-JP/KR,
+  Shift-JIS, KOI8-R, UTF-8 and UTF-8-SIG
+
+Pooled held-out results:
+
+| Training | Top-1 | Top-3 | Top-5 | Composite |
+| --- | ---: | ---: | ---: | ---: |
+| legacy only | 32.17% | 46.90% | 56.59% | 2.7907 |
+| legacy + external | 66.67% | 85.66% | 90.31% | 5.2829 |
+
+Delta from adding real-network training bytes:
+- Top-1: **+34.50 pp**
+- Top-3: **+38.76 pp**
+- Top-5: **+33.72 pp**
+- composite: **+2.4922**
+
+Both WARC-held-out directions improved sharply:
+- fold 0 Top-1: 16.98% → 66.04%
+- fold 1 Top-1: 36.10% → 66.83%
+
+Interpretation:
+- The external failure is primarily **training-distribution mismatch**.
+- The current 518-dimensional H/M/T representation retains strong useful
+  information on real-network bytes.
+- Do **not** redesign the representation yet.
+- Do **not** add selector complexity.
+- S3=0.02 remains the current external-leading lower cut.
+- The next bottleneck is building enough diverse real-network training data to
+  learn stable parameter profiles without same-domain overfitting.
+
+Next priority:
+1. expand real-network corpus across more WARC files / domains / legacy encodings;
+2. keep domain-held-out evaluation;
+3. retrain the same scorer/profile architecture;
+4. measure the learning curve to see how many real-network samples are needed
+   before Top-1/Top-3/Top-5 plateau;
+5. only after that compare directly against chardet 7 and charset-normalizer
+   on the same held-out real-network corpus.
+
+
+## External scorer learning curve — no plateau yet
+
+Run:
+https://github.com/Johnny-Kao/OSS-Engineering-Toolkit/actions/runs/37253597982
+
+Setup:
+- Common Crawl `CC-MAIN-2026-39`
+- 420 high-confidence real HTTP responses
+- 43 WARC files
+- 4-fold WARC-path holdout
+- selector fixed: S1 UTF-8 validity → S2 NUL presence → S3=0.02
+- same 518-dim H/M/T scorer
+- nested real-network train sizes: 0 / 25 / 50 / 100 / 200 / 300
+
+Pooled held-out learning curve:
+
+| External train n | Top-1 | Top-3 | Top-5 | Composite |
+| ---: | ---: | ---: | ---: | ---: |
+| 0 | 32.13% | 48.68% | 58.27% | 2.8417 |
+| 25 | 50.60% | 75.06% | 82.73% | 4.3525 |
+| 50 | 58.27% | 81.29% | 87.05% | 4.8273 |
+| 100 | 66.67% | 87.77% | 92.57% | 5.3477 |
+| 200 | 73.92% | 89.95% | 94.74% | 5.7033 |
+| 300 | 79.19% | 93.78% | 96.17% | 6.0048 |
+
+Marginal Top-1 gains:
+- 0→25: +18.47 pp
+- 25→50: +7.67 pp
+- 50→100: +8.39 pp
+- 100→200: +7.26 pp
+- 200→300: +5.26 pp
+
+Interpretation:
+- The curve is still rising materially at 300 real-network samples.
+- There is no evidence of plateau yet.
+- The scorer architecture remains viable; more real-network training data is
+  still converting directly into held-out accuracy.
+- Therefore do not redesign the representation and do not freeze final
+  parameter tables yet.
+- Next comparison should benchmark this held-out real-network model directly
+  against chardet 7 and charset-normalizer on the exact same test folds.
+
+
+## Held-out real-network baseline benchmark — current competitive position
+
+Run:
+https://github.com/Johnny-Kao/OSS-Engineering-Toolkit/actions/runs/37260216318
+
+Setup:
+- Common Crawl `CC-MAIN-2026-39`
+- 420 high-confidence real HTTP responses
+- 43 WARC files
+- same WARC-path 4-fold holdout as the learning-curve experiment
+- our selector fixed at S1 UTF-8 validity → S2 NUL presence → S3=0.02
+- our scorer uses the same 518-dim H/M/T representation
+- up to 300 opposite-fold real-network training samples
+- baselines: chardet 7.6.0 and charset-normalizer 3.5.2 default packaged behavior
+
+Pooled held-out Top-1:
+
+| Detector | Top-1 |
+| --- | ---: |
+| chardet 7 | **95.95%** |
+| charset-normalizer | **87.14%** |
+| ours | **79.43%** |
+
+Gap:
+- ours vs chardet 7: **-16.53 pp**
+- ours vs charset-normalizer: **-7.72 pp**
+
+Our fold Top-1:
+- fold 0: 80.82%
+- fold 1: 72.22%
+- fold 2: 81.36%
+- fold 3: 74.03%
+
+chardet 7 fold Top-1:
+- 95.21% / 100.00% / 96.05% / 96.15%
+
+charset-normalizer fold Top-1:
+- 84.93% / 94.74% / 88.70% / 85.90%
+
+Our own Top-k remains strong:
+- fold Top-3 ranges 92.47%–100%
+- fold Top-5 ranges 94.52%–100%
+
+Interpretation:
+- The current model is **not yet competitive on Top-1**.
+- chardet 7 is the clear accuracy leader on this real-network sample.
+- charset-normalizer is also ahead by ~7.7 pp.
+- However, our Top-3/Top-5 are already high, which strongly suggests the
+  representation often retains the correct encoding but the final ranking /
+  calibration between nearby encodings is still weak.
+- Therefore the next highest-value work is **error/rank analysis and
+  calibration**, not adding selector complexity.
+- The learning curve also had not plateaued at 300 samples, so more
+  real-network data can still help, but simply adding data is not the only
+  remaining lever.
+- Rough chardet/charset-normalizer timing from this run is not formal
+  performance evidence and must not be used for final latency claims.
+
+Next priority:
+1. compare Top-1 errors where ours has ground truth in Top-3/Top-5;
+2. identify repeated encoding-family confusions (e.g. UTF-8 vs UTF-8-SIG,
+   CP125x/ISO-8859, CJK families);
+3. test a **small calibration/reranking layer** on top of the existing scorer
+   before changing the 518-dim representation;
+4. keep WARC-path held-out evaluation;
+5. only if reranking cannot close a material part of the ~7.7 pp gap to
+   charset-normalizer should representation redesign become active again.
+
+
+## Minimal held-out reranker A/B — validated
+
+Run:
+https://github.com/Johnny-Kao/OSS-Engineering-Toolkit/actions/runs/37272317265
+
+Setup:
+- same Common Crawl held-out folds
+- same selector S1 UTF-8 validity → S2 NUL → S3=0.02
+- same 518-dim scorer
+- up to 300 opposite-fold external training samples
+- minimal deterministic / explainable reranker only
+
+Rules tested:
+1. UTF-8 BOM → prefer UTF-8-SIG if already ranked
+2. strict UTF-8-valid non-BOM bytes → prefer UTF-8 if already ranked
+3. ASCII-only → prefer ASCII if already ranked
+4. tiny within-top3 ISO-8859-1 calibration against ISO-8859-9 / CP1257
+
+Pooled results:
+
+| Model | Top-1 | Top-3 | Top-5 | Composite |
+| --- | ---: | ---: | ---: | ---: |
+| base | 79.43% | 93.78% | 96.17% | 6.0144 |
+| reranked | **83.73%** | **94.98%** | **96.65%** | **6.2153** |
+
+Delta:
+- Top-1: **+4.31 pp**
+- Top-3: **+1.20 pp**
+- Top-5: **+0.48 pp**
+- composite: **+0.2010**
+
+Decision changes:
+- changed Top-1: 37
+- beneficial: 24
+- harmful: 6
+- neutral: 7
+
+All 4 folds improved Top-1:
+- fold 0: 80.82% → 84.93%
+- fold 1: 72.22% → 77.78%
+- fold 2: 81.36% → 84.75%
+- fold 3: 74.03% → 80.52%
+
+Interpretation:
+- A small reranking/calibration layer is clearly justified.
+- Ranking/calibration was a real source of error, not just noise.
+- The current minimal reranker recovers ~4.3 pp Top-1 without representation redesign.
+- It still trails charset-normalizer 87.14% by ~3.41 pp and chardet 95.95% by ~12.22 pp.
+- Next work should refine reranking using held-out evidence, especially the remaining Top-2/Top-3 recoverable errors, but avoid broad heuristic growth.
+- Keep rules only if they are cross-fold positive and low-harm.
+
+Next priority:
+1. decompose remaining post-reranker errors;
+2. identify the next 1–2 highest-frequency recoverable confusion pairs;
+3. test only those as separate ablations;
+4. prefer deterministic evidence / score-margin calibration over adding many hand-written exceptions.
+
+
+## Hybrid reranker + candidate calibrator — new baseline
+
+Run:
+https://github.com/Johnny-Kao/OSS-Engineering-Toolkit/actions/runs/37275226855
+
+Setup:
+- same 420-response Common Crawl held-out set
+- same 43 WARC files
+- same outer 4-fold WARC-path holdout
+- same S1/S2/S3=0.02 selector
+- same 518-dim scorer
+- up to 300 opposite-fold external training samples
+- current rule reranker first; candidate calibrator only acts when the rule
+  reranker leaves Top-1 unchanged
+
+Pooled Top-1:
+- base scorer: 79.43%
+- rule reranker: 83.73%
+- candidate calibrator alone: 83.01%
+- **hybrid: 85.17%**
+
+Hybrid vs rule:
+- **+1.44 pp**
+- 52 Top-1 changes
+- 31 beneficial
+- 7 harmful
+
+Outer folds:
+- fold 0: rule 84.93% → hybrid **86.30%**
+- fold 1: 77.78% → **77.78%**
+- fold 2: 84.75% → **85.88%**
+- fold 3: 80.52% → **83.12%**
+
+Decision gate passed:
+- pooled hybrid > rule
+- 4/4 folds non-negative versus rule
+
+Competitive gap:
+- charset-normalizer reference Top-1: 87.14%
+- hybrid Top-1: 85.17%
+- remaining gap: **1.98 pp**
+- on 418 evaluated samples, approximately 9 additional correct Top-1 decisions
+  would be enough to match/exceed 87.14%.
+
+Interpretation:
+- Hybrid is now the preferred reranking baseline.
+- The remaining gap is small enough that another representation redesign is
+  not justified yet.
+- Next work should decompose **post-hybrid** errors and look for the next
+  smallest high-confidence correction mechanism.
+
+
+## Single-corpus triad confidence sweep — stable 86.12% plateau
+
+Run:
+https://github.com/Johnny-Kao/OSS-Engineering-Toolkit/actions/runs/37281853436
+
+Corpus fingerprint:
+`f97f0bc6e693e6120574c4eae9cf42d20e0df575017d209294246e939c85aec1`
+
+All confidence thresholds were evaluated in one process against the exact same
+420-response corpus and the same fitted models.
+
+Best plateau:
+- 0.45: **86.12%**
+- 0.475: **86.12%**
+- 0.50: **86.12%**
+- 0.525: **86.12%**
+
+Each of those produced:
+- 10 beneficial changes
+- 6 harmful changes
+- 22 total changes
+- 418 evaluated samples
+
+Decision:
+- Treat 0.45–0.525 as a stable plateau rather than a single tuned point.
+- Use **0.50** as the representative runtime gate because it sits in the middle
+  of the plateau.
+- New candidate Top-1 baseline: **86.12%**
+- charset-normalizer reference: 87.14%
+- remaining gap: **1.02 pp**, approximately 5 additional correct decisions on
+  this 418-sample evaluation set.
+
+Do not continue fine-grained threshold tuning around 0.50 unless independent
+data invalidates the plateau. Next priority is post-gate error decomposition.
+
+
+## Canonical final composition — 87.08% Top-1
+
+Run:
+https://github.com/Johnny-Kao/OSS-Engineering-Toolkit/actions/runs/37289061345
+
+Corpus fingerprint:
+`f97f0bc6e693e6120574c4eae9cf42d20e0df575017d209294246e939c85aec1`
+
+Canonical same-process results:
+- baseline: 85.89%
+- UTF-8 / UTF-8-SIG specialist only: 86.12%
+- UTF-8 / GB18030 specialist only: 86.60%
+- GB → SIG composition: 86.84%
+- **SIG → GB composition: 87.08%**
+
+SIG → GB changes:
+- 12 total Top-1 changes
+- 7 beneficial
+- 2 harmful
+- net +5 correct decisions over the canonical baseline
+
+Fold behavior for SIG → GB:
+- fold 0: 85.62% → 86.30%
+- fold 1: 88.89% → 88.89%
+- fold 2: 85.88% → 87.57%
+- fold 3: 85.71% → 87.01%
+
+Reference charset-normalizer Top-1:
+- 87.14%
+
+Remaining gap:
+- about 0.06 pp
+- effectively one additional correct decision on 418 evaluated samples
+
+Decision:
+- Promote SIG → GB as the current strongest candidate composition.
+- Do not add broad complexity.
+- Next step: decompose post-composition errors and look for one narrowly
+  supported, cross-fold-safe correction.
+
+
+## Milestone crossed — replacement-rate guard reaches 87.32% Top-1
+
+Run:
+https://github.com/Johnny-Kao/OSS-Engineering-Toolkit/actions/runs/37303010051
+
+Canonical result:
+- evaluated: 418
+- hits: 365
+- Top-1: **87.32%**
+- charset-normalizer reference: **87.14%**
+- margin: **+0.18 pp**
+- beneficial corrections: 5
+- harmful corrections: 0
+
+Stable threshold plateau:
+- 0.001 through 0.05 all produced the same 365/418 Top-1
+- 0.10 and 0.20 regressed to 364/418
+
+Interpretation:
+- A hard strict-UTF-8 guard was too aggressive.
+- A soft UTF-8 replacement-rate guard separates mildly damaged UTF-8 from
+  true non-UTF8 cases more effectively.
+- The useful region is broad rather than a tuned knife-edge.
+
+Candidate runtime setting:
+- use **replacement_rate <= 0.02** to permit the GB18030 -> UTF-8 specialist
+  correction.
+- 0.02 is inside the stable 0.001–0.05 plateau and avoids boundary tuning.
+
+Decision:
+- Milestone achieved on the current canonical held-out benchmark.
+- Do not continue adding complexity before stability/reproducibility validation.
+- Next step: rerun the full canonical pipeline with the 0.02 guard and confirm
+  fold behavior / reproducibility before locking the baseline.
+
+
+## Runtime audit — repeated scorer work is now the highest-leverage target
+
+Static inspection after the 87.32% accuracy milestone identified a major
+composition artifact in the current experimental inference path.
+
+Current logical path roughly does:
+1. base rank / score for hybrid
+2. triad gate calls raw rank again
+3. triad score_map calls scorer again
+4. UTF-8 / UTF-8-SIG pair calls raw rank again
+5. that pair score_map calls scorer again
+6. UTF-8 / GB18030 pair calls raw rank again
+7. that pair score_map calls scorer again
+
+So the same sample can execute the base scorer pipeline about **7 times**:
+- H/M/T 768-byte sampling
+- 256-bin unigram histogram
+- 256-bin hashed bigram histogram
+- scalar extraction
+- StandardScaler transform
+- logistic decision_function
+
+This is not algorithmically necessary.
+
+Additional duplicate work:
+- strict UTF-8 checks are repeated across rule/calibrator/specialists;
+- BOM and ASCII-only checks are repeated;
+- high-byte ratio and NUL ratio are rescanned even though corresponding
+  statistics are already produced inside `scorer_features()`;
+- pair/triad specialists reconstruct score maps from the same base model output.
+
+### P1 — single-evaluation inference context
+
+Build one immutable per-sample context containing at least:
+- sampled H/M/T bytes / feature vector;
+- raw class scores;
+- sorted rank;
+- class -> score map;
+- UTF-8 BOM flag;
+- strict UTF-8 result;
+- ASCII-only flag;
+- high-byte ratio;
+- NUL ratio;
+- UTF-8 replacement/error-rate signal;
+- route.
+
+Then change all downstream stages to consume the context rather than recompute
+features or model scores.
+
+Target invariant:
+- **exact same Top-k output as the current canonical pipeline**
+- base scorer feature extraction + model decision function: **1x/sample**
+- one shared byte-analysis pass where practical
+
+This is a zero/reuse-cost optimization in the Toolkit sense: work already paid
+upstream becomes reusable state instead of being recomputed downstream.
+
+Expected value:
+- large runtime reduction is plausible because scorer evaluation currently
+  dominates repeated Python/Numpy work;
+- exact gain is not yet measured and must not be claimed before A/B benchmark;
+- accuracy should be bit/output identical because P1 changes dataflow/reuse,
+  not model parameters or decision policy.
+
+Validation plan once Actions capacity is available:
+1. output-equivalence test, old vs cached pipeline, every held-out sample;
+2. assert rank / Top-1 / Top-3 / Top-5 identity;
+3. count scorer-feature and decision-function invocations;
+4. benchmark end-to-end per-sample runtime;
+5. only then consider P2 native/LUT kernel work.
+
+Do not optimize the native scorer kernel before P1 removes redundant scorer
+invocations; otherwise benchmark effort would optimize work that should not
+exist.

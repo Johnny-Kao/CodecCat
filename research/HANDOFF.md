@@ -1335,3 +1335,69 @@ Acceptance:
 - mismatch = 0;
 - same-run speedup over P7;
 - no retraining.
+
+
+## P7 locked — scalar triad specialist microkernel
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37337516488
+
+Cache:
+- fitted-state cache hit is already validated by:
+  https://github.com/Johnny-Kao/CodecCat/actions/runs/37336774166
+- corpus fingerprint:
+  `aea19348bfe9838fc68e1b1c8f5d95eb7d78097df6d89e801de36f8f31946d9f`
+- P7 reused cached fitted state; no fold retraining.
+
+Winner: `scalar_triad`
+
+Correctness:
+- evaluated: 418
+- hits: **365**
+- Top-1: **87.3206%**
+- mismatch vs P6 baseline: **0**
+
+Same-run runtime:
+- P6 baseline: **~112.10 us/sample**
+- P7 scalar_triad: **~105.74 us/sample**
+- speedup vs P6: **1.0602x**
+- runtime reduction: **~5.68%**
+
+Other candidates:
+- `inline_pairs`: ~1.0046x, effectively negligible
+- `combined`: ~1.0518x
+- therefore do NOT carry `inline_pairs` forward merely because it was combinable;
+  P7 runtime baseline is `scalar_triad` only.
+
+Accepted mechanism:
+- replace triad specialist tiny NumPy vector accumulation with fixed 3-class scalar arithmetic.
+
+Decision:
+- **P7 is accepted and locked.**
+- Preserve 365/418 and exact ranking identity.
+- All P8+ performance experiments must use the validated fitted-state cache.
+- Do not retrain identical folds unless cache schema/key intentionally changes.
+- Public CodecCat GitHub Actions remains the benchmark authority.
+- Do not use the user's local computer for validation.
+
+### P8 next direction
+
+Use one cached-state multi-hop tournament. Priority:
+1. reduce ranking/order overhead while preserving full exact output ranking;
+2. remove remaining tiny NumPy allocations in base-score / downstream hot paths;
+3. specialize common no-op branches before expensive specialist logic;
+4. precompute any remaining route/class metadata that is still reconstructed per sample;
+5. profile first only if candidate value is unclear; avoid one-hypothesis-per-run sequencing.
+
+Acceptance:
+- 365/418;
+- exact final ranking mismatch = 0;
+- measurable same-run speedup over P7;
+- cached state hit required;
+- public GitHub Actions only.
+
+Operational rules:
+- Prefer multi-hop tournaments in one Action/process.
+- Same-run relative timing is authoritative; cross-run absolute microseconds are not.
+- If a workflow run, PR, or external comment is created, always provide the exact GitHub URL.
+- Avoid triggering obsolete P1/P2/P3/P4/P5 workflows when editing shared research files; narrow workflow path filters or cancel accidental runs.

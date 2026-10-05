@@ -9,7 +9,7 @@ import joblib
 from charset_normalizer import from_bytes
 
 from codeccat import Detector
-from codeccat.runtime import GB_PAIR, SIG_PAIR, _rule_rerank, build_context, family, replacement_rate
+from codeccat.features import route\nfrom codeccat.runtime import GB_PAIR, SIG_PAIR, _rule_rerank, build_context, family, replacement_rate
 
 import release_candidate_independent_holdout as rc
 
@@ -24,7 +24,7 @@ def top_label(rank):
 
 def stage_ranks(detector: Detector, data: bytes):
     rt = detector._runtime
-    route_name = rc.base.route_bucket(data)
+    route_name = route(data)
     ctx = build_context(data, rt.bundle.route_models[route_name])
 
     raw = list(ctx.rank)

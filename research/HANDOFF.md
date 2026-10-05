@@ -1106,3 +1106,62 @@ Acceptance:
 - final ranking mismatch = 0;
 - measurable pooled end-to-end speedup over P3;
 - validate on public GitHub Actions only.
+
+
+## P4 locked — manual small-ops fast path
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37327524648
+
+Winner: `manual_smallops`
+
+Correctness:
+- evaluated: 418
+- hits: 365
+- Top-1: **87.3206%**
+- final ranking mismatches versus P3 baseline: **0**
+
+Same-run runtime:
+- P3 baseline: **~128.68 us/sample**
+- P4 manual_smallops: **~117.56 us/sample**
+- speedup vs same-run P3 baseline: **1.095x**
+- runtime reduction: **~8.64%**
+
+Important interpretation:
+- Cross-run absolute microsecond values are not directly comparable because GitHub-hosted
+  runner performance varies.
+- The accepted P4 evidence is the **same-run relative speedup** with exact ranking identity.
+
+Rejected / separated candidates:
+- `no_list_remove`: effectively neutral (~1.0002x)
+- `lite_ctx`, `lite_manual`, `all_p4`: 8 ranking mismatches and 370/418 hits.
+  These are NOT runtime-baseline candidates, but the repeatable 370/418 result should be
+  preserved as a separate accuracy-research lead.
+
+Decision:
+- **P4 is accepted and locked.**
+- Runtime baseline now includes manual fixed-size small-op selection/softmax logic.
+- Preserve 365/418 and exact final ranking identity in performance work.
+- Public CodecCat GitHub Actions remains the only benchmark authority.
+
+### P5 direction — residual hot path + harness acceleration
+
+Run one multi-hop tournament, not sequential one-off tests.
+
+Runtime candidates:
+1. fixed top-3 extraction / avoid full score-order work where exact final ordering permits;
+2. precompute specialist membership flags and route-local indices;
+3. collapse remaining tiny NumPy allocations in triad / pair branches;
+4. branch-specialize common no-op paths before specialist evaluation;
+5. reuse byte-analysis outputs more aggressively without changing semantics.
+
+Research-harness candidates:
+6. fit each fold once and reuse fitted state for all candidates in-process;
+7. separate training cost from inference timing and report both explicitly;
+8. keep all candidate comparisons on identical fitted objects / rows / process.
+
+Acceptance:
+- 365/418 hits;
+- final ranking mismatch = 0;
+- measurable same-run end-to-end speedup over P4;
+- public GitHub Actions only.

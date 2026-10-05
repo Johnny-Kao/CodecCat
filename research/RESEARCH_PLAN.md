@@ -3143,3 +3143,73 @@ Operational rules remain:
 - do not use the user's local computer;
 - same-run relative timing is authoritative;
 - every workflow/PR/comment must expose its exact GitHub URL.
+## P16 convergence gate — no further material low-risk winner
+
+Residual profile:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37345708079
+
+Primitive profile:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37345892883
+
+Final byte-path tournament:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37346169763
+
+P16 final-tournament commits:
+- https://github.com/Johnny-Kao/CodecCat/commit/e242acaab7cf3a449571ac8533ecf0b845324818
+- https://github.com/Johnny-Kao/CodecCat/commit/e7d5be81b8eef18ac56f9c6f36264c19e70189c3
+
+Locked-P15 residual profile:
+- feature: **~33.88%**
+- downstream: **~16.93%**
+- score: **~12.85%**
+- byte analysis: **~12.41%**
+- context construction: **~9.42%**
+- ordering: **~2.31%**
+
+Primitive observations:
+- feature cost is now distributed across several ~1-2.6 us primitives rather than one dominant removable operation;
+- ASCII-only inputs are only **39/418 = 9.33%**, so ASCII decode skipping has a very low theoretical ceiling;
+- byte NumPy scans remain individually visible, but C-level bytes alternatives did not translate into full-pipeline wins.
+
+Final P16 full-pipeline tournament:
+- P15 baseline: **~63.620 us/sample**
+- `translate_high`: **~65.733 us/sample** = **0.9679x**
+- `isascii_nul`: **~65.974 us/sample** = **0.9643x**
+- `bytes_nul`: **~66.118 us/sample** = **0.9622x**
+- `bytes_both`: **~67.366 us/sample** = **0.9444x**
+
+Correctness:
+- evaluated: **418**
+- hits: **365**
+- Top-1: **87.3206%**
+- exact final ranking mismatch: **0** for every candidate
+- fitted-state cache: **hit**
+- no retraining.
+
+Decision:
+- **No P16 optimization is accepted.**
+- **P15 remains the final locked performance baseline.**
+- The predefined convergence condition is satisfied: no exact-equivalent low-risk candidate achieved a material (>1%) full-pipeline win; all final byte-path candidates regressed.
+- Stop routine micro-optimization here.
+- Reopen performance research only if a new mechanism changes the architecture/cost model materially, or a new workload/platform reveals a different bottleneck.
+- Preserve 365/418 and exact final ranking identity.
+
+### Final performance state
+
+Last accepted stage: **P15**
+
+P15 acceptance run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37344697886
+
+P15 winner:
+`reduceat_dot`
+
+P15 same-run result:
+- locked P14 baseline: **~87.157 us/sample**
+- P15: **~83.167 us/sample**
+- speedup: **1.04798x**
+- runtime reduction: **~4.58%**
+
+Research status:
+- **performance optimization converged**
+- next work should be consolidation / clean implementation / staging evidence, not another speculative micro-optimization tournament.

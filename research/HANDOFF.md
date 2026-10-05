@@ -1947,3 +1947,41 @@ Decision:
 - Carry forward row-oriented GEMV only.
 - Do not carry float64 feature storage.
 - Next target should use the P13 profile: downstream is the second-largest measured component (~23.8%).
+## P13 combined-histogram experiment rejected
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37343071775
+
+Implementation commits:
+- https://github.com/Johnny-Kao/CodecCat/commit/83b944e70ae008c6c47fcad61c3b402371a709d3
+- https://github.com/Johnny-Kao/CodecCat/commit/ac0edc92b74a1ac3c928dbe5b95eca8e7462278a
+
+Correctness:
+- evaluated: **418**
+- hits: **365**
+- exact final ranking mismatch: **0** for all candidates
+- fitted-state cache: **hit**
+
+Same-run pooled runtime:
+- locked P12 baseline: **~91.975 us/sample**
+- `combined_intp`: **~98.104 us/sample** = **0.9375x**
+- `combined_uint16`: **~98.933 us/sample** = **0.9297x**
+
+Decision:
+- **Reject combined-histogram mechanism.**
+- Buffer construction / index widening costs exceed the saved `np.bincount` call.
+- P12 remains the locked performance baseline.
+- Do not retry combined histogram without a fundamentally different zero-copy mechanism.
+
+### P14 direction — downstream residual decomposition
+
+P13 residual profile identified downstream reranking as the second-largest isolated component (~16.4%).
+Before changing downstream semantics, measure the locked P7 downstream stages on prebuilt contexts:
+1. hybrid / candidate calibrator;
+2. triad gate;
+3. SIG pair;
+4. GB pair;
+5. final replacement-rate guard;
+6. branch activation frequencies.
+
+Use cached fitted state and locked P12 contexts. No retraining. Public GitHub Actions only.

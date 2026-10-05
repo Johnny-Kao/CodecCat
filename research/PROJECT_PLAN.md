@@ -353,3 +353,23 @@ The release sequence is now:
 7. only then package the fitted model for public release.
 
 This protects CodecCat from accidentally converting cross-validation/model-selection evidence into an overstated release claim.
+
+
+## R5 outcome — release gate blocked on generalization
+
+R5 is complete as an evaluation stage.
+
+Evidence:
+- first independent single-model holdout: https://github.com/Johnny-Kao/CodecCat/actions/runs/37351567969
+- data-expanded second untouched holdout: https://github.com/Johnny-Kao/CodecCat/actions/runs/37352132674
+- detailed result: `research/R5_GENERALIZATION_GATE.md`
+
+Result:
+- speed objective generalized strongly;
+- current single-model accuracy does not yet match charset-normalizer across independent crawls;
+- adding one more crawl of training data did not close the gap.
+
+Therefore:
+- no public release/model promotion yet;
+- no return to micro-optimization;
+- next stage is **R6 cross-crawl error decomposition and calibration-generalization research**.

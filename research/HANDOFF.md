@@ -2450,3 +2450,28 @@ Decision:
 
 Detailed record:
 `research/R6_ERROR_DECOMPOSITION.md`
+
+
+### R7 RL HMT4096 — REJECTED by paired full-pipeline A/B
+
+Raw frozen-development tournament:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37357086041
+
+Controlled paired acceptance:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37357863157
+
+Raw development signal:
+- HMT768 RL raw Top-1: 41/62 = 66.13%
+- HMT4096 RL raw Top-1: 46/62 = 74.19% (+8.06 pp)
+
+But paired full-pipeline retraining on identical reconstructed folds:
+- baseline HMT768: 362/417 = 86.8106%; RL 35/40 = 87.50%
+- RL HMT4096: 359/417 = 86.0911%; RL 33/40 = 82.50%
+- delta: **-3 hits / -0.7194 pp overall / -5.00 pp RL**
+
+Decision:
+- reject HMT4096;
+- keep production HMT768;
+- do not spend a fresh holdout on this candidate;
+- R8 should target compact RL-specific sparse high-byte features rather than generic sampling expansion;
+- CC-MAIN-2026-30 remains untouched.

@@ -1905,3 +1905,45 @@ Acceptance remains:
 - exact final ranking mismatch = 0;
 - cache hit;
 - measurable same-run speedup over locked P12.
+
+
+## P14 locked — row-oriented GEMV scorer
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37343012381
+
+Implementation commits:
+- https://github.com/Johnny-Kao/CodecCat/commit/e2eeec3738fc5c36a59c5c24ec83ed0c220bb1b5
+- https://github.com/Johnny-Kao/CodecCat/commit/2e152c955ede0e38ac49a06275ac70cb953ab16f
+
+Winner: `hop1_gemv`
+
+Accepted mechanism:
+- compute the fused linear score as `w @ x + b` instead of `x @ w.T + b`;
+- preserve the same float64 conversion and model weights;
+- only change the equivalent matrix-vector orientation.
+
+Correctness:
+- evaluated: **418**
+- hits: **365**
+- Top-1: **87.3206%**
+- exact final ranking mismatch vs P12: **0**
+- fitted-state cache: **hit**
+- no retraining.
+
+Same-run pooled runtime:
+- P12 baseline: **~91.348 us/sample**
+- P14 GEMV: **~90.543 us/sample**
+- speedup: **1.00889x**
+- runtime reduction: **~0.88%**
+- all four folds improved.
+
+Rejected:
+- float64 feature storage preserving float32-rounded values: ~0.9752x; regression.
+- float64 feature + GEMV: ~0.9783x; regression.
+
+Decision:
+- **P14 is accepted and locked.**
+- Carry forward row-oriented GEMV only.
+- Do not carry float64 feature storage.
+- Next target should use the P13 profile: downstream is the second-largest measured component (~23.8%).

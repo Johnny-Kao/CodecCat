@@ -107,3 +107,62 @@ Only the paired delta is authoritative for this gate.
 `CC-MAIN-2026-30` remains untouched by R7 selection and training.
 
 If HMT4096 passes the controlled full-pipeline gate, the next external validation must use a newly reserved crawl before production acceptance.
+
+
+## Controlled paired full-pipeline result — REJECTED
+
+Authoritative paired run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37357863157
+
+The historical cached fold state was originally built from 420 external rows but retains only 418 evaluable rows. Therefore R7 does **not** compare a retrain directly to historical 365/418.
+
+Instead, both arms were retrained from scratch on the exact same reconstructable corpus, fold assignment, legacy rows, and downstream pipeline.
+
+### Paired result
+
+Baseline RL HMT768:
+- evaluated: 417
+- hits: **362**
+- Top-1: **86.8106%**
+- RL: **35/40 = 87.50%**
+
+Candidate RL HMT4096:
+- evaluated: 417
+- hits: **359**
+- Top-1: **86.0911%**
+- RL: **33/40 = 82.50%**
+
+Candidate minus baseline:
+- overall hits: **-3**
+- overall Top-1: **-0.7194 pp**
+- RL hits: **-2**
+- RL Top-1: **-5.00 pp**
+
+Decision:
+- **R7 HMT4096 is rejected.**
+- Do not modify the clean production runtime.
+- Do not validate HMT4096 on a new untouched crawl.
+- The raw improvement on frozen CC-MAIN-2026-34 did not survive controlled cross-fold retraining.
+- The failure occurs in RL itself, not merely through collateral downstream changes.
+- Generic sampling-budget expansion is therefore not a stable solution to the RL problem.
+
+Interpretation:
+- R6 correctly identified RL as the structural weakness;
+- R7 shows that "more generic sampled bytes" overfits the development crawl;
+- the next experiment should target **which sparse high-byte evidence is missing**, not simply increase byte budget.
+
+## R8 direction
+
+R8 should test compact RL-only feature augmentation derived from the first 4096 bytes already inspected by routing.
+
+High-value candidate signals:
+- coarse 0x80-0xFF distribution bins;
+- C1-control-range share (0x80-0x9F), useful for Windows-vs-ISO discrimination;
+- coarse high-byte entropy / concentration;
+- full 4K high-byte ratio.
+
+Requirements:
+- HMT768 base representation remains unchanged;
+- non-RL behavior must remain unchanged by construction;
+- candidates must be compared by paired cross-fold full-pipeline retraining before any external holdout;
+- CC-MAIN-2026-30 remains untouched.

@@ -12,6 +12,7 @@ from pathlib import Path
 
 import numpy as np
 import requests
+import time
 from warcio.archiveiterator import ArchiveIterator
 
 sys.path.append(str(Path(__file__).parent))
@@ -166,9 +167,21 @@ def route_bucket(data):
 
 
 def fetch_paths():
-    r = requests.get(WARC_PATHS_URL, headers={"User-Agent": UA}, timeout=60)
-    r.raise_for_status()
-    return [x.strip() for x in gzip.decompress(r.content).decode().splitlines() if x.strip()]
+    last_error = None
+    for attempt in range(4):
+        try:
+            r = requests.get(WARC_PATHS_URL, headers={"User-Agent": UA}, timeout=60)
+            r.raise_for_status()
+            return [
+                x.strip()
+                for x in gzip.decompress(r.content).decode().splitlines()
+                if x.strip()
+            ]
+        except requests.RequestException as exc:
+            last_error = exc
+            if attempt < 3:
+                time.sleep(2 ** attempt)
+    raise last_error
 
 
 def deterministic_paths(paths):

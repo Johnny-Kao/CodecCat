@@ -1225,3 +1225,39 @@ Acceptance:
 - same-run speedup over P5;
 - cached-state reproducibility check passes;
 - public GitHub Actions only.
+
+
+## P6 locked — cached fitted state + residual control-path fast paths
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37335456909
+
+Cached fitted state:
+- cache status on first validated run: `miss_built`
+- corpus fingerprint: `aea19348bfe9838fc68e1b1c8f5d95eb7d78097df6d89e801de36f8f31946d9f`
+- evaluated rows: 418
+- external rows: 420
+- serialized state size: ~5.68 MB
+- one-time training cost: ~369.3 s
+
+Winner: `combined`
+- accepted mechanisms: no unnecessary rank copy + direct top-3 membership checks
+- hits: **365/418**
+- Top-1: **87.3206%**
+- ranking mismatch vs P5: **0**
+- P5 same-run baseline: ~86.85 us/sample
+- P6 winner: ~83.91 us/sample
+- speedup vs P5: **1.035x**
+- runtime reduction: **~3.38%**
+
+Component effects:
+- `no_rank_copy`: ~1.017x
+- `direct_membership`: ~1.022x
+- combined: ~1.035x
+
+Decision:
+- **P6 performance result is accepted and locked.**
+- Before opening P7, re-run the same workflow once and require `cache_status=hit`.
+- P7 and later should reuse the cached fitted fold state and must not retrain identical folds.
+- Preserve 365/418 and exact ranking identity.
+- Public CodecCat GitHub Actions remains the benchmark authority.

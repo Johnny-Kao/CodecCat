@@ -2281,3 +2281,54 @@ P15 same-run result:
 Research status:
 - **performance optimization converged**
 - next work should be consolidation / clean implementation / staging evidence, not another speculative micro-optimization tournament.
+
+
+## Clean package + three-way benchmark milestone — 2026-10-06
+
+### R3 clean-runtime equivalence: PASS
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37349822329
+
+Results:
+- package unit tests: 4 passed
+- wheel + sdist build: PASS
+- evaluated: 418
+- hits: 365
+- Top-1: 87.3206%
+- full ranking mismatches vs locked P15: 0
+- route mismatches: 0
+- corpus fingerprint unchanged: `aea19348bfe9838fc68e1b1c8f5d95eb7d78097df6d89e801de36f8f31946d9f`
+
+Decision:
+- clean `src/codeccat/` runtime is behaviorally equivalent to locked P15 on the canonical validation set;
+- R3 is closed;
+- do not reopen P17-style micro-optimization absent a material clean-runtime regression or new architecture.
+
+### R4 three-way held-out benchmark: PASS
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37350744525
+
+Accuracy:
+- chardet 7.6.0: 401/418 = 95.9330%
+- CodecCat: 365/418 = 87.3206%
+- charset-normalizer 3.5.2: 364/418 = 87.0813%
+
+Median same-run latency:
+- CodecCat: ~129.64 µs/sample
+- charset-normalizer: ~903.42 µs/sample
+- chardet 7: ~960.29 µs/sample
+
+Relative:
+- charset-normalizer ~6.97× CodecCat latency
+- chardet 7 ~7.41× CodecCat latency
+
+Interpretation:
+- CodecCat has reached the intended development position versus charset-normalizer: essentially equal/slightly higher held-out accuracy with much lower measured runtime;
+- chardet 7 remains materially more accurate;
+- next active research layer is R5 release-model/generalization, not runtime micro-optimization.
+
+Important:
+- these CodecCat numbers are pooled fold-held-out evidence;
+- no single fold model is a valid release model.

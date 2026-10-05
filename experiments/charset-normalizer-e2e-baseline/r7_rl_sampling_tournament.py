@@ -7,6 +7,7 @@ from collections import Counter
 
 import joblib
 import numpy as np
+from pathlib import Path
 
 import charset_external_scorer_domain_shift_ab as base
 import charset_training_tournament as trainmod
@@ -158,25 +159,67 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--state", required=True)
     parser.add_argument("--development-crawl", default="CC-MAIN-2026-34")
+    parser.add_argument("--development-corpus-cache", required=True)
     args = parser.parse_args()
 
     state = joblib.load(args.state)
     legacy = legacy_rl_rows()
     canonical = canonical_development_rows(state)
-    # Collect the selected development crawl exactly once. Avoid a redundant
-    # Common Crawl pass that can change the live range-request sample under
-    # transient availability/rate limiting.
-    old_crawl = base.CRAWL
-    old_url = base.WARC_PATHS_URL
-    try:
-        base.CRAWL = args.development_crawl
-        base.WARC_PATHS_URL = f"https://data.commoncrawl.org/crawl-data/{args.development_crawl}/warc.paths.gz"
-        dev_rows, _, dev_stats = base.collect_external()
-    finally:
-        base.CRAWL = old_crawl
-        base.WARC_PATHS_URL = old_url
+    cache_path = Path(args.development_corpus_cache)
+    if cache_path.exists():
+        cached = joblib.load(cache_path)
+        if cached.get("schema") != 1 or cached.get("crawl") != args.development_crawl:
+            raise RuntimeError("R7 development corpus cache metadata mismatch")
+        test_rl = cached["rows"]
+        dev_stats = cached["collection_stats"]
+        corpus_source = "cache-hit"
+    else:
+        # Freeze one expanded RL development sample. Live Common Crawl range
+        # availability can vary between runs, so architecture selection must
+        # not silently compare different byte sets.
+        old = {
+            "CRAWL": base.CRAWL,
+            "WARC_PATHS_URL": base.WARC_PATHS_URL,
+            "N_WARC_FILES": base.N_WARC_FILES,
+            "MAX_ACCEPTED": base.MAX_ACCEPTED,
+            "MAX_ROUTE": dict(base.MAX_ROUTE),
+            "TARGET_RESIDUAL": base.TARGET_RESIDUAL,
+        }
+        try:
+            base.CRAWL = args.development_crawl
+            base.WARC_PATHS_URL = f"https://data.commoncrawl.org/crawl-data/{args.development_crawl}/warc.paths.gz"
+            base.N_WARC_FILES = 64
+            base.MAX_ACCEPTED = 640
+            base.MAX_ROUTE = {"U": 160, "N": 80, "R": 440}
+            base.TARGET_RESIDUAL = 360
+            dev_rows, _, stats = base.collect_external()
+            test_rl = [row for row in dev_rows if row["route"] == "RL"]
+            dev_stats = dict(stats)
+        finally:
+            base.CRAWL = old["CRAWL"]
+            base.WARC_PATHS_URL = old["WARC_PATHS_URL"]
+            base.N_WARC_FILES = old["N_WARC_FILES"]
+            base.MAX_ACCEPTED = old["MAX_ACCEPTED"]
+            base.MAX_ROUTE = old["MAX_ROUTE"]
+            base.TARGET_RESIDUAL = old["TARGET_RESIDUAL"]
 
-    test_rl = [row for row in dev_rows if row["route"] == "RL"]
+        if len(test_rl) < 50:
+            raise RuntimeError(
+                f"expanded R7 development collection produced only {len(test_rl)} RL rows; "
+                "refuse to freeze an undersized architecture-selection corpus"
+            )
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        joblib.dump(
+            {
+                "schema": 1,
+                "crawl": args.development_crawl,
+                "rows": test_rl,
+                "collection_stats": dev_stats,
+            },
+            cache_path,
+            compress=3,
+        )
+        corpus_source = "newly-frozen"
     known = set(row["label"] for row in legacy)
     train_rows = legacy + [row for row in canonical if row["label"] in known]
 
@@ -207,6 +250,8 @@ def main():
         "development_test": {
             "crawl": args.development_crawl,
             "rl_rows": len(test_rl),
+            "corpus_source": corpus_source,
+            "corpus_cache": str(cache_path),
             "collection_stats": dict(dev_stats),
             "release_holdout_used": False,
             "cc_main_2026_30_used": False,

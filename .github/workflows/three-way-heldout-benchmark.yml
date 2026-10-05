@@ -1,0 +1,44 @@
+name: Three-way held-out benchmark
+
+on:
+  push:
+    branches:
+      - staging/initial-package
+    paths:
+      - ".github/workflows/three-way-heldout-benchmark.yml"
+      - "benchmarks/heldout_three_way.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PAIR_A: utf-8
+      PAIR_B: utf-8-sig
+      PYTHONHASHSEED: "0"
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pinned benchmark dependencies
+        run: |
+          python -m pip install --no-cache-dir             numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1             joblib==1.6.0 requests==2.34.2 warcio==1.8.1             charset-normalizer==3.5.2 chardet==7.6.0
+          python -m pip install -e .
+      - name: Restore authoritative fitted fold state
+        uses: actions/cache@v4
+        with:
+          path: .cache/codeccat/folds-v1.joblib
+          key: codeccat-fold-v1-py312-sklearn191-ccmain202639-training-v1
+          fail-on-cache-miss: true
+      - name: Run three-way held-out benchmark
+        working-directory: experiments/charset-normalizer-e2e-baseline
+        run: |
+          PYTHONPATH=../../src:.:../.. python ../../benchmarks/heldout_three_way.py             --state ../../.cache/codeccat/folds-v1.joblib

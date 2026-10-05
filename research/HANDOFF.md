@@ -1636,3 +1636,64 @@ Decision:
 - P12 baseline = all locked P7-P11 mechanisms.
 - Preserve 365/418 and exact final ranking identity.
 - Cached fitted state remains mandatory.
+## P11 locked — uint8 bigram wraparound microkernel
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37341994563
+
+Implementation commits:
+- https://github.com/Johnny-Kao/CodecCat/commit/2f8df28067fedbe87feebeb4fe8c8928384a4806
+- https://github.com/Johnny-Kao/CodecCat/commit/c0b5aa02a0057691315274c29c448714c81d5eca
+
+Winner: `hop1_uint8_op`
+
+Accepted mechanism:
+- compute bigram bins with native uint8 wraparound via `a[:-1] + a[1:]`;
+- eliminate the uint16 -> mask -> int32 cast chain while preserving modulo-256 semantics.
+
+Correctness:
+- evaluated: **418**
+- hits: **365**
+- Top-1: **87.3206%**
+- exact final ranking mismatch vs P10: **0**
+- fitted-state cache: **hit**
+- corpus fingerprint unchanged:
+  `aea19348bfe9838fc68e1b1c8f5d95eb7d78097df6d89e801de36f8f31946d9f`
+- no retraining.
+
+Same-run pooled runtime:
+- P10 baseline: **~63.654 us/sample**
+- P11 `hop1_uint8_op`: **~60.048 us/sample**
+- speedup vs P10: **1.06004x**
+- runtime reduction: **~5.66%**
+
+Other candidates:
+- `hop1_uint8_add`: ~1.05436x
+- `hop1_divide_out`: ~1.01342x
+- `hop2_uint8_add_divide`: ~1.05666x
+- `hop2_uint8_op_divide`: ~1.05567x
+
+Decision:
+- **P11 is accepted and locked.**
+- Carry forward only native uint8 bigram wraparound.
+- Do not carry `divide_out` merely because it is individually positive; it reduced the uint8 winner's gain in this run.
+- P12 baseline = P7 scalar triad + P8 route metadata/direct raw + P9 ndarray argsort + P10 preallocated feature output + P11 uint8 bigram wraparound.
+- Preserve 365/418 and exact final ranking identity.
+- Cached fitted state remains mandatory.
+- Public CodecCat GitHub Actions remains benchmark authority.
+
+### P12 direction — normalized-count temporary elimination
+
+Use one cached-state tournament around the remaining feature-kernel float temporaries:
+1. remove unigram `counts.astype(np.float32)` by casting/normalizing directly into the preallocated output slice;
+2. remove bigram `bincount(...).astype(np.float32)` the same way;
+3. compare direct `np.divide(..., out=..., casting="unsafe")` with assignment + in-place multiply and direct `np.multiply(..., out=...)`;
+4. test unigram/bigram components separately before orthogonal combinations;
+5. retain P11 uint8 bigram wraparound in every candidate.
+
+Acceptance:
+- 365/418;
+- exact final ranking mismatch = 0;
+- measurable same-run speedup over locked P11;
+- cache hit required;
+- public GitHub Actions only.

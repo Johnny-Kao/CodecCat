@@ -3035,3 +3035,23 @@ Decision:
 ### P15 direction
 
 Re-profile the locked P14 full path before selecting the next optimization family. P14 materially changed the downstream share, so the P13 residual profile is no longer authoritative for prioritization.
+## P15 locked-P14 residual profile complete
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37344140427
+
+Profile commits:
+- https://github.com/Johnny-Kao/CodecCat/commit/cf702c0a8eee8e62ed89cacc76be8d3f4eb4486a
+- https://github.com/Johnny-Kao/CodecCat/commit/3b927b669093faaa67880df3c75ced8f6ec08e68
+
+Directional isolated shares on the locked P14 path:
+- feature kernel: **~34.87%**
+- downstream: **~15.86%**
+- score/order: **~15.11%**
+- byte analysis: **~12.73%**
+- context construction: **~8.78%**
+
+Decision:
+- feature remains the largest residual component;
+- however, the previously tested combined-histogram mechanism is rejected;
+- split feature and score/order into primitive costs before choosing the next implementation.

@@ -1744,3 +1744,63 @@ Decision:
 - P13 must first profile the locked P12 pipeline because the next dominant hotspot is no longer obvious.
 - Preserve 365/418 and exact final ranking identity.
 - Cached fitted state remains mandatory.
+## P12 locked — direct cast into output + in-place reciprocal multiply
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37342438932
+
+Implementation commits:
+- https://github.com/Johnny-Kao/CodecCat/commit/7a6c92ad2443d80c8d810e707b7b7ba4eeb8053c
+- https://github.com/Johnny-Kao/CodecCat/commit/ef43512ee4b8823099616dfe97bf065bd89dea15
+
+Winner: `hop2_both_assign_multiply`
+
+Accepted mechanism:
+- write integer unigram/bigram counts directly into the preallocated float32 output slices;
+- normalize each slice in place with reciprocal multiplication;
+- eliminate both temporary `astype(np.float32)` arrays.
+
+Correctness:
+- evaluated: **418**
+- hits: **365**
+- Top-1: **87.3206%**
+- exact final ranking mismatch vs P11: **0**
+- fitted-state cache: **hit**
+- corpus fingerprint unchanged:
+  `aea19348bfe9838fc68e1b1c8f5d95eb7d78097df6d89e801de36f8f31946d9f`
+- no retraining.
+
+Same-run pooled runtime:
+- P11 baseline: **~39.535 us/sample**
+- P12 `hop2_both_assign_multiply`: **~38.753 us/sample**
+- speedup vs P11: **1.02016x**
+- runtime reduction: **~1.98%**
+
+Rejected / do not carry forward:
+- unigram direct divide: ~0.9591x;
+- bigram direct divide: ~0.9249x;
+- both direct divide: ~0.9778x;
+- both direct multiply: ~0.9901x.
+
+Decision:
+- **P12 is accepted and locked.**
+- Carry forward assignment + in-place reciprocal multiply for both count vectors.
+- Do not carry direct divide/direct multiply variants.
+- Preserve 365/418 and exact final ranking identity.
+- Cached fitted state remains mandatory.
+- Public CodecCat GitHub Actions remains benchmark authority.
+
+### P13 direction — residual pipeline profile before further optimization
+
+The remaining dominant cost is no longer obvious after P7-P12. Run one cached-state residual profile before selecting the next optimization family.
+
+Measure on the locked P12 path:
+1. feature kernel;
+2. fused linear score + argsort/rank materialization;
+3. byte/context analysis (`strict_utf8`, BOM, high/nul scan);
+4. context object construction;
+5. downstream reranker;
+6. full end-to-end inference.
+
+Use the profile only to choose P13 optimization targets; do not treat isolated component sums as exact additive wall time.
+No retraining. Public GitHub Actions only.

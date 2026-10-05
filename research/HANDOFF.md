@@ -1874,3 +1874,34 @@ Acceptance:
 - measurable same-run speedup over locked P12;
 - cache hit required;
 - public GitHub Actions only.
+
+
+## P14 pending — feature-to-linear boundary tournament
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37343012381
+
+Implementation commits:
+- https://github.com/Johnny-Kao/CodecCat/commit/e2eeec3738fc5c36a59c5c24ec83ed0c220bb1b5
+- https://github.com/Johnny-Kao/CodecCat/commit/2e152c955ede0e38ac49a06275ac70cb953ab16f
+
+Status at handoff/update:
+- workflow is queued for a GitHub-hosted runner;
+- no benchmark result yet;
+- this is not a code/test failure.
+
+Candidates:
+- locked P12 baseline;
+- feature vector stored as float64 while preserving each locked float32-rounded feature value;
+- equivalent `w @ x` GEMV orientation;
+- orthogonal combination.
+
+Purpose:
+- remove the per-sample 518-element float32 -> float64 conversion at the feature/linear boundary;
+- test whether matrix-vector orientation improves the small-class linear scorer.
+
+Acceptance remains:
+- 365/418;
+- exact final ranking mismatch = 0;
+- cache hit;
+- measurable same-run speedup over locked P12.

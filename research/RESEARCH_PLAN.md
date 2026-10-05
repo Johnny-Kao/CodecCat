@@ -1814,3 +1814,59 @@ Validation plan once Actions capacity is available:
 Do not optimize the native scorer kernel before P1 removes redundant scorer
 invocations; otherwise benchmark effort would optimize work that should not
 exist.
+
+
+## P1 locked — cached inference context
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37316898233
+
+Canonical accuracy:
+- evaluated: 418
+- hits: 365
+- Top-1: **87.3206%**
+- charset-normalizer reference: **87.1429%**
+- exact ranking mismatches versus canonical old path: **0**
+
+Scorer work:
+- old `scorer_features()` calls: 1463 / 418 = **3.5 per sample**
+- cached calls: 418 / 418 = **1.0 per sample**
+- feature/scorer invocation reduction: **71.43%**
+
+Runtime, pooled over 7 timing repeats:
+- old: **~2.021 ms/sample**
+- cached: **~1.113 ms/sample**
+- speedup: **1.816x**
+- runtime reduction: **~44.9%**
+
+Fold speedups:
+- fold 0: 1.828x
+- fold 1: 1.677x
+- fold 2: 1.902x
+- fold 3: 1.637x
+
+Decision:
+- **P1 is accepted and locked.**
+- The new runtime baseline is the canonical 87.32% pipeline with a single
+  per-sample inference context.
+- All downstream reranker/specialist stages must reuse the same base feature
+  vector, raw scores, rank, score map, and byte-analysis signals.
+- Do not reintroduce duplicate base scorer evaluation.
+
+### P2 — scorer kernel optimization
+
+Next objective:
+- preserve **365/418 Top-1** and **0 ranking mismatch**
+- preserve **1 base scorer evaluation per sample**
+- reduce the cost of building the 518-dim H/M/T feature vector and applying the
+  linear scorer.
+
+Priority:
+1. profile the cached pipeline and isolate scorer-kernel share;
+2. optimize H/M/T byte statistics with the smallest coherent implementation;
+3. prefer reuse / LUT / integer-count paths before native extensions;
+4. validate exact feature/ranking equivalence;
+5. benchmark end-to-end, not microbench only.
+
+Do not change model weights, routing, calibration, specialists, or the 0.02
+replacement-rate guard during P2.

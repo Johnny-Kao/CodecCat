@@ -40,16 +40,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cache/codeccat/folds-v1.joblib
-          key: codeccat-fold-v1-py312-sklearn191-${{ hashFiles(
-            'experiments/charset-normalizer-e2e-baseline/charset_external_scorer_domain_shift_ab.py',
-            'experiments/charset-normalizer-e2e-baseline/charset_external_scorer_learning_curve.py',
-            'experiments/charset-normalizer-e2e-baseline/charset_candidate_calibration_ab.py',
-            'experiments/charset-normalizer-e2e-baseline/charset_triad_specialist_ab.py',
-            'experiments/charset-normalizer-e2e-baseline/charset_pair_specialist_ab.py',
-            'experiments/charset-normalizer-e2e-baseline/charset_canonical_guarded_final_validation.py',
-            'experiments/charset-normalizer-e2e-baseline/charset_training_tournament.py',
-            'experiments/charset-normalizer-e2e-baseline/charset_cost_aware_routing_tree.py'
-          ) }}
+          key: codeccat-fold-v1-py312-sklearn191-ccmain202639-training-v1
       - name: Build or validate cached fold state
         env:
           PYTHONHASHSEED: "0"

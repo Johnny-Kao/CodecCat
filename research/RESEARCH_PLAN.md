@@ -2766,3 +2766,45 @@ P14 priority:
 2. compare current `x @ w.T` with equivalent `w @ x` GEMV orientation;
 3. test the orthogonal combination;
 4. optionally test float32 fused weights only as an exploratory candidate behind exact 418-output correctness gating.
+## P13 residual profile complete — feature kernel remains dominant
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37342763853
+
+Profile commits:
+- https://github.com/Johnny-Kao/CodecCat/commit/352b545a1d2a7bf87873d8a1dddf22a0876e8c6f
+- https://github.com/Johnny-Kao/CodecCat/commit/38146914657043fd378d3358fa83dc8a4f414305
+
+Cache:
+- fitted-state cache: **hit**
+- corpus fingerprint unchanged:
+  `aea19348bfe9838fc68e1b1c8f5d95eb7d78097df6d89e801de36f8f31946d9f`
+- no retraining.
+
+Directional isolated shares versus same-run full locked-P12 path:
+- feature kernel: **~27.27%**
+- downstream reranker: **~16.41%**
+- score/order: **~12.07%**
+- byte analysis: **~9.76%**
+- context construction: **~6.39%**
+
+Interpretation:
+- isolated timings are directional, not additive;
+- feature construction is still the largest actionable single component after P7-P12;
+- continue feature-kernel work before returning to byte/context paths.
+
+### P13 optimization direction — fuse unigram + bigram histogram
+
+Test exact-equivalence candidates that replace two separate `np.bincount` calls with one combined 512-bin histogram:
+1. locked P12 two-bincount baseline;
+2. one combined histogram with uint16 index storage;
+3. one combined histogram with native `np.intp` index storage;
+4. preserve P11 uint8 wraparound and P12 in-place normalization;
+5. correctness gate all 418 outputs before timing.
+
+Acceptance:
+- 365/418;
+- exact final ranking mismatch = 0;
+- measurable same-run speedup over locked P12;
+- cache hit required;
+- public GitHub Actions only.

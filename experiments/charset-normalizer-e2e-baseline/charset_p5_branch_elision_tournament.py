@@ -53,7 +53,7 @@ class P5Downstream(p4.P4Downstream):
 
     def hybrid(self,ctx):
         rank=list(ctx.rank)
-        rule=self.rule_rerank(ctx)
+        rule=p1.cached_rule_rerank(ctx)
         if self.skip_cal_on_rule and rule and rank and rule[0]!=rank[0]:
             return rule
         cal=self.choose_cal(ctx)

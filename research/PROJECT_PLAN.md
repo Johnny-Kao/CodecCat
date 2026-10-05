@@ -393,3 +393,22 @@ Next:
 - preserve all non-RL routes;
 - preserve the P15 performance architecture where possible;
 - keep `CC-MAIN-2026-30` untouched.
+
+
+## R7 outcome — generic RL sampling expansion rejected
+
+Evidence:
+- frozen development tournament: https://github.com/Johnny-Kao/CodecCat/actions/runs/37357086041
+- paired full-pipeline A/B: https://github.com/Johnny-Kao/CodecCat/actions/runs/37357863157
+- detailed record: `research/R7_RL_REPRESENTATION.md`
+
+Although HMT4096 improved raw RL ranking on one frozen development crawl, it regressed under controlled paired cross-fold retraining:
+- overall: -0.7194 pp;
+- RL: -5.00 pp.
+
+Therefore:
+- keep HMT768;
+- do not promote or externally validate HMT4096;
+- advance to **R8 compact RL-specific high-byte feature research**;
+- use paired full-pipeline cross-fold evidence as the first gate;
+- keep CC-MAIN-2026-30 untouched.

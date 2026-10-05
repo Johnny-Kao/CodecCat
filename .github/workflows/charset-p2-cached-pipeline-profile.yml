@@ -1,0 +1,45 @@
+name: P2 cached pipeline profile
+
+on:
+  push:
+    branches:
+      - research/charset-normalizer-e2e-baseline
+    paths:
+      - ".github/workflows/charset-p2-cached-pipeline-profile.yml"
+      - "experiments/charset-normalizer-e2e-baseline/charset_p2_cached_pipeline_profile.py"
+      - "experiments/charset-normalizer-e2e-baseline/charset_p1_cached_inference_context_ab.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  profile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          path: test-data
+          fetch-depth: 1
+      - uses: actions/checkout@v4
+        with:
+          repository: Ousret/char-dataset
+          ref: master
+          path: char-dataset
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --no-cache-dir numpy scikit-learn requests warcio
+      - name: Profile cached pipeline
+        env:
+          PAIR_A: utf-8
+          PAIR_B: utf-8-sig
+          PYTHONHASHSEED: "0"
+          OMP_NUM_THREADS: "1"
+          OPENBLAS_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+        run: python experiments/charset-normalizer-e2e-baseline/charset_p2_cached_pipeline_profile.py

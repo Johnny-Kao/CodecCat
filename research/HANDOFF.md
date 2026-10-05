@@ -993,3 +993,59 @@ Acceptance:
 - exact final ranking equivalence on all 418 samples;
 - 365 hits;
 - choose the fastest pooled candidate.
+
+
+## P2 locked — full-pipeline fusion winner
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37320147496
+
+Winner: `all_combined`
+
+Correctness:
+- evaluated: 418
+- hits: 365
+- Top-1: **87.3206%**
+- final ranking mismatches versus P1 canonical baseline: **0**
+- base-rank mismatches: **0**
+
+P2 pooled runtime:
+- P1 cached baseline: **~1.141 ms/sample**
+- P2 all-combined: **~0.231 ms/sample**
+- speedup vs P1 cached baseline: **4.944x**
+- runtime reduction vs P1 cached baseline: **79.77%**
+
+Fold speedups were consistently ~4.8–5.0x.
+
+Main contributors:
+- downstream estimator fusion: ~1.85x
+- base linear scorer fusion: ~1.29x alone
+- byte-analysis fast path: ~1.05x alone
+- feature-combined path: ~1.04x alone
+- downstream + linear: ~3.72x
+- downstream + linear + byte: ~4.30x
+- all combined: **4.94x**
+
+Decision:
+- **P2 is accepted and locked.**
+- New runtime baseline = P2 `all_combined`.
+- Preserve exact ranking identity and 365/418 accuracy in all later work.
+- GitHub Actions in this public repo is the benchmark authority; do not use the user's local computer as a validation environment.
+
+### P3 direction
+
+Use multi-hop tournaments, not one-hypothesis-per-run.
+
+Priority candidates:
+1. remove residual Python object/dict/list construction in the hot path;
+2. precompute immutable class/family/route indices and specialist feature layouts;
+3. replace repeated generic NumPy/sklearn-shaped helper work with fixed-shape arithmetic;
+4. reduce repeated UTF-8 / replacement-rate scans via a single byte-analysis pass;
+5. explore batch/fixed-width scorer paths only if single-sample semantics remain identical.
+
+Acceptance gate:
+- 365/418 hits;
+- final ranking mismatch = 0 on all 418 samples;
+- no base-rank mismatch;
+- measurable pooled end-to-end speedup over P2;
+- validate on public GitHub Actions only.

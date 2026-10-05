@@ -17,6 +17,13 @@ jobs:
   tournament:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    env:
+      PAIR_A: utf-8
+      PAIR_B: utf-8-sig
+      PYTHONHASHSEED: "0"
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
@@ -42,18 +49,6 @@ jobs:
           path: .cache/codeccat/folds-v1.joblib
           key: codeccat-fold-v1-py312-sklearn191-ccmain202639-training-v1
       - name: Build or validate cached fold state
-        env:
-          PYTHONHASHSEED: "0"
-          OMP_NUM_THREADS: "1"
-          OPENBLAS_NUM_THREADS: "1"
-          MKL_NUM_THREADS: "1"
         run: python experiments/charset-normalizer-e2e-baseline/charset_cached_fold_state.py --state .cache/codeccat/folds-v1.joblib
       - name: Run P6 cached-state tournament
-        env:
-          PAIR_A: utf-8
-          PAIR_B: utf-8-sig
-          PYTHONHASHSEED: "0"
-          OMP_NUM_THREADS: "1"
-          OPENBLAS_NUM_THREADS: "1"
-          MKL_NUM_THREADS: "1"
         run: python experiments/charset-normalizer-e2e-baseline/charset_p6_cached_state_tournament.py --state .cache/codeccat/folds-v1.joblib

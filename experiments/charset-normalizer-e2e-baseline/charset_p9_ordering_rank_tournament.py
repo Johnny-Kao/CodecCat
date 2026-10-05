@@ -82,6 +82,7 @@ CANDIDATES = {
     "hop1_top3_scores": dict(rank=False, top3=True, method=False, bincount=False),
     "hop1_argsort_method": dict(rank=False, top3=False, method=True, bincount=False),
     "hop1_byte_bincount": dict(rank=False, top3=False, method=False, bincount=True),
+    "hop2_method_top3": dict(rank=False, top3=True, method=True, bincount=False),
     "hop2_rank_top3": dict(rank=True, top3=True, method=False, bincount=False),
     "hop2_rank_top3_method": dict(rank=True, top3=True, method=True, bincount=False),
     "hop3_all": dict(rank=True, top3=True, method=True, bincount=True),

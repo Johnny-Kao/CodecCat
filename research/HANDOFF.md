@@ -1290,3 +1290,48 @@ Use cached state and test exact-equivalence candidates in one tournament:
 2. inline specialist pair branch checks to avoid generic call/list overhead on no-op paths;
 3. combine both mechanisms;
 4. preserve 365/418 and exact ranking identity.
+
+
+## P7 locked — scalar triad microkernel
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37337516488
+
+Winner: `scalar_triad`
+
+Correctness:
+- evaluated: 418
+- hits: 365
+- Top-1: **87.3206%**
+- final ranking mismatch versus P6: **0**
+
+Same-run runtime:
+- P6 baseline: **~112.10 us/sample**
+- P7 scalar_triad: **~105.74 us/sample**
+- speedup vs P6: **1.060x**
+- runtime reduction: **~5.68%**
+
+Other candidates:
+- `inline_pairs`: ~1.0046x
+- `combined`: ~1.052x
+- therefore pair inlining is not retained; scalar triad alone is the new baseline.
+
+Decision:
+- **P7 is accepted and locked.**
+- Cached fitted-state workflow remains mandatory for P8+.
+- Preserve 365/418 and exact final ranking identity.
+
+### P8 direction — ranking and tiny-allocation residuals
+
+Use cached state only. Test in one tournament:
+1. precompute / reuse model class tuples and route-local class metadata;
+2. avoid repeated `np.asarray(raw)` / rank-side temporary creation where safe;
+3. replace tiny score/order operations with fixed-size or cached metadata when exact ordering is preserved;
+4. early-return common no-op specialist paths before list construction;
+5. combine only orthogonal winners.
+
+Acceptance:
+- 365/418;
+- mismatch = 0;
+- same-run speedup over P7;
+- no retraining.

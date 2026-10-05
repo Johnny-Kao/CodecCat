@@ -2631,3 +2631,50 @@ Acceptance:
 - measurable same-run speedup over locked P11;
 - cache hit required;
 - public GitHub Actions only.
+
+
+## P12 locked — reuse existing 4 KiB sample for UTF-8/BOM checks
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37342354063
+
+Implementation commits:
+- https://github.com/Johnny-Kao/CodecCat/commit/ea3aa1f3622dae9c5daf94153b6af7b5a191225c
+- https://github.com/Johnny-Kao/CodecCat/commit/a78c398a4143c12991a767043f19901e007b8bd1
+
+Winner: `hop1_sample_checks`
+
+Accepted mechanism:
+- context construction already owns `sample = data[:4096]`;
+- run strict UTF-8 decode directly on that sample instead of calling a helper that slices `data[:4096]` again;
+- run BOM `startswith` directly on the same sample;
+- semantics are identical because both original helpers inspect the same prefix.
+
+Correctness:
+- evaluated: **418**
+- hits: **365**
+- Top-1: **87.3206%**
+- exact final ranking mismatch vs P11: **0**
+- fitted-state cache: **hit**
+- no retraining.
+
+Same-run pooled runtime:
+- P11 baseline: **~34.998 us/sample**
+- P12 sample checks: **~34.516 us/sample**
+- speedup vs P11: **1.01397x**
+- runtime reduction: **~1.38%**
+
+Other candidates:
+- direct sample decode alone: ~1.0037x.
+- inline BOM alone: ~1.0099x.
+- array-based H/M/T concatenate: ~0.9831x; regression.
+- array-based H/M/T preallocation: ~0.9874x; regression.
+- H/M/T array variants combined with sample checks remained regressions.
+
+Decision:
+- **P12 is accepted and locked.**
+- Carry forward direct checks on the existing 4 KiB sample.
+- Keep the original bytes-based `hmt768`; array restructuring is rejected.
+- P13 must first profile the locked P12 pipeline because the next dominant hotspot is no longer obvious.
+- Preserve 365/418 and exact final ranking identity.
+- Cached fitted state remains mandatory.

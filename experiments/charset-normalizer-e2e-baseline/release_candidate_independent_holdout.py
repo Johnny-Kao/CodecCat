@@ -132,6 +132,23 @@ def fingerprint(rows):
     return h.hexdigest()
 
 
+def deduplicate_rows(rows):
+    seen = set()
+    out = []
+    for sample in rows:
+        digest = hashlib.sha256(sample["data"]).digest()
+        key = (digest, normalize(sample["label"]))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(sample)
+    return out
+
+
+def exact_data_hashes(rows):
+    return {hashlib.sha256(sample["data"]).digest() for sample in rows}
+
+
 def cn_detect(data):
     match = from_bytes(data).best()
     return normalize(match.encoding if match is not None else None)
@@ -210,10 +227,18 @@ def main():
     parser.add_argument("--state", required=True)
     parser.add_argument("--model-out", required=True)
     parser.add_argument("--holdout-crawl", required=True)
+    parser.add_argument("--additional-development-crawl")
     args = parser.parse_args()
 
     state = joblib.load(args.state)
-    dev_rows = unique_development_rows(state)
+    canonical_dev_rows = unique_development_rows(state)
+    additional_dev_rows = []
+    additional_dev_stats = {}
+    if args.additional_development_crawl:
+        additional_dev_rows, _, stats = collect_holdout(args.additional_development_crawl)
+        additional_dev_stats = dict(stats)
+
+    dev_rows = deduplicate_rows(canonical_dev_rows + additional_dev_rows)
     dev_fp = fingerprint(dev_rows)
 
     started = time.perf_counter()
@@ -228,6 +253,16 @@ def main():
     detector = Detector(bundle)
 
     holdout_rows, holdout_paths, holdout_stats = collect_holdout(args.holdout_crawl)
+
+    dev_hashes = exact_data_hashes(dev_rows)
+    exact_overlap_n = sum(
+        hashlib.sha256(sample["data"]).digest() in dev_hashes
+        for sample in holdout_rows
+    )
+    holdout_rows = [
+        sample for sample in holdout_rows
+        if hashlib.sha256(sample["data"]).digest() not in dev_hashes
+    ]
     holdout_fp = fingerprint(holdout_rows)
 
     accuracy = evaluate(holdout_rows, detector)
@@ -243,10 +278,14 @@ def main():
             "replacement_rate_guard": 0.02,
         },
         "development": {
-            "source_crawl": "CC-MAIN-2026-39",
-            "unique_rows_from_canonical_folds": len(dev_rows),
+            "canonical_source_crawl": "CC-MAIN-2026-39",
+            "canonical_rows": len(canonical_dev_rows),
+            "additional_source_crawl": args.additional_development_crawl,
+            "additional_rows_collected": len(additional_dev_rows),
+            "combined_unique_rows": len(dev_rows),
+            "additional_collection_stats": additional_dev_stats,
             "fingerprint": dev_fp,
-            "note": "No independent-holdout row is used for fitting.",
+            "note": "No current independent-holdout row is used for fitting.",
         },
         "release_model": {
             "path": str(model_path),
@@ -259,6 +298,7 @@ def main():
             "n": len(holdout_rows),
             "fingerprint": holdout_fp,
             "warc_paths_considered": len(holdout_paths),
+            "exact_data_overlap_removed": exact_overlap_n,
             "collection_stats": dict(holdout_stats),
         },
         "accuracy": accuracy,

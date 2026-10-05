@@ -82,7 +82,13 @@ class P4Downstream(p3c.IndexedDirectDownstream):
             winner=int(np.argmax((z0,z1,z2)))
         if winner==0: return list(ctx.rank)
         chosen=cand[winner]
-        return move_front(ctx.rank,chosen) if self.no_list_remove else super().choose_cal(ctx)
+        if self.no_list_remove:
+            return move_front(ctx.rank,chosen)
+        out=list(ctx.rank)
+        if chosen in out:
+            out.remove(chosen)
+            out.insert(0,chosen)
+        return out
 
     def gate(self,ctx,hybrid):
         if self.triad is None or not hybrid or hybrid[0] not in tri.TRIAD: return hybrid

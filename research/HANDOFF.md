@@ -1466,3 +1466,66 @@ Acceptance:
 - measurable same-run speedup over locked P8;
 - cache hit required;
 - public GitHub Actions only.
+
+
+## P9 locked — ndarray method-form ordering
+
+Primary run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37340808904
+
+Orthogonal-combination follow-up:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37341177042
+
+P9 implementation commits:
+- https://github.com/Johnny-Kao/CodecCat/commit/eaa0a3d52a8ab3919c61f6c578e6d84eed55c203
+- https://github.com/Johnny-Kao/CodecCat/commit/6dcb97ca6586340bf75e4507a79c8f9cfeff2adb
+
+Accepted mechanism:
+- use `raw.argsort()[::-1]` instead of `np.argsort(raw)[::-1]` on the locked P8 context path.
+
+Correctness:
+- evaluated: **418**
+- hits: **365**
+- Top-1: **87.3206%**
+- exact final ranking mismatch vs P8: **0**
+- fitted-state cache: **hit**
+- no retraining.
+
+Same-run evidence:
+- run 37340808904: `argsort_method` **1.01224x** vs P8 (~1.21% reduction)
+- run 37341177042: `argsort_method` **1.03071x** vs P8 (~2.98% reduction)
+
+Why `method_top3` is NOT carried forward despite being the mechanical winner in the second run:
+- `top3_scores` was +0.44% in the first run but -2.47% in the follow-up;
+- in the follow-up, `method_top3` beat pure `argsort_method` by only ~0.09%;
+- that incremental effect is noise-scale and not independently stable;
+- therefore P9 locks only the reproducibly positive argsort mechanism.
+
+Rejected / do not carry forward:
+- Python tuple rank gather: large regression (~7–8%);
+- byte `bincount`: ~2% regression;
+- top-3-only sorted-score materialization: unstable, not accepted;
+- combinations containing rank gather or bincount: regressions.
+
+Decision:
+- **P9 is accepted and locked.**
+- P10 baseline = P7 scalar triad + P8 cached route metadata/direct raw ndarray + P9 ndarray `argsort` method form.
+- Preserve 365/418 and exact final ranking identity.
+- Cached fitted state remains mandatory.
+- Public CodecCat GitHub Actions remains benchmark authority.
+
+### P10 direction — feature/context residual tournament
+
+Prioritize exact-equivalence mechanisms outside rejected P8/P9 paths:
+1. reduce byte-analysis allocation/passes without `bincount`;
+2. exploit provably-ASCII short inputs to skip redundant UTF-8/BOM checks only when exact;
+3. reduce `features_combined` temporary arrays / concatenate overhead with preallocated output;
+4. test orthogonal combinations in one cached-state Action;
+5. do not reuse memoryview, slots context, Python rank gather, or bincount.
+
+Acceptance:
+- 365/418;
+- exact final ranking mismatch = 0;
+- measurable same-run speedup over locked P9;
+- cache hit required;
+- public GitHub Actions only.

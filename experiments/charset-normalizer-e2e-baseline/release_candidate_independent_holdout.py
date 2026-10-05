@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+# Holdout execution is rooted at the repository root.
+
 import argparse
 import hashlib
 import json

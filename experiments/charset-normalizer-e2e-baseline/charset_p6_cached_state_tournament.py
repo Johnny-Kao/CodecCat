@@ -15,6 +15,7 @@ import charset_p3_allocation_lazy_tournament as p3
 import charset_p5_branch_elision_tournament as p5
 
 TIMING_REPEATS=17
+# Cache-hit verification trigger.
 
 def in_top3(rank,label):
     return rank[0]==label or rank[1]==label or rank[2]==label

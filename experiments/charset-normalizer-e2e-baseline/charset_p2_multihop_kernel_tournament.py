@@ -4,7 +4,6 @@ import hashlib
 import json
 import math
 import time
-from collections import Counter
 
 import numpy as np
 
@@ -28,33 +27,17 @@ def hmt768(data: bytes) -> bytes:
     return data[:256] + data[m-128:m+128] + data[-256:]
 
 
-def features_baseline(data: bytes) -> np.ndarray:
-    return base.scorer_features(data)
-
-
-def _feature_core(data: bytes, scalar_reuse: bool, simplified_bigram: bool) -> np.ndarray:
+def features_combined(data: bytes) -> np.ndarray:
     data = hmt768(data)
     a = np.frombuffer(data, dtype=np.uint8)
     n = max(1, len(a))
-
     counts = np.bincount(a, minlength=256)
     unigram = counts.astype(np.float32) / n
-
     bigram = np.zeros(256, dtype=np.float32)
     if len(a) >= 2:
-        if simplified_bigram:
-            # Exact algebraic identity modulo 256:
-            # (a * 257 + b) & 255 == (a + b) & 255
-            bins = (
-                (a[:-1].astype(np.uint16) + a[1:].astype(np.uint16)) & 255
-            ).astype(np.int32)
-        else:
-            bins = (
-                (a[:-1].astype(np.uint16) * 257 + a[1:].astype(np.uint16)) & 255
-            ).astype(np.int32)
+        bins = ((a[:-1].astype(np.uint16) + a[1:].astype(np.uint16)) & 255).astype(np.int32)
         bigram = np.bincount(bins, minlength=256).astype(np.float32) / (len(a) - 1)
-
-    if scalar_reuse and len(a):
+    if len(a):
         inv = 1.0 / len(a)
         high = float(counts[128:].sum() * inv)
         nul = float(counts[0] * inv)
@@ -62,52 +45,14 @@ def _feature_core(data: bytes, scalar_reuse: bool, simplified_bigram: bool) -> n
         lf = float(counts[10] * inv)
         cr = float(counts[13] * inv)
     else:
-        high = float(np.mean(a >= 128)) if len(a) else 0.0
-        nul = float(np.mean(a == 0)) if len(a) else 0.0
-        printable = float(np.mean((a >= 32) & (a <= 126))) if len(a) else 0.0
-        lf = float(np.mean(a == 10)) if len(a) else 0.0
-        cr = float(np.mean(a == 13)) if len(a) else 0.0
-
+        high = nul = printable = lf = cr = 0.0
     scalars = np.array([
-        math.log2(n + 1) / 16.0,
-        high,
-        nul,
-        printable,
-        lf,
-        cr,
+        math.log2(n + 1) / 16.0, high, nul, printable, lf, cr
     ], dtype=np.float32)
     return np.concatenate([unigram, bigram, scalars])
 
 
-def features_scalar_reuse(data: bytes) -> np.ndarray:
-    return _feature_core(data, True, False)
-
-
-def features_bigram_simplified(data: bytes) -> np.ndarray:
-    return _feature_core(data, False, True)
-
-
-def features_combined(data: bytes) -> np.ndarray:
-    return _feature_core(data, True, True)
-
-
-FEATURES = {
-    "baseline": features_baseline,
-    "scalar_reuse": features_scalar_reuse,
-    "bigram_simplified": features_bigram_simplified,
-    "combined": features_combined,
-}
-
-
-def score_standard(model_tuple, x):
-    scaler, model = model_tuple
-    scores = model.decision_function(scaler.transform(x[None, :]))
-    if scores.ndim == 1:
-        scores = np.column_stack([-scores, scores])
-    return scores[0]
-
-
-def fused_params(model_tuple):
+def fuse_scaler_linear(model_tuple):
     scaler, model = model_tuple
     scale = np.asarray(scaler.scale_, dtype=np.float64)
     mean = np.asarray(scaler.mean_, dtype=np.float64)
@@ -115,37 +60,55 @@ def fused_params(model_tuple):
     intercept = np.asarray(model.intercept_, dtype=np.float64)
     w = coef / scale[None, :]
     b = intercept - (coef * (mean / scale)[None, :]).sum(axis=1)
-    return w, b
+    return model.classes_, w, b
 
 
-def score_fused(model_tuple, x, fused):
-    _, model = model_tuple
-    w, b = fused
+def fused_raw(fused, x):
+    classes, w, b = fused
     z = np.asarray(x, dtype=np.float64) @ w.T + b
-    if len(model.classes_) == 2 and np.ndim(z) == 1 and z.shape[0] == 1:
+    if len(classes) == 2 and z.shape == (1,):
         s = float(z[0])
         return np.asarray([-s, s], dtype=np.float64)
     return np.asarray(z, dtype=np.float64)
 
 
-def byte_values(data):
+def standard_raw(model_tuple, x):
+    scaler, model = model_tuple
+    scores = model.decision_function(scaler.transform(x[None, :]))
+    if scores.ndim == 1:
+        scores = np.column_stack([-scores, scores])
+    return scores[0]
+
+
+def byte_values(data, fast=False):
     sample = data[:4096]
     arr = np.frombuffer(sample, dtype=np.uint8)
-    return (
-        rr.strict_utf8(data),
-        rr.has_utf8_bom(data),
-        rr.ascii_only(data),
-        float(np.mean(arr >= 128)) if len(arr) else 0.0,
-        float(np.mean(arr == 0)) if len(arr) else 0.0,
-        len(arr),
-        canon.replacement_rate(data),
-    )
+    strict = rr.strict_utf8(data)
+    bom = rr.has_utf8_bom(data)
+    if fast:
+        if len(arr):
+            high_count = int(np.count_nonzero(arr >= 128))
+            nul_count = int(np.count_nonzero(arr == 0))
+            high = high_count / len(arr)
+            nul = nul_count / len(arr)
+            ascii_flag = high_count == 0
+        else:
+            high = nul = 0.0
+            ascii_flag = True
+    else:
+        ascii_flag = rr.ascii_only(data)
+        high = float(np.mean(arr >= 128)) if len(arr) else 0.0
+        nul = float(np.mean(arr == 0)) if len(arr) else 0.0
+    rate = canon.replacement_rate(data)
+    return strict, bom, ascii_flag, high, nul, len(arr), rate
 
 
-def build_ctx_from_raw(model_tuple, s, raw):
+def build_ctx(model_tuple, s, feature_mode, linear_mode, fused_model, byte_fast):
+    x = base.scorer_features(s["data"]) if feature_mode == "baseline" else features_combined(s["data"])
+    raw = standard_raw(model_tuple, x) if linear_mode == "standard" else fused_raw(fused_model, x)
     _, model = model_tuple
     order = np.argsort(raw)[::-1]
-    vals = byte_values(s["data"])
+    vals = byte_values(s["data"], fast=byte_fast)
     return p1.InferenceContext(
         data=s["data"],
         route=s["route"],
@@ -162,7 +125,133 @@ def build_ctx_from_raw(model_tuple, s, raw):
     )
 
 
-def downstream(cal, triad_cal, sig_cal, gb_cal, ctx, classes, families):
+def fuse_estimator(est):
+    if est is None:
+        return None
+    scaler, model, *meta = est
+    scale = np.asarray(scaler.scale_, dtype=np.float64)
+    mean = np.asarray(scaler.mean_, dtype=np.float64)
+    coef = np.asarray(model.coef_, dtype=np.float64)
+    intercept = np.asarray(model.intercept_, dtype=np.float64)
+    w = coef / scale[None, :]
+    b = intercept - (coef * (mean / scale)[None, :]).sum(axis=1)
+    return model.classes_, w, b
+
+
+class FastDownstream:
+    def __init__(self, cal, triad_cal, sig_cal, gb_cal, classes, families):
+        self.cal = fuse_estimator(cal)
+        self.triad = fuse_estimator(triad_cal)
+        self.sig = fuse_estimator(sig_cal)
+        self.gb = fuse_estimator(gb_cal)
+        self.class_idx = {c: i for i, c in enumerate(classes)}
+        self.fam_idx = {c: i for i, c in enumerate(families)}
+        self.classes = classes
+        self.families = families
+
+    def candidate_feature(self, ctx, candidate, rank_idx, score, top_score, second_score):
+        vec = [
+            float(score),
+            float(score - top_score),
+            float(score - second_score),
+            float(rank_idx),
+            float(ctx.has_utf8_bom),
+            float(ctx.strict_utf8),
+            float(ctx.ascii_only),
+        ]
+        route_oh = [1.0 if ctx.route == r else 0.0 for r in calmod.ROUTES]
+        cand_oh = [0.0] * len(self.classes)
+        ci = self.class_idx.get(candidate)
+        if ci is not None:
+            cand_oh[ci] = 1.0
+        fam_oh = [0.0] * len(self.families)
+        fi = self.fam_idx.get(calmod.fam(candidate))
+        if fi is not None:
+            fam_oh[fi] = 1.0
+        return np.asarray(vec + route_oh + cand_oh + fam_oh, dtype=np.float32)
+
+    def choose_cal(self, ctx):
+        if self.cal is None or len(ctx.rank) < 2:
+            return list(ctx.rank)
+        _, w, b = self.cal
+        top_score = float(ctx.sorted_scores[0])
+        second_score = float(ctx.sorted_scores[1])
+        cand = list(ctx.rank[:calmod.TOP_CANDIDATES])
+        X = np.stack([
+            self.candidate_feature(
+                ctx, c, i, float(ctx.sorted_scores[i]), top_score, second_score
+            )
+            for i, c in enumerate(cand)
+        ])
+        # Candidate calibrator is binary. P(class=1) is monotonic in its logit,
+        # so argmax probability == argmax positive-class logit.
+        z = X.astype(np.float64) @ w[0] + b[0]
+        winner = int(np.argmax(z))
+        out = list(ctx.rank)
+        if winner != 0:
+            chosen = out.pop(winner)
+            out.insert(0, chosen)
+        return out
+
+    def hybrid(self, ctx):
+        rank = list(ctx.rank)
+        rule_rank = p1.cached_rule_rerank(ctx)
+        cal_rank = self.choose_cal(ctx)
+        return rule_rank if (rule_rank and rank and rule_rank[0] != rank[0]) else cal_rank
+
+    def gate(self, ctx, hybrid):
+        if self.triad is None or not hybrid or hybrid[0] not in tri.TRIAD:
+            return hybrid
+        if sum(c in tri.TRIAD for c in ctx.rank[:3]) < 2:
+            return hybrid
+        classes, w, b = self.triad
+        x = p1.cached_triad_feature(ctx).astype(np.float64)
+        logits = x @ w.T + b
+        idx = int(np.argmax(logits))
+        shifted = logits - np.max(logits)
+        ex = np.exp(shifted)
+        pmax = float(ex[idx] / ex.sum())
+        pred = classes[idx]
+        if pmax < 0.50 or pred not in ctx.rank[:3]:
+            return hybrid
+        out = list(hybrid)
+        if pred in out:
+            out.remove(pred)
+            out.insert(0, pred)
+        return out
+
+    def pair(self, fused, pair, ctx, baseline):
+        if fused is None or not baseline or baseline[0] not in pair:
+            return baseline
+        if not all(p in ctx.rank[:3] for p in pair):
+            return baseline
+        classes, w, b = fused
+        x = p1.cached_pair_feature(ctx, pair).astype(np.float64)
+        z = float(x @ w[0] + b[0])
+        pred = classes[1] if z > 0.0 else classes[0]
+        if pred not in ctx.rank[:3]:
+            return baseline
+        out = list(baseline)
+        if pred in out:
+            out.remove(pred)
+            out.insert(0, pred)
+        return out
+
+    def run(self, ctx):
+        hybrid = self.hybrid(ctx)
+        baseline = self.gate(ctx, hybrid)
+        sig = self.pair(self.sig, p1.SIG_PAIR, ctx, baseline)
+        out = self.pair(self.gb, p1.GB_PAIR, ctx, sig)
+        if (
+            out and sig and out[0] != sig[0]
+            and sig[0] == "gb18030" and out[0] == "utf-8"
+            and ctx.replacement_rate > p1.RATE_THRESHOLD
+        ):
+            out = sig
+        return out
+
+
+def baseline_downstream(cal, triad_cal, sig_cal, gb_cal, ctx, classes, families):
     hybrid = p1.cached_hybrid(cal, ctx, classes, families)
     baseline = p1.cached_gate(triad_cal, ctx, hybrid)
     sig = p1.cached_apply_pair(sig_cal, p1.SIG_PAIR, ctx, baseline)
@@ -176,31 +265,33 @@ def downstream(cal, triad_cal, sig_cal, gb_cal, ctx, classes, families):
     return out
 
 
+CANDIDATES = {
+    "baseline": dict(feature="baseline", linear="standard", byte_fast=False, downstream_fast=False),
+    "downstream_fused": dict(feature="baseline", linear="standard", byte_fast=False, downstream_fast=True),
+    "linear_fused": dict(feature="baseline", linear="fused", byte_fast=False, downstream_fast=False),
+    "byte_fast": dict(feature="baseline", linear="standard", byte_fast=True, downstream_fast=False),
+    "feature_combined": dict(feature="combined", linear="standard", byte_fast=False, downstream_fast=False),
+    "downstream_linear": dict(feature="baseline", linear="fused", byte_fast=False, downstream_fast=True),
+    "downstream_linear_byte": dict(feature="baseline", linear="fused", byte_fast=True, downstream_fast=True),
+    "all_combined": dict(feature="combined", linear="fused", byte_fast=True, downstream_fast=True),
+}
+
+
 def main():
     external, _, stats = base.collect_external()
     legacy_X, legacy_y, legacy_b = base.load_legacy_training()
     classes, families = calmod.build_vocab(legacy_y)
     paths = sorted(set(s["warc_path"] for s in external))
     fold_assign = {
-        p: int.from_bytes(
-            hashlib.sha256(("learning-curve:" + p).encode()).digest()[:8], "big"
-        ) % OUTER_FOLDS
+        p: int.from_bytes(hashlib.sha256(("learning-curve:" + p).encode()).digest()[:8], "big") % OUTER_FOLDS
         for p in paths
     }
 
-    candidate_names = [
-        "baseline+standard",
-        "scalar_reuse+standard",
-        "bigram_simplified+standard",
-        "combined+standard",
-        "baseline+fused",
-        "scalar_reuse+fused",
-        "bigram_simplified+fused",
-        "combined+fused",
-    ]
-
-    agg = {name: Counter() for name in candidate_names}
-    fold_rows = []
+    pooled = {
+        name: dict(n=0, hits=0, mismatch=0, base_rank_diff=0, elapsed_ns=0, timed_calls=0)
+        for name in CANDIDATES
+    }
+    folds = []
 
     for fold in range(OUTER_FOLDS):
         train_pool = [s for s in external if fold_assign[s["warc_path"]] != fold]
@@ -217,125 +308,116 @@ def main():
             s for s in test_rows
             if models.get(s["route"]) is not None and s["label"] in models[s["route"]][1].classes_
         ]
+        fused_models = {route: fuse_scaler_linear(mt) for route, mt in models.items()}
+        fast_ds = FastDownstream(cal, triad_cal, sig_cal, gb_cal, classes, families)
 
-        fused_by_route = {route: fused_params(mt) for route, mt in models.items()}
-        fold_stats = {name: Counter() for name in candidate_names}
-
-        # Correctness gate: baseline canonical cached output is the reference.
-        for s in rows:
-            mt = models[s["route"]]
-            x0 = features_baseline(s["data"])
-            raw0 = score_standard(mt, x0)
-            ctx0 = build_ctx_from_raw(mt, s, raw0)
-            ref = downstream(cal, triad_cal, sig_cal, gb_cal, ctx0, classes, families)
-
-            for fname, ffn in FEATURES.items():
-                x = x0 if fname == "baseline" else ffn(s["data"])
-
-                for scorer in ("standard", "fused"):
-                    name = f"{fname}+{scorer}"
-                    raw = (
-                        score_standard(mt, x)
-                        if scorer == "standard"
-                        else score_fused(mt, x, fused_by_route[s["route"]])
-                    )
-                    ctx = build_ctx_from_raw(mt, s, raw)
-                    out = downstream(cal, triad_cal, sig_cal, gb_cal, ctx, classes, families)
-
-                    fs = fold_stats[name]
-                    fs["n"] += 1
-                    fs["hits"] += int(out and out[0] == s["label"])
-                    if list(out) != list(ref):
-                        fs["mismatch"] += 1
-                    if not np.array_equal(x, x0):
-                        fs["feature_array_diff"] += 1
-                    if tuple(ctx.rank) != tuple(ctx0.rank):
-                        fs["base_rank_diff"] += 1
-
-        # Timing gate: time kernel+context+downstream only. Every candidate runs
-        # on identical fitted objects and identical rows in this process.
-        for name in candidate_names:
-            fname, scorer = name.split("+")
-            if fold_stats[name]["mismatch"] != 0:
-                continue
-
-            ffn = FEATURES[fname]
-            elapsed = 0
-            sink = 0
-            for _ in range(TIMING_REPEATS):
-                t0 = time.perf_counter_ns()
-                for s in rows:
-                    mt = models[s["route"]]
-                    x = ffn(s["data"])
-                    raw = (
-                        score_standard(mt, x)
-                        if scorer == "standard"
-                        else score_fused(mt, x, fused_by_route[s["route"]])
-                    )
-                    ctx = build_ctx_from_raw(mt, s, raw)
-                    out = downstream(cal, triad_cal, sig_cal, gb_cal, ctx, classes, families)
-                    sink += len(out)
-                elapsed += time.perf_counter_ns() - t0
-
-            fs = fold_stats[name]
-            fs["timed_calls"] = len(rows) * TIMING_REPEATS
-            fs["elapsed_ns"] = elapsed
-            fs["sink"] = sink
-
-        fold_out = {"fold": fold, "n": len(rows), "candidates": {}}
-        for name in candidate_names:
-            fs = fold_stats[name]
-            row = {
-                "n": fs["n"],
-                "hits": fs["hits"],
-                "top1": fs["hits"] / max(1, fs["n"]),
-                "mismatch_n": fs["mismatch"],
-                "feature_array_diff_n": fs["feature_array_diff"],
-                "base_rank_diff_n": fs["base_rank_diff"],
-                "timed_calls": fs["timed_calls"],
-                "ns_per_call": fs["elapsed_ns"] / max(1, fs["timed_calls"]) if fs["timed_calls"] else None,
-            }
-            fold_out["candidates"][name] = row
-            for k, v in fs.items():
-                agg[name][k] += v
-        fold_rows.append(fold_out)
-
-    pooled = {}
-    for name in candidate_names:
-        a = agg[name]
-        pooled[name] = {
-            "n": a["n"],
-            "hits": a["hits"],
-            "top1": a["hits"] / max(1, a["n"]),
-            "mismatch_n": a["mismatch"],
-            "feature_array_diff_n": a["feature_array_diff"],
-            "base_rank_diff_n": a["base_rank_diff"],
-            "timed_calls": a["timed_calls"],
-            "ns_per_call": a["elapsed_ns"] / max(1, a["timed_calls"]) if a["timed_calls"] else None,
+        fold_stats = {
+            name: dict(n=0, hits=0, mismatch=0, base_rank_diff=0, elapsed_ns=0, timed_calls=0)
+            for name in CANDIDATES
         }
 
-    baseline_ns = pooled["baseline+standard"]["ns_per_call"]
-    for name, row in pooled.items():
+        refs = []
+        ref_ranks = []
+        for s in rows:
+            mt = models[s["route"]]
+            ref_ctx = build_ctx(mt, s, "baseline", "standard", fused_models[s["route"]], False)
+            ref = baseline_downstream(cal, triad_cal, sig_cal, gb_cal, ref_ctx, classes, families)
+            refs.append(ref)
+            ref_ranks.append(ref_ctx.rank)
+
+        # Correctness gate.
+        for s, ref, ref_rank in zip(rows, refs, ref_ranks):
+            mt = models[s["route"]]
+            for name, cfg in CANDIDATES.items():
+                ctx = build_ctx(
+                    mt, s, cfg["feature"], cfg["linear"], fused_models[s["route"]], cfg["byte_fast"]
+                )
+                out = fast_ds.run(ctx) if cfg["downstream_fast"] else baseline_downstream(
+                    cal, triad_cal, sig_cal, gb_cal, ctx, classes, families
+                )
+                st = fold_stats[name]
+                st["n"] += 1
+                st["hits"] += int(out and out[0] == s["label"])
+                st["mismatch"] += int(list(out) != list(ref))
+                st["base_rank_diff"] += int(tuple(ctx.rank) != tuple(ref_rank))
+
+        # Only correctness-safe candidates get timed.
+        for name, cfg in CANDIDATES.items():
+            st = fold_stats[name]
+            if st["mismatch"] != 0:
+                continue
+            sink = 0
+            t0 = time.perf_counter_ns()
+            for _ in range(TIMING_REPEATS):
+                for s in rows:
+                    mt = models[s["route"]]
+                    ctx = build_ctx(
+                        mt, s, cfg["feature"], cfg["linear"], fused_models[s["route"]], cfg["byte_fast"]
+                    )
+                    out = fast_ds.run(ctx) if cfg["downstream_fast"] else baseline_downstream(
+                        cal, triad_cal, sig_cal, gb_cal, ctx, classes, families
+                    )
+                    sink += len(out)
+            elapsed = time.perf_counter_ns() - t0
+            st["elapsed_ns"] = elapsed
+            st["timed_calls"] = len(rows) * TIMING_REPEATS
+            st["sink"] = sink
+
+        fold_row = {"fold": fold, "n": len(rows), "candidates": {}}
+        for name, st in fold_stats.items():
+            fold_row["candidates"][name] = {
+                "top1": st["hits"] / max(1, st["n"]),
+                "mismatch_n": st["mismatch"],
+                "base_rank_diff_n": st["base_rank_diff"],
+                "ns_per_call": (
+                    st["elapsed_ns"] / st["timed_calls"] if st["timed_calls"] else None
+                ),
+            }
+            for key in ("n", "hits", "mismatch", "base_rank_diff", "elapsed_ns", "timed_calls"):
+                pooled[name][key] += st[key]
+        folds.append(fold_row)
+
+    out = {}
+    for name, st in pooled.items():
+        out[name] = {
+            "n": st["n"],
+            "hits": st["hits"],
+            "top1": st["hits"] / max(1, st["n"]),
+            "mismatch_n": st["mismatch"],
+            "base_rank_diff_n": st["base_rank_diff"],
+            "ns_per_call": st["elapsed_ns"] / st["timed_calls"] if st["timed_calls"] else None,
+        }
+
+    baseline_ns = out["baseline"]["ns_per_call"]
+    for row in out.values():
         if row["ns_per_call"] is not None:
             row["speedup_vs_baseline"] = baseline_ns / row["ns_per_call"]
             row["runtime_reduction_vs_baseline"] = 1.0 - row["ns_per_call"] / baseline_ns
 
     eligible = [
         (row["ns_per_call"], name)
-        for name, row in pooled.items()
-        if row["mismatch_n"] == 0 and row["hits"] == 365 and row["ns_per_call"] is not None
+        for name, row in out.items()
+        if row["mismatch_n"] == 0
+        and row["hits"] == 365
+        and row["ns_per_call"] is not None
     ]
     winner = min(eligible)[1] if eligible else None
 
     print(json.dumps({
-        "phase": "p2_multihop_kernel_tournament",
+        "phase": "p2_full_pipeline_multihop_tournament",
+        "profile_basis": {
+            "downstream_share": 0.5237,
+            "linear_share": 0.2430,
+            "byte_analysis_share": 0.1515,
+            "scorer_features_share": 0.0818,
+        },
         "canonical_target": {"n": 418, "hits": 365, "top1": 365 / 418},
         "timing_repeats": TIMING_REPEATS,
-        "pooled": pooled,
+        "pooled": out,
         "winner": winner,
-        "folds": fold_rows,
+        "folds": folds,
         "collection_stats": dict(stats),
-        "decision_rule": "Eligible only if final ranking mismatch_n=0 and hits=365/418; among eligible candidates choose lowest pooled ns_per_call.",
+        "decision_rule": "Candidate must preserve exact final ranking on all 418 samples and 365 hits; choose fastest eligible pooled runtime.",
     }, indent=2, sort_keys=True))
 
 

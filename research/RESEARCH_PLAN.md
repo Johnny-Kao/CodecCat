@@ -1983,3 +1983,60 @@ Acceptance gate:
 - no base-rank mismatch;
 - measurable pooled end-to-end speedup over P2;
 - validate on public GitHub Actions only.
+
+
+## P3 locked — indexed branch-precomputed direct-scalar inference
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37325109660
+
+Winner: `indexed_branch_precompute`
+
+Correctness:
+- evaluated: 418
+- hits: 365
+- Top-1: **87.3206%**
+- final ranking mismatches versus P2 canonical runtime baseline: **0**
+
+Runtime:
+- pooled: **~77.26 us/sample**
+- vs P2 baseline in the same run: **1.992x faster**
+- vs P3 direct-scalar-lazy: **1.015x faster**
+- P1 -> P3 total improvement: roughly **14.4x faster**
+- fold winner runtimes:
+  - fold 0: ~75.45 us/sample
+  - fold 1: ~83.55 us/sample
+  - fold 2: ~76.83 us/sample
+  - fold 3: ~80.20 us/sample
+
+Accepted techniques:
+- fused scaler + linear models;
+- direct scalar logit evaluation for downstream calibrators/specialists;
+- lazy UTF-8 replacement-rate evaluation;
+- raw-score label lookup via precomputed indices;
+- precomputed route/branch weight positions;
+- combined scorer feature fast path.
+
+Decision:
+- **P3 is accepted and locked.**
+- New runtime baseline = `indexed_branch_precompute`.
+- Preserve 365/418 and exact final ranking identity in all subsequent work.
+- Public CodecCat GitHub Actions remains the sole benchmark authority; do not use the user's local computer for validation.
+
+### P4 direction — residual Python/control-path reduction
+
+Continue with one multi-hop tournament, not sequential one-off experiments.
+
+Priority candidates:
+1. avoid full `np.argsort` when only top-k and stable full ranking behavior needed;
+2. precompute class-order metadata and specialist membership checks;
+3. avoid repeated list copies/remove/insert in rerank stages using index/permutation operations;
+4. consolidate UTF-8/BOM/high-byte/NUL analysis into one byte pass where semantics remain exact;
+5. test fixed-shape scalar evaluation paths that avoid temporary NumPy arrays in triad/pair softmax/logit logic;
+6. only consider native/Cython/Rust after pure-Python/NumPy residual overhead is quantified.
+
+Acceptance:
+- 365/418 hits;
+- final ranking mismatch = 0;
+- measurable pooled end-to-end speedup over P3;
+- validate on public GitHub Actions only.

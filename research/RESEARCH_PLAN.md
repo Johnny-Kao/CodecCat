@@ -2463,3 +2463,64 @@ Acceptance:
 - measurable same-run speedup over locked P9;
 - cache hit required;
 - public GitHub Actions only.
+
+
+## P10 locked — preallocated combined-feature output
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37341544038
+
+Implementation commit:
+https://github.com/Johnny-Kao/CodecCat/commit/2a2d943055235ad92344cbf8cff101978b94af4e
+
+Winner: `hop1_feature_no_concat`
+
+Accepted mechanism:
+- build the 518-element combined feature vector directly into one preallocated float32 output;
+- eliminate the separate six-element scalar array and final `np.concatenate`;
+- preserve existing unigram/bigram arithmetic and downstream semantics.
+
+Correctness:
+- evaluated: **418**
+- hits: **365**
+- Top-1: **87.3206%**
+- exact final ranking mismatch vs P9: **0**
+- fitted-state cache: **hit**
+- no retraining.
+
+Same-run pooled runtime:
+- P9 baseline: **~80.996 us/sample**
+- P10 `feature_no_concat`: **~78.721 us/sample**
+- speedup vs P9: **1.02889x**
+- runtime reduction: **~2.81%**
+
+Rejected / do not carry forward:
+- `nul_bytes_count`: ~0.9813x; regression.
+- `short_ascii_skip`: ~0.9881x; regression.
+- `reuse_short_stats`: ~1.0031x; noise-scale.
+- `nul_ascii`: ~0.9783x; regression.
+- `feature_reuse`: ~1.0069x; small and materially below feature_no_concat.
+- `all`: ~1.0010x; rejected mechanisms erase the feature-construction gain.
+
+Decision:
+- **P10 is accepted and locked.**
+- P11 baseline = P7 scalar triad + P8 route metadata/direct raw + P9 ndarray argsort + P10 preallocated feature output.
+- Do not carry byte-count, short-ASCII, or short-stats-reuse mechanisms forward.
+- Preserve 365/418 and exact final ranking identity.
+- Cached fitted state remains mandatory.
+
+### P11 direction — bigram/unigram feature microkernel
+
+Use one cached-state multi-hop tournament around the still-allocation-heavy feature kernel:
+1. exploit uint8 wraparound equivalence for `(a[i] + a[i+1]) & 255` to remove uint16/int32 cast chains;
+2. test direct `np.divide(..., out=float32_slice)` to avoid normalized-count temporaries;
+3. test their orthogonal combination;
+4. retain P10 preallocation and P9 argsort baseline;
+5. correctness gate all 418 outputs before timing.
+
+Acceptance:
+- 365/418;
+- exact final ranking mismatch = 0;
+- measurable same-run speedup over locked P10;
+- cache hit required;
+- public GitHub Actions only.

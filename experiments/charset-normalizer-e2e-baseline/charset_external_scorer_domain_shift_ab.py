@@ -200,23 +200,30 @@ def collect_external():
         if len(accepted) >= MAX_ACCEPTED or route_accept["R"] >= TARGET_RESIDUAL:
             break
         r = None
-        for attempt in range(3):
+        for attempt in range(4):
             try:
-                r = requests.get(
+                cand = requests.get(
                     DATA_ROOT + path,
                     headers={"User-Agent": UA, "Range": f"bytes=0-{RANGE_BYTES-1}"},
                     timeout=90,
                 )
-                _ = r.content
+                _ = cand.content
+                stats[f"http_{cand.status_code}"] += 1
+                if cand.status_code in (200, 206):
+                    r = cand
+                    break
+                if cand.status_code == 429 or 500 <= cand.status_code < 600:
+                    stats["range_status_retry"] += 1
+                    if attempt < 3:
+                        time.sleep(2 ** attempt)
+                    continue
                 break
             except requests.RequestException:
                 stats["range_request_retry"] += 1
-                r = None
+                if attempt < 3:
+                    time.sleep(2 ** attempt)
         if r is None:
             stats["range_request_failed"] += 1
-            continue
-        stats[f"http_{r.status_code}"] += 1
-        if r.status_code not in (200, 206):
             continue
         try:
             it = ArchiveIterator(io.BytesIO(r.content), arc2warc=True)

@@ -1804,3 +1804,31 @@ Measure on the locked P12 path:
 
 Use the profile only to choose P13 optimization targets; do not treat isolated component sums as exact additive wall time.
 No retraining. Public GitHub Actions only.
+
+
+## P13 profile — locked P12 component decomposition
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37342621474
+
+Profile commits:
+- https://github.com/Johnny-Kao/CodecCat/commit/691ede585aa36a2af45770df6c5d82de47a53b1a
+- https://github.com/Johnny-Kao/CodecCat/commit/67b2e0a9611924bd6d4ff11c969640d792e90668
+
+Pooled component timing:
+- feature kernel: **~19.913 us/sample** — **40.26%** of measured component sum.
+- downstream: **~11.776 us/sample** — **23.81%**.
+- linear + ordering: **~10.951 us/sample** — **22.14%**.
+- sample checks: **~6.825 us/sample** — **13.80%**.
+- full locked P12 pipeline: **~59.866 us/sample**.
+
+Interpretation:
+- feature construction is now the dominant measured component;
+- the feature-to-linear boundary still converts the newly built float32[518] feature vector to float64 on every sample inside `fused_raw`;
+- P14 should target that conversion and matrix-vector orientation before revisiting downstream micro-branches.
+
+P14 priority:
+1. preserve float32-rounded feature values while storing them directly in float64 to avoid the subsequent 518-element cast;
+2. compare current `x @ w.T` with equivalent `w @ x` GEMV orientation;
+3. test the orthogonal combination;
+4. optionally test float32 fused weights only as an exploratory candidate behind exact 418-output correctness gating.

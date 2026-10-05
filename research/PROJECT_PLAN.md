@@ -373,3 +373,23 @@ Therefore:
 - no public release/model promotion yet;
 - no return to micro-optimization;
 - next stage is **R6 cross-crawl error decomposition and calibration-generalization research**.
+
+
+## R6 outcome — RL representation is the next accuracy target
+
+Evidence:
+- formal decomposition: https://github.com/Johnny-Kao/CodecCat/actions/runs/37354983711
+- route/BOM diagnostic: https://github.com/Johnny-Kao/CodecCat/actions/runs/37355787420
+- detailed record: `research/R6_ERROR_DECOMPOSITION.md`
+
+Result:
+- global raw Top-3/Top-5 retrieval remains 93.13% / 95.97%;
+- U and RH routes are already competitive with charset-normalizer;
+- RL is the clear outlier at 68.52% vs charset-normalizer 94.44%;
+- RL raw scoring is only 64.81%, so downstream changes alone cannot close the gap.
+
+Next:
+- **R7 RL-only bounded sampling/representation experiments**;
+- preserve all non-RL routes;
+- preserve the P15 performance architecture where possible;
+- keep `CC-MAIN-2026-30` untouched.

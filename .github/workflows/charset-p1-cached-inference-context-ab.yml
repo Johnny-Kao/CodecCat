@@ -1,0 +1,54 @@
+name: P1 cached inference context A/B
+
+on:
+  push:
+    branches:
+      - research/charset-normalizer-e2e-baseline
+    paths:
+      - ".github/workflows/charset-p1-cached-inference-context-ab.yml"
+      - "experiments/charset-normalizer-e2e-baseline/charset_p1_cached_inference_context_ab.py"
+      - "experiments/charset-normalizer-e2e-baseline/charset_canonical_guarded_final_validation.py"
+      - "experiments/charset-normalizer-e2e-baseline/charset_pair_specialist_ab.py"
+      - "experiments/charset-normalizer-e2e-baseline/charset_post_gate_050_error_decomposition.py"
+      - "experiments/charset-normalizer-e2e-baseline/charset_triad_specialist_ab.py"
+      - "experiments/charset-normalizer-e2e-baseline/charset_candidate_calibration_ab.py"
+      - "experiments/charset-normalizer-e2e-baseline/charset_minimal_reranker_ab.py"
+      - "experiments/charset-normalizer-e2e-baseline/charset_external_scorer_learning_curve.py"
+      - "experiments/charset-normalizer-e2e-baseline/charset_external_scorer_domain_shift_ab.py"
+      - "experiments/charset-normalizer-e2e-baseline/charset_training_tournament.py"
+      - "experiments/charset-normalizer-e2e-baseline/charset_cost_aware_routing_tree.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          path: test-data
+          fetch-depth: 1
+      - uses: actions/checkout@v4
+        with:
+          repository: Ousret/char-dataset
+          ref: master
+          path: char-dataset
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --no-cache-dir numpy scikit-learn requests warcio
+      - name: Run cached inference context A/B
+        env:
+          PAIR_A: utf-8
+          PAIR_B: utf-8-sig
+          PYTHONHASHSEED: "0"
+          OMP_NUM_THREADS: "1"
+          OPENBLAS_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+        run: python experiments/charset-normalizer-e2e-baseline/charset_p1_cached_inference_context_ab.py

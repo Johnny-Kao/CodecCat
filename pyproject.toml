@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "codeccat"
+version = "0.0.0"
+description = "Fast, compact character-encoding detection"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Johnny Kao" }]
+dependencies = ["numpy>=2.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "build>=1.2"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/codeccat"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

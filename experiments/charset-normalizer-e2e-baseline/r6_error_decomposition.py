@@ -78,6 +78,8 @@ def main():
     )}
     raw_truth_rank = Counter()
     route_stats = defaultdict(Counter)
+    route_stage_hits = defaultdict(Counter)
+    bom_stats = defaultdict(Counter)
     family_stats = defaultdict(Counter)
     confusion = Counter()
     gap_confusion = Counter()

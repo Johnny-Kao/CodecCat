@@ -15,6 +15,7 @@ import charset_triad_specialist_ab as tri
 import charset_post_gate_050_error_decomposition as gate050
 import charset_pair_specialist_ab as pairmod
 import charset_minimal_reranker_ab as rr
+import charset_canonical_guarded_final_validation as canon
 
 OUTER_FOLDS = 4
 TRAIN_N = 300
@@ -52,18 +53,8 @@ def replacement_rate(data):
 def old_pipeline(model, cal, triad_cal, sig_cal, gb_cal, s, classes, families):
     _, hybrid = tri.make_hybrid(model, cal, s, classes, families)
     baseline = gate050.apply_gated(triad_cal, model, s, hybrid)
-    sig = apply_one(sig_cal, SIG_PAIR, model, s, baseline)
-    out = apply_one(gb_cal, GB_PAIR, model, s, sig)
-    if (
-        out
-        and sig
-        and out[0] != sig[0]
-        and sig[0] == "gb18030"
-        and out[0] == "utf-8"
-        and replacement_rate(s["data"]) > RATE_THRESHOLD
-    ):
-        out = sig
-    return out
+    sig = canon.apply_one(sig_cal, canon.SIG_PAIR, model, s, baseline)
+    return canon.apply_guarded_gb(gb_cal, model, s, sig)
 
 
 @dataclass(frozen=True)
@@ -321,8 +312,6 @@ def main():
         feature_calls[mode["name"]] += 1
         return original_scorer_features(data)
 
-    base.scorer_features = counted_scorer_features
-
     folds = []
     mismatches = []
     total = Counter()
@@ -334,12 +323,16 @@ def main():
             test_rows = [s for s in external if fold_assign[s["warc_path"]] == fold]
             ext_train = lc.deterministic_nested_subset(train_pool, TRAIN_N)
 
-            mode["name"] = "training"
+            # Keep training byte-for-byte on the canonical path. Instrument only
+            # inference, after all fitted objects are finalized.
+            base.scorer_features = original_scorer_features
             models = lc.fit_route_models(ext_train, legacy_X, legacy_y, legacy_b)
             cal = calmod.crossfit_calibration_rows(train_pool, legacy_X, legacy_y, legacy_b, classes, families)
             triad_cal = tri.crossfit_triad_rows(train_pool, legacy_X, legacy_y, legacy_b, classes, families)
-            sig_cal = fit_one(SIG_PAIR, train_pool, legacy_X, legacy_y, legacy_b, classes, families)
-            gb_cal = fit_one(GB_PAIR, train_pool, legacy_X, legacy_y, legacy_b, classes, families)
+            sig_cal = canon.fit_one(canon.SIG_PAIR, train_pool, legacy_X, legacy_y, legacy_b, classes, families)
+            gb_cal = canon.fit_one(canon.GB_PAIR, train_pool, legacy_X, legacy_y, legacy_b, classes, families)
+
+            base.scorer_features = counted_scorer_features
 
             valid_rows = [
                 s for s in test_rows

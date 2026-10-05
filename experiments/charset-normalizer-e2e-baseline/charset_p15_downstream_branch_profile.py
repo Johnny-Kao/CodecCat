@@ -132,8 +132,13 @@ def main():
             )
             if guard:
                 fs["replacement_guard"] += 1
-                if ctx.replacement_rate is None:
+                rate = ctx.replacement_rate
+                if rate is None:
                     fs["replacement_rate_computed"] += 1
+                    import charset_canonical_guarded_final_validation as canon
+                    rate = canon.replacement_rate(ctx.data)
+                if rate > p1.RATE_THRESHOLD:
+                    out = sig
 
             if list(out) != list(canonical):
                 fs["instrumented_mismatch"] += 1

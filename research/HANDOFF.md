@@ -1401,3 +1401,68 @@ Operational rules:
 - Same-run relative timing is authoritative; cross-run absolute microseconds are not.
 - If a workflow run, PR, or external comment is created, always provide the exact GitHub URL.
 - Avoid triggering obsolete P1/P2/P3/P4/P5 workflows when editing shared research files; narrow workflow path filters or cancel accidental runs.
+
+
+## P8 locked — cached route metadata + direct raw-score reuse
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37340354153
+
+Commit:
+https://github.com/Johnny-Kao/CodecCat/commit/3876737fa74404099835da9e93eaf97faebc05d7
+
+Cache:
+- fitted-state cache: **hit**
+- corpus fingerprint unchanged:
+  `aea19348bfe9838fc68e1b1c8f5d95eb7d78097df6d89e801de36f8f31946d9f`
+- no fold retraining.
+
+Winner: `hop2_meta_raw`
+
+Accepted mechanisms:
+1. precompute/reuse route-local model class metadata;
+2. reuse the fused raw-score ndarray directly instead of redundant `np.asarray(raw)` calls.
+
+Correctness:
+- evaluated: **418**
+- hits: **365**
+- Top-1: **87.3206%**
+- exact final ranking mismatch vs P7: **0**
+
+Same-run pooled runtime:
+- P7 baseline: **~105.261 us/sample**
+- P8 `hop2_meta_raw`: **~103.726 us/sample**
+- speedup vs P7: **1.0148x**
+- runtime reduction: **~1.46%**
+
+Rejected / do not carry forward:
+- `hop1_sample_view`: ~0.9798x; bytes->memoryview substitution regressed runtime.
+- `hop1_slots_ctx`: ~1.0013x; effectively negligible.
+- `hop2_view_slots`: ~0.9748x; regression.
+- `hop3_all_safe`: ~0.9843x; regression because the rejected mechanisms contaminate the combination.
+- `hop1_raw_direct` alone: ~1.0013x; negligible by itself.
+- `hop1_precomputed_meta`: ~1.0127x; useful, but `meta_raw` was faster.
+
+Decision:
+- **P8 is accepted and locked.**
+- P9 baseline is exactly: P7 scalar triad + P8 precomputed route metadata + direct raw ndarray reuse.
+- Do not carry memoryview or slots-context mechanisms into P9.
+- Preserve 365/418 and exact final ranking identity.
+- Cached fitted state remains mandatory.
+- Public CodecCat GitHub Actions remains benchmark authority.
+
+### P9 next direction — ordering/rank residuals
+
+Use one cached-state multi-hop tournament. Prioritize exact-equivalence changes around:
+1. avoid temporary allocation in `classes_array[order]` / rank construction;
+2. reduce full ordering work only if complete final rank identity remains exact;
+3. reduce `sorted_scores=raw[order]` temporary work where downstream consumers can use an exact lightweight representation;
+4. precompute any remaining route-local indices/constants used by context construction;
+5. do not revisit P8-rejected memoryview/slots mechanisms.
+
+Acceptance:
+- 365/418;
+- exact final ranking mismatch = 0;
+- measurable same-run speedup over locked P8;
+- cache hit required;
+- public GitHub Actions only.

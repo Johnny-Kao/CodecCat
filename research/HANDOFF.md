@@ -2121,3 +2121,33 @@ Decision:
 - feature remains the largest residual component;
 - however, the previously tested combined-histogram mechanism is rejected;
 - split feature and score/order into primitive costs before choosing the next implementation.
+## P15 primitive profile complete — scalar reductions and small score matmul dominate
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37344395859
+
+Profile commits:
+- https://github.com/Johnny-Kao/CodecCat/commit/6c5600951bc6a72e8cbbf20793ef5139657290e2
+- https://github.com/Johnny-Kao/CodecCat/commit/5a602d9acc0792fdb632ae1455f848a93942294f
+
+Feature primitive timings (directional):
+- full feature: **~18.780 us**
+- scalar stats: **~8.570 us**
+- finish counts total: **~13.005 us**
+- unigram bincount: **~2.012 us**
+- bigram bincount: **~2.083 us**
+- bigram add: **~0.923 us**
+- hmt768: **~0.631 us**
+- frombuffer: **~0.667 us**
+
+Score/order primitive timings:
+- full score/order: **~18.724 us**
+- full score: **~16.229 us**
+- matmul + bias: **~14.264 us**
+- argsort reverse: **~1.175 us**
+- float64 cast: **~0.888 us**
+
+Interpretation:
+- remaining feature cost is dominated by small scalar reductions, not histogram construction;
+- remaining score cost is dominated by the small matrix-vector product, not sorting;
+- P15 should test these two orthogonal families in one full-pipeline tournament.

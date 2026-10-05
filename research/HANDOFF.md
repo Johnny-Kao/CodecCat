@@ -2386,3 +2386,39 @@ Research transition:
 - no architecture, threshold, feature, specialist, or runtime change is authorized by this reclassification;
 - the next untouched release gate is `CC-MAIN-2026-30`;
 - exact byte overlaps with development data must be removed before scoring that holdout.
+
+
+### R5.1 data expansion + second untouched holdout — RELEASE BLOCKED
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37352132674
+
+Development:
+- CC-MAIN-2026-39 canonical rows + reclassified CC-MAIN-2026-34
+- 836 unique development rows
+- runtime architecture unchanged
+
+Untouched holdout:
+- CC-MAIN-2026-30
+- 421 rows after removing 3 exact byte overlaps
+
+Top-1:
+- CodecCat v2: 371/421 = **88.1235%**
+- charset-normalizer 3.5.2: 392/421 = **93.1116%**
+- chardet 7.6.0: 397/421 = **94.2993%**
+
+Median latency:
+- CodecCat: ~80.04 µs/sample
+- charset-normalizer: ~795.38 µs/sample (~9.94× CodecCat)
+- chardet 7: ~852.94 µs/sample (~10.66× CodecCat)
+
+Frozen v2 model SHA-256:
+`b50abf4448f7e634b1995cae7db6185992a176187006037ce0580c06b7b1632f`
+
+Decision:
+- R1-R4 engineering/package/runtime goals are complete on staging;
+- R5 proves the remaining blocker is cross-crawl accuracy generalization;
+- release is **blocked** rather than overstating parity;
+- simple data-only expansion did not close the gap;
+- next research stage is R6 cross-crawl error decomposition;
+- do not restart routine performance optimization.

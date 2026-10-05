@@ -1,3 +1,5 @@
+> **Source-of-truth note (2026-10-06):** The original charset-detection research began in `Johnny-Kao/OSS-Engineering-Toolkit` on branch `research/charset-normalizer-e2e-baseline`. That historical material has now been migrated into CodecCat. This repository is the sole active source of truth for future CodecCat research, implementation, benchmarking, and release planning. Historical snapshots are preserved under `research/history/`.
+
 # Charset Detection Research Handoff
 
 Updated: 2026-10-05 JST  

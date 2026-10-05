@@ -1,0 +1,68 @@
+name: P6 cached-state residual tournament
+
+on:
+  push:
+    branches:
+      - research/charset-normalizer-e2e-baseline
+    paths:
+      - ".github/workflows/charset-p6-cached-state-tournament.yml"
+      - "experiments/charset-normalizer-e2e-baseline/charset_p6_cached_state_tournament.py"
+      - "experiments/charset-normalizer-e2e-baseline/charset_cached_fold_state.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tournament:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          path: test-data
+          fetch-depth: 1
+      - uses: actions/checkout@v4
+        with:
+          repository: Ousret/char-dataset
+          ref: master
+          path: char-dataset
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pinned benchmark dependencies
+        run: python -m pip install --no-cache-dir numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0 requests==2.34.2 warcio==1.8.1
+      - name: Restore fitted fold state
+        id: fold-cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/codeccat/folds-v1.joblib
+          key: codeccat-fold-v1-py312-sklearn191-${{ hashFiles(
+            'experiments/charset-normalizer-e2e-baseline/charset_external_scorer_domain_shift_ab.py',
+            'experiments/charset-normalizer-e2e-baseline/charset_external_scorer_learning_curve.py',
+            'experiments/charset-normalizer-e2e-baseline/charset_candidate_calibration_ab.py',
+            'experiments/charset-normalizer-e2e-baseline/charset_triad_specialist_ab.py',
+            'experiments/charset-normalizer-e2e-baseline/charset_pair_specialist_ab.py',
+            'experiments/charset-normalizer-e2e-baseline/charset_canonical_guarded_final_validation.py',
+            'experiments/charset-normalizer-e2e-baseline/charset_training_tournament.py',
+            'experiments/charset-normalizer-e2e-baseline/charset_cost_aware_routing_tree.py'
+          ) }}
+      - name: Build or validate cached fold state
+        env:
+          PYTHONHASHSEED: "0"
+          OMP_NUM_THREADS: "1"
+          OPENBLAS_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+        run: python experiments/charset-normalizer-e2e-baseline/charset_cached_fold_state.py --state .cache/codeccat/folds-v1.joblib
+      - name: Run P6 cached-state tournament
+        env:
+          PAIR_A: utf-8
+          PAIR_B: utf-8-sig
+          PYTHONHASHSEED: "0"
+          OMP_NUM_THREADS: "1"
+          OPENBLAS_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+        run: python experiments/charset-normalizer-e2e-baseline/charset_p6_cached_state_tournament.py --state .cache/codeccat/folds-v1.joblib

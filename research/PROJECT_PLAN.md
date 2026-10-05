@@ -269,3 +269,81 @@ Those files are historical provenance only.
 As of 2026-10-06, **CodecCat is the source of truth for all future project planning and research state**.
 
 The OSS Toolkit workflow does not govern this project.
+
+
+## Active productionization execution — 2026-10-06
+
+The research program has moved from routine micro-optimization to clean package reconstruction.
+
+Current execution sequence:
+
+### R1 — Production runtime consolidation
+
+Status: **implemented on `staging/initial-package`**.
+
+The accepted P1-P15 mechanisms have been translated into:
+- `docs/PRODUCTION_RUNTIME_SPEC.md`
+- a clean `src/codeccat/` runtime structure.
+
+P16 remains convergence evidence; no P16 mechanism is part of the runtime.
+
+### R2 — Clean package reconstruction
+
+Status: **initial implementation complete; validation in progress**.
+
+The staging branch now contains:
+- `pyproject.toml`
+- `src/codeccat/`
+- package-level feature/routing/runtime/model boundaries
+- unit tests
+- wheel/sdist build gate.
+
+The package runtime does not import research experiment modules.
+
+### R3 — Canonical equivalence
+
+Required gate:
+- 418 evaluated samples
+- 365 Top-1 hits
+- 87.3206% Top-1
+- zero final-ranking mismatches against locked P15
+- zero route mismatches.
+
+The validator is:
+`experiments/charset-normalizer-e2e-baseline/validate_clean_runtime.py`
+
+GitHub Actions is the validation authority.
+
+### R4 — Formal three-way held-out benchmark
+
+Prepared harness:
+`benchmarks/heldout_three_way.py`
+
+The benchmark uses the exact same held-out rows for:
+- CodecCat clean runtime
+- charset-normalizer
+- chardet 7.
+
+It reports accuracy and runtime separately and explicitly excludes model-construction cost.
+
+R4 may run only after R3 equivalence passes.
+
+### R5 — Release-model generalization gate
+
+A critical boundary was identified during productionization:
+
+> The canonical 365/418 result is pooled cross-validation evidence, not evidence for one deployable fitted model.
+
+Each held-out fold has its own fitted model. Therefore no fold model may be selected and shipped as the release model.
+
+The release sequence is now:
+
+1. freeze the clean runtime;
+2. acquire/build a new independent holdout corpus;
+3. train one final release model using all eligible development/training data;
+4. freeze that model artifact;
+5. evaluate it once on the independent holdout;
+6. run the same charset-normalizer / chardet 7 comparison on that holdout;
+7. only then package the fitted model for public release.
+
+This protects CodecCat from accidentally converting cross-validation/model-selection evidence into an overstated release claim.

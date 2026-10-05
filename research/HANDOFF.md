@@ -2332,3 +2332,18 @@ Interpretation:
 Important:
 - these CodecCat numbers are pooled fold-held-out evidence;
 - no single fold model is a valid release model.
+
+
+### Package compatibility matrix: PASS
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37351404597
+
+All declared Python versions passed package install, unit tests, and import smoke tests:
+- Python 3.10
+- Python 3.11
+- Python 3.12
+- Python 3.13
+- Python 3.14
+
+The pre-release package boundary is therefore compatible with the current declared `requires-python >=3.10` range on Ubuntu 24.04.

@@ -2422,3 +2422,31 @@ Decision:
 - simple data-only expansion did not close the gap;
 - next research stage is R6 cross-crawl error decomposition;
 - do not restart routine performance optimization.
+
+
+### R6 cross-crawl error decomposition — RL identified as primary blocker
+
+Formal run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37354983711
+
+Targeted route/BOM run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37355787420
+
+Key findings:
+- final development-crawl result reproduced exactly: 371/422 = 87.9147%;
+- raw truth retrieval remains high: Top-3 93.13%, Top-5 95.97%;
+- U route: CodecCat 94.17%, charset-normalizer 93.33%;
+- RH route: CodecCat 89.84%, charset-normalizer 88.62%;
+- **RL route: CodecCat 68.52%, charset-normalizer 94.44%**;
+- RL raw scorer is only 35/54 = 64.81%, and all existing downstream logic reaches only 37/54 = 68.52%.
+
+Decision:
+- RL is primarily a representation/scoring problem, not a downstream calibration problem;
+- do not globally replace the scorer;
+- next experiment is an RL-only bounded sampling tournament;
+- UTF-8 vs UTF-8-SIG remains a semantics issue because 44 BOM rows contain both 12 `utf-8` and 32 `utf-8-sig` ground-truth labels;
+- do not benchmark-hack those labels;
+- `CC-MAIN-2026-30` remains untouched.
+
+Detailed record:
+`research/R6_ERROR_DECOMPOSITION.md`

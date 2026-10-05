@@ -2347,3 +2347,42 @@ All declared Python versions passed package install, unit tests, and import smok
 - Python 3.14
 
 The pre-release package boundary is therefore compatible with the current declared `requires-python >=3.10` range on Ubuntu 24.04.
+
+
+### R5.0 single-model independent holdout — informative, not release-final
+
+Run:
+https://github.com/Johnny-Kao/CodecCat/actions/runs/37351567969
+
+Frozen single-model candidate:
+- model SHA-256: `b03598eada13de6d27c9b337139ddbba58afb1cef8812f22c0212cd3ab8ea21c`
+- serialized size: 541,630 bytes
+- fitted from the 418 canonical development rows plus legacy training data
+- architecture and thresholds unchanged
+
+Independent crawl:
+- `CC-MAIN-2026-34`
+- 422 high-confidence rows
+- fingerprint: `751e089484e0dcb325b987c1beefe10d0896df56bf10daa1018fc8d30e3cd60c`
+
+Top-1:
+- CodecCat: 371/422 = **87.9147%**
+- charset-normalizer 3.5.2: 382/422 = **90.5213%**
+- chardet 7.6.0: 404/422 = **95.7346%**
+
+Median latency:
+- CodecCat: ~127.10 µs/sample
+- charset-normalizer: ~912.67 µs/sample (~7.18× CodecCat)
+- chardet 7: ~963.69 µs/sample (~7.58× CodecCat)
+
+Decision:
+- runtime advantage generalized cleanly;
+- accuracy did not preserve parity with charset-normalizer on a second crawl;
+- the remaining generalization gap is ~2.61 pp vs charset-normalizer and ~7.82 pp vs chardet 7;
+- do not tune against this result while claiming `CC-MAIN-2026-34` as independent evidence.
+
+Research transition:
+- `CC-MAIN-2026-34` is now explicitly reclassified as **development data** for the next data-only model iteration;
+- no architecture, threshold, feature, specialist, or runtime change is authorized by this reclassification;
+- the next untouched release gate is `CC-MAIN-2026-30`;
+- exact byte overlaps with development data must be removed before scoring that holdout.

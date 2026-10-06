@@ -59,28 +59,25 @@ def fused_full_b(data: bytes) -> np.ndarray:
     out=np.zeros(886,dtype=np.float32)
 
     counts=np.bincount(a,minlength=256)
-    out[:256]=counts
-    out[:256]*=1.0/n
+    out[:256]=counts.astype(np.float32)/n
 
     if len(a)>=2:
         left=a[:-1]
         right=a[1:]
 
         wrapped=left+right
-        out[256:512]=np.bincount(wrapped,minlength=256)
-        out[256:512]*=1.0/(len(a)-1)
+        out[256:512]=np.bincount(wrapped,minlength=256).astype(np.float32)/(len(a)-1)
     else:
         left=right=None
 
     if len(a):
-        inv=1.0/len(a)
         out[512:518]=(
             math.log2(n+1)/16.0,
-            float(np.count_nonzero(a>=128)*inv),
-            float(counts[0]*inv),
-            float(np.count_nonzero((a>=32)&(a<=126))*inv),
-            float(counts[10]*inv),
-            float(counts[13]*inv),
+            float(np.mean(a>=128)),
+            float(np.mean(a==0)),
+            float(np.mean((a>=32)&(a<=126))),
+            float(np.mean(a==10)),
+            float(np.mean(a==13)),
         )
 
     # Route-local: preserve R15 full-B exactly for U/RH, zero extras elsewhere.
@@ -91,12 +88,10 @@ def fused_full_b(data: bytes) -> np.ndarray:
         x=left.astype(np.int16,copy=False)
         y=right.astype(np.int16,copy=False)
         diff=((y-x)&255).astype(np.intp,copy=False)
-        out[518:774]=np.bincount(diff,minlength=256)
-        out[518:774]*=1.0/(len(a)-1)
+        out[518:774]=np.bincount(diff,minlength=256).astype(np.float32)/(len(a)-1)
 
         xb=(np.bitwise_xor(left,right)>>2).astype(np.intp,copy=False)
-        out[774:838]=np.bincount(xb,minlength=64)
-        out[774:838]*=1.0/(len(a)-1)
+        out[774:838]=np.bincount(xb,minlength=64).astype(np.float32)/(len(a)-1)
 
     # Position-aware high-byte distribution, reusing the already sampled buffer.
     p=838
@@ -104,8 +99,7 @@ def fused_full_b(data: bytes) -> np.ndarray:
         high=chunk[chunk>=128]
         if len(high):
             idx=((high.astype(np.uint16)-128)>>3).astype(np.intp,copy=False)
-            out[p:p+16]=np.bincount(idx,minlength=16)
-            out[p:p+16]*=1.0/len(high)
+            out[p:p+16]=np.bincount(idx,minlength=16).astype(np.float32)/len(high)
         p+=16
     return out
 

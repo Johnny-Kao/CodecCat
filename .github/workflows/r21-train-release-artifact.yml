@@ -1,6 +1,11 @@
 name: R21 train frozen release artifact
 
 on:
+  push:
+    branches: [staging/initial-package]
+    paths:
+      - ".github/workflows/r21-train-release-artifact.yml"
+      - "experiments/charset-normalizer-e2e-baseline/train_release_model_r20.py"
   workflow_dispatch:
 
 permissions:

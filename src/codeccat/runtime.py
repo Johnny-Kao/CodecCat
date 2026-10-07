@@ -5,8 +5,13 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .features import byte_signals, feature_vector, replacement_rate, route
-from .model import LinearModel, RuntimeBundle
+from .features import (
+    baseline_from_array,
+    full_b_extra_from_array,
+    hmt768_array,
+    replacement_rate,
+)
+from .model import LinearModel, RuntimeBundle, RuntimeStack
 
 ROUTES = ("U", "N", "RL", "RH")
 TRIAD = ("utf-8", "cp1251", "gb18030")
@@ -14,6 +19,8 @@ SIG_PAIR = ("utf-8", "utf-8-sig")
 GB_PAIR = ("utf-8", "gb18030")
 RATE_THRESHOLD = 0.02
 TOP_CANDIDATES = 3
+R12_TARGETS = ("utf-8", "big5", "euc-kr", "cp1251", "iso-8859-1")
+R12_OTHER = "__other__"
 
 
 def family(label: str | None) -> str:
@@ -35,6 +42,17 @@ def family(label: str | None) -> str:
 
 
 @dataclass(frozen=True)
+class ByteSignals:
+    route: str
+    has_utf8_bom: bool
+    strict_utf8: bool
+    ascii_only: bool
+    high_byte_ratio: float
+    nul_ratio: float
+    sample_len_4k: int
+
+
+@dataclass(frozen=True)
 class InferenceContext:
     data: bytes
     route: str
@@ -50,6 +68,48 @@ class InferenceContext:
     sample_len_4k: int
 
 
+def _signals(data: bytes) -> ByteSignals:
+    sample = data[:4096]
+    array = np.frombuffer(sample, dtype=np.uint8)
+    try:
+        sample.decode("utf-8", "strict")
+        strict = True
+    except UnicodeDecodeError:
+        strict = False
+
+    bom = data.startswith(b"\xef\xbb\xbf")
+    if len(array):
+        high_count = int(np.count_nonzero(array >= 128))
+        nul_count = int(np.count_nonzero(array == 0))
+        high = high_count / len(array)
+        nul = nul_count / len(array)
+        ascii_only = high_count == 0
+    else:
+        high = 0.0
+        nul = 0.0
+        ascii_only = True
+        nul_count = 0
+
+    if strict:
+        route_name = "U"
+    elif nul_count:
+        route_name = "N"
+    elif high <= 0.02:
+        route_name = "RL"
+    else:
+        route_name = "RH"
+
+    return ByteSignals(
+        route=route_name,
+        has_utf8_bom=bom,
+        strict_utf8=strict,
+        ascii_only=ascii_only,
+        high_byte_ratio=high,
+        nul_ratio=nul,
+        sample_len_4k=len(array),
+    )
+
+
 def _raw(model: LinearModel, vector: np.ndarray) -> np.ndarray:
     x = np.asarray(vector, dtype=np.float64)
     z = np.dot(model.weight, x) + model.bias
@@ -60,24 +120,22 @@ def _raw(model: LinearModel, vector: np.ndarray) -> np.ndarray:
     return z
 
 
-def build_context(data: bytes, model: LinearModel) -> InferenceContext:
-    vector = feature_vector(data)
+def _context(data: bytes, signals: ByteSignals, model: LinearModel, vector: np.ndarray) -> InferenceContext:
     raw = _raw(model, vector)
     order = raw.argsort()[::-1]
-    bom, strict, ascii_only, high, nul, length = byte_signals(data)
     return InferenceContext(
         data=data,
-        route=route(data),
+        route=signals.route,
         rank=tuple(np.asarray(model.classes, dtype=object)[order]),
         sorted_scores=raw[order],
         raw_scores=raw,
         classes=model.classes,
-        has_utf8_bom=bom,
-        strict_utf8=strict,
-        ascii_only=ascii_only,
-        high_byte_ratio=high,
-        nul_ratio=nul,
-        sample_len_4k=length,
+        has_utf8_bom=signals.has_utf8_bom,
+        strict_utf8=signals.strict_utf8,
+        ascii_only=signals.ascii_only,
+        high_byte_ratio=signals.high_byte_ratio,
+        nul_ratio=signals.nul_ratio,
+        sample_len_4k=signals.sample_len_4k,
     )
 
 
@@ -118,34 +176,36 @@ def _rule_rerank(ctx: InferenceContext) -> list[str]:
     return ranked
 
 
-class Runtime:
-    def __init__(self, bundle: RuntimeBundle):
-        self.bundle = bundle
-        self.class_idx = {c: i for i, c in enumerate(bundle.classes)}
-        self.fam_idx = {c: i for i, c in enumerate(bundle.families)}
+class _StackRuntime:
+    def __init__(self, stack: RuntimeStack, classes: tuple[str, ...], families: tuple[str, ...]):
+        self.stack = stack
+        self.classes = classes
+        self.families = families
+        self.class_idx = {c: i for i, c in enumerate(classes)}
+        self.fam_idx = {c: i for i, c in enumerate(families)}
         self.route_idx = {r: i for i, r in enumerate(ROUTES)}
 
         self._cal_static: dict[tuple[str, str], float] = {}
         self._cal_coef = 0.0
         self._cal_pos = (0.0, 0.0, 0.0)
-        if bundle.calibrator is not None:
-            vector = bundle.calibrator.weight[0]
+        if stack.calibrator is not None:
+            vector = stack.calibrator.weight[0]
             for route_name in ROUTES:
                 route_term = vector[7 + self.route_idx[route_name]]
-                for candidate in bundle.classes:
+                for candidate in classes:
                     value = float(route_term)
                     ci = self.class_idx.get(candidate)
                     if ci is not None:
                         value += vector[11 + ci]
                     fi = self.fam_idx.get(family(candidate))
                     if fi is not None:
-                        value += vector[11 + len(bundle.classes) + fi]
+                        value += vector[11 + len(classes) + fi]
                     self._cal_static[(route_name, candidate)] = float(value)
             self._cal_coef = float(vector[0] + vector[1] + vector[2])
             self._cal_pos = (0.0, float(vector[3]), float(2.0 * vector[3]))
 
     def _choose_cal(self, ctx: InferenceContext) -> list[str]:
-        model = self.bundle.calibrator
+        model = self.stack.calibrator
         if model is None or len(ctx.rank) < 3:
             return list(ctx.rank)
 
@@ -165,12 +225,7 @@ class Runtime:
             common + self._cal_coef * float(ctx.sorted_scores[1]) + self._cal_pos[1] + self._cal_static[(ctx.route, cand[1])],
             common + self._cal_coef * float(ctx.sorted_scores[2]) + self._cal_pos[2] + self._cal_static[(ctx.route, cand[2])],
         )
-        winner = 0
-        best = z[0]
-        if z[1] > best:
-            winner, best = 1, z[1]
-        if z[2] > best:
-            winner = 2
+        winner = int(np.argmax(z))
         if winner == 0:
             return list(ctx.rank)
         out = list(ctx.rank)
@@ -185,12 +240,12 @@ class Runtime:
             return rule
         return self._choose_cal(ctx)
 
-    def _triad_logits(self, ctx: InferenceContext) -> tuple[tuple[str, ...], tuple[float, float, float]] | None:
-        model = self.bundle.triad
+    def _triad_logits(self, ctx: InferenceContext):
+        model = self.stack.triad
         if model is None:
             return None
         values = [_score(ctx, c) for c in TRIAD]
-        second = max(min(values[0], values[1]), min(max(values[0], values[1]), values[2]))
+        second = sorted(values)[1]
         xs = (
             values[0], values[1], values[2],
             values[0] - values[1],
@@ -211,10 +266,10 @@ class Runtime:
         route_col = 13 + self.route_idx[ctx.route]
         for i in range(3):
             logits[i] += float(model.weight[i, route_col])
-        return model.classes, (logits[0], logits[1], logits[2])
+        return model.classes, tuple(logits)
 
     def _gate(self, ctx: InferenceContext, baseline: list[str]) -> list[str]:
-        if self.bundle.triad is None or not baseline or baseline[0] not in TRIAD:
+        if self.stack.triad is None or not baseline or baseline[0] not in TRIAD:
             return baseline
         top3 = ctx.rank[:3]
         if sum(c in TRIAD for c in top3) < 2:
@@ -222,14 +277,10 @@ class Runtime:
         packed = self._triad_logits(ctx)
         assert packed is not None
         classes, logits = packed
-        a, b, c = logits
-        if a >= b and a >= c:
-            idx, maximum, other1, other2 = 0, a, b, c
-        elif b >= c:
-            idx, maximum, other1, other2 = 1, b, a, c
-        else:
-            idx, maximum, other1, other2 = 2, c, a, b
-        if math.exp(other1 - maximum) + math.exp(other2 - maximum) > 1.0:
+        idx = int(np.argmax(logits))
+        maximum = float(logits[idx])
+        others = [float(v) for i, v in enumerate(logits) if i != idx]
+        if sum(math.exp(v - maximum) for v in others) > 1.0:
             return baseline
         pred = classes[idx]
         if pred not in top3:
@@ -267,17 +318,123 @@ class Runtime:
             out.insert(0, pred)
         return out
 
-    def rank(self, data: bytes) -> tuple[str, ...]:
-        route_name = route(data)
-        ctx = build_context(data, self.bundle.route_models[route_name])
+    def rank_context(self, ctx: InferenceContext) -> list[str]:
         hybrid = self._hybrid(ctx)
         gated = self._gate(ctx, hybrid)
-        sig = self._pair(self.bundle.utf8_sig, SIG_PAIR, ctx, gated)
-        out = self._pair(self.bundle.utf8_gb, GB_PAIR, ctx, sig)
+        sig = self._pair(self.stack.utf8_sig, SIG_PAIR, ctx, gated)
+        out = self._pair(self.stack.utf8_gb, GB_PAIR, ctx, sig)
         if (
             out and sig and out[0] != sig[0]
             and sig[0] == "gb18030" and out[0] == "utf-8"
-            and replacement_rate(data) > RATE_THRESHOLD
+            and replacement_rate(ctx.data) > RATE_THRESHOLD
         ):
             out = sig
-        return tuple(out)
+        return out
+
+
+def _decode_metrics(data: bytes, enc: str) -> tuple[float, float]:
+    sample = data[:4096]
+    try:
+        text = sample.decode(enc, "strict")
+        return 1.0, 0.0
+    except UnicodeDecodeError:
+        text = sample.decode(enc, "replace")
+        return 0.0, text.count("\ufffd") / max(1, len(text))
+
+
+def _specialist_vector(ctx: InferenceContext) -> np.ndarray:
+    vals = [_score(ctx, c) for c in R12_TARGETS]
+    sorted_vals = sorted(vals, reverse=True)
+    target_margin = sorted_vals[0] - sorted_vals[1] if len(sorted_vals) > 1 else 0.0
+
+    positions = []
+    rank = list(ctx.rank)
+    for target in R12_TARGETS:
+        try:
+            positions.append(float(rank.index(target) + 1))
+        except ValueError:
+            positions.append(99.0)
+
+    u_valid, u_repl = _decode_metrics(ctx.data, "utf-8")
+    b_valid, b_repl = _decode_metrics(ctx.data, "big5")
+    k_valid, k_repl = _decode_metrics(ctx.data, "euc-kr")
+
+    return np.asarray(
+        vals
+        + positions
+        + [
+            target_margin,
+            u_valid, u_repl,
+            b_valid, b_repl,
+            k_valid, k_repl,
+            ctx.high_byte_ratio,
+            float(ctx.sample_len_4k),
+        ],
+        dtype=np.float32,
+    )
+
+
+def _softmax(raw: np.ndarray) -> np.ndarray:
+    z = np.asarray(raw, dtype=np.float64)
+    z = z - float(np.max(z))
+    e = np.exp(z)
+    return e / np.sum(e)
+
+
+class Runtime:
+    def __init__(self, bundle: RuntimeBundle):
+        self.bundle = bundle
+        self.baseline = _StackRuntime(bundle.baseline, bundle.classes, bundle.families)
+        self.full_b = (
+            _StackRuntime(bundle.full_b, bundle.classes, bundle.families)
+            if bundle.full_b is not None
+            else None
+        )
+
+    def _apply_rl_specialist(self, ctx: InferenceContext, baseline: list[str]) -> list[str]:
+        model = self.bundle.rl_specialist
+        if model is None or ctx.route != "RL" or not baseline:
+            return baseline
+        raw = _raw(model, _specialist_vector(ctx))
+        probs = _softmax(raw)
+        idx = int(np.argmax(probs))
+        pred = model.classes[idx]
+        if pred == R12_OTHER or float(probs[idx]) < self.bundle.r12_threshold:
+            return baseline
+        if pred not in ctx.rank:
+            return baseline
+        out = list(baseline)
+        if pred in out:
+            out.remove(pred)
+        out.insert(0, pred)
+        return out
+
+    def rank(self, data: bytes) -> tuple[str, ...]:
+        signals = _signals(data)
+        array = hmt768_array(data)
+        baseline_vector = baseline_from_array(array)
+
+        bmodel = self.bundle.baseline.route_models[signals.route]
+        bctx = _context(data, signals, bmodel, baseline_vector)
+        baseline = self.baseline.rank_context(bctx)
+
+        threshold = self.bundle.gate_thresholds.get(signals.route)
+        margin = (
+            float(bctx.sorted_scores[0] - bctx.sorted_scores[1])
+            if len(bctx.sorted_scores) >= 2
+            else float("inf")
+        )
+
+        if (
+            self.full_b is not None
+            and threshold is not None
+            and signals.route in ("U", "RH")
+            and margin <= threshold
+        ):
+            extra = full_b_extra_from_array(array, signals.route)
+            full_vector = np.concatenate([baseline_vector, extra])
+            fmodel = self.bundle.full_b.route_models[signals.route]  # type: ignore[union-attr]
+            fctx = _context(data, signals, fmodel, full_vector)
+            return tuple(self.full_b.rank_context(fctx))
+
+        return tuple(self._apply_rl_specialist(bctx, baseline))

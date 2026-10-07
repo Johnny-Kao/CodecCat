@@ -412,3 +412,31 @@ Therefore:
 - advance to **R8 compact RL-specific high-byte feature research**;
 - use paired full-pipeline cross-fold evidence as the first gate;
 - keep CC-MAIN-2026-30 untouched.
+
+
+## R22 release-generalization result and vNext boundary — 2026-10-07
+
+Fresh one-shot evidence:
+- holdout: `CC-MAIN-2026-25`
+- CodecCat: **233/258 = 90.31%**
+- charset-normalizer 3.5.2: **234/258 = 90.70%**
+- chardet 7.6.0: **242/258 = 93.80%**
+- median latency: CodecCat ~164 us/sample, charset-normalizer ~932 us/sample, chardet 7 ~1175 us/sample
+- frozen artifact SHA256: `e792df1be4a4a07f052c7786e61122d547a3c87501ad5b40f729621e8019fb54`
+
+Decision:
+- keep the R20/R21 release candidate frozen;
+- do not tune against R22 errors;
+- treat `CC-MAIN-2026-25` as consumed release-evaluation evidence;
+- move future accuracy research to an explanation-first hybrid line.
+
+Source of truth for the next research stage:
+- `research/VNEXT_HYBRID_RESEARCH_CONTRACT.md`
+
+The vNext ordering is:
+1. H1 specification-derived structural candidate elimination;
+2. H2 candidate-mask integration with existing learned scores;
+3. H3 ambiguity-only specialist, only if causally justified;
+4. H4 multi-corpus robustness before any production promotion.
+
+No vNext mechanism may be selected from R22 failure counts or threshold sweeps.

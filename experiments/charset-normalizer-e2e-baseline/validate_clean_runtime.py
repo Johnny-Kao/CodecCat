@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+from pathlib import Path
 
 import joblib
 import numpy as np
@@ -83,7 +85,15 @@ def main():
 
     state = joblib.load(args.state)
     external = r17.reconstruct_external(state)
-    legacy_rows = r17.raw_legacy_rows()
+
+    # Research loaders use repository-root-relative fixture paths.
+    old_cwd = Path.cwd()
+    repo_root = Path(__file__).resolve().parents[2]
+    os.chdir(repo_root)
+    try:
+        legacy_rows = r17.raw_legacy_rows()
+    finally:
+        os.chdir(old_cwd)
 
     base_X, legacy_y, legacy_b = r17.legacy_arrays(
         r13.baseline_features, legacy_rows

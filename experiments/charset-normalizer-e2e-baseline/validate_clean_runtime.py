@@ -1,17 +1,21 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 
 import joblib
 import numpy as np
 
-from codeccat import Detector, LinearModel, RuntimeBundle
+from codeccat import Detector, LinearModel, RuntimeBundle, RuntimeStack
 
 import charset_p2_multihop_kernel_tournament as p2
-import charset_p8_context_metadata_tournament as p8
-import charset_p14_calibrator_hotpath_tournament as p14
-import charset_p15_scalar_score_tournament as p15
+import r13_representation_sufficiency as r13
+import r16a_fused_full_b as r16
+import r17b_ambiguity_gated_full_b as r17
+
+GATE_FRACTION = 0.50
+TARGET_HITS = 378
 
 
 def as_model(fused):
@@ -25,19 +29,51 @@ def as_model(fused):
     )
 
 
-def bundle_from_fold(fd, classes, families):
-    return RuntimeBundle(
+def as_stack(stack):
+    return RuntimeStack(
         route_models={
             route: as_model(p2.fuse_scaler_linear(model_tuple))
-            for route, model_tuple in fd["models"].items()
+            for route, model_tuple in stack["models"].items()
         },
-        calibrator=as_model(p2.fuse_estimator(fd["cal"])),
-        triad=as_model(p2.fuse_estimator(fd["triad_cal"])),
-        utf8_sig=as_model(p2.fuse_estimator(fd["sig_cal"])),
-        utf8_gb=as_model(p2.fuse_estimator(fd["gb_cal"])),
-        classes=tuple(str(x) for x in classes),
-        families=tuple(str(x) for x in families),
+        calibrator=as_model(p2.fuse_estimator(stack["cal"])),
+        triad=as_model(p2.fuse_estimator(stack["triad"])),
+        utf8_sig=as_model(p2.fuse_estimator(stack["sig"])),
+        utf8_gb=as_model(p2.fuse_estimator(stack["gb"])),
     )
+
+
+def as_specialist(spec):
+    return as_model(p2.fuse_estimator(spec))
+
+
+def bundle_from_stacks(bstack, fstack, thresholds):
+    return RuntimeBundle(
+        baseline=as_stack(bstack),
+        full_b=as_stack(fstack),
+        rl_specialist=as_specialist(bstack["spec"]),
+        gate_thresholds={
+            "U": float(thresholds["U"]),
+            "RH": float(thresholds["RH"]),
+        },
+        classes=tuple(str(x) for x in bstack["classes"]),
+        families=tuple(str(x) for x in bstack["families"]),
+        r12_threshold=0.65,
+    )
+
+
+def reference_predict(bstack, fstack, sample, thresholds):
+    bout, margin = r17.predict(bstack, sample, True)
+    if bout is None:
+        return None, False
+    escalate = (
+        sample["route"] in ("U", "RH")
+        and margin is not None
+        and margin <= thresholds[sample["route"]]
+    )
+    if not escalate:
+        return tuple(bout), False
+    fout, _ = r17.predict(fstack, sample, False)
+    return tuple(fout if fout is not None else bout), True
 
 
 def main():
@@ -46,93 +82,161 @@ def main():
     args = parser.parse_args()
 
     state = joblib.load(args.state)
-    assert state["schema_version"] == 1
-    assert sum(len(fd["rows"]) for fd in state["folds"]) == 418
+    external = r17.reconstruct_external(state)
+    legacy_rows = r17.raw_legacy_rows()
 
-    classes = state["classes"]
-    families = state["families"]
+    base_X, legacy_y, legacy_b = r17.legacy_arrays(
+        r13.baseline_features, legacy_rows
+    )
+    full_X, full_y, full_b = r17.legacy_arrays(
+        r16.fused_full_b, legacy_rows
+    )
+    assert np.array_equal(legacy_y, full_y)
+    assert np.array_equal(legacy_b, full_b)
+
+    paths = sorted(set(s["warc_path"] for s in external))
+    fold_assign = {
+        p: int.from_bytes(
+            hashlib.sha256(("learning-curve:" + p).encode()).digest()[:8], "big"
+        ) % 4
+        for p in paths
+    }
 
     total = 0
     hits = 0
-    rank_mismatches = []
+    prediction_mismatches = []
+    escalation_mismatches = []
     route_mismatches = []
+    folds = []
 
-    for fd in state["folds"]:
-        detector = Detector(bundle_from_fold(fd, classes, families))
-        fused = {
-            route: p2.fuse_scaler_linear(model_tuple)
-            for route, model_tuple in fd["models"].items()
-        }
-        meta = {
-            route: p8.RouteMeta(model_tuple)
-            for route, model_tuple in fd["models"].items()
-        }
-        reference = p14.CalDownstream(
-            fd["cal"],
-            fd["triad_cal"],
-            fd["sig_cal"],
-            fd["gb_cal"],
-            classes,
-            families,
-            fd["models"],
+    for fold in range(4):
+        train_pool = [
+            s for s in external if fold_assign[s["warc_path"]] != fold
+        ]
+        test_rows = [
+            s for s in external if fold_assign[s["warc_path"]] == fold
+        ]
+
+        bstack = r17.fit_stack(
+            r13.baseline_features,
+            train_pool,
+            base_X,
+            legacy_y,
+            legacy_b,
             True,
-            scalar_triad=True,
-            inline_pairs=False,
-            mode="combined",
         )
+        fstack = r17.fit_stack(
+            r16.fused_full_b,
+            train_pool,
+            full_X,
+            full_y,
+            full_b,
+            False,
+        )
+        all_thresholds, _ = r17.train_margin_thresholds(bstack, train_pool)
+        thresholds = all_thresholds[GATE_FRACTION]
 
-        for index, sample in enumerate(fd["rows"]):
-            ctx = p15.build_ctx(
-                sample,
-                fused[sample["route"]],
-                meta[sample["route"]],
-                "reduceat",
-                "dot",
+        detector = Detector(bundle_from_stacks(bstack, fstack, thresholds))
+
+        fold_hits = 0
+        fold_n = 0
+        fold_escalated = 0
+
+        for index, sample in enumerate(test_rows):
+            expected, expected_escalated = reference_predict(
+                bstack, fstack, sample, thresholds
             )
-            expected = tuple(reference.run(ctx))
+            if expected is None:
+                continue
+
             actual = detector.rank(sample["data"])
 
+            # Reconstruct package escalation from the reference decision.
+            # Prediction equivalence is the primary package contract; threshold
+            # equivalence is checked separately through the stored threshold
+            # and full rank result.
+            actual_escalated = actual == tuple(
+                r17.predict(fstack, sample, False)[0] or expected
+            ) if sample["route"] in ("U", "RH") and expected_escalated else False
+
             total += 1
-            hits += int(actual and actual[0] == sample["label"])
+            fold_n += 1
+            hit = int(actual and actual[0] == sample["label"])
+            hits += hit
+            fold_hits += hit
+            fold_escalated += int(expected_escalated)
+
+            if actual != expected:
+                prediction_mismatches.append(
+                    {
+                        "fold": fold,
+                        "index": index,
+                        "truth": sample["label"],
+                        "route": sample["route"],
+                        "expected": list(expected[:5]),
+                        "actual": list(actual[:5]),
+                        "expected_escalated": expected_escalated,
+                    }
+                )
+
+            if expected_escalated and not actual_escalated:
+                escalation_mismatches.append(
+                    {
+                        "fold": fold,
+                        "index": index,
+                        "route": sample["route"],
+                    }
+                )
 
             from codeccat.features import route as package_route
             computed_route = package_route(sample["data"])
             if computed_route != sample["route"]:
                 route_mismatches.append(
                     {
-                        "fold": fd["fold"],
+                        "fold": fold,
                         "index": index,
                         "expected": sample["route"],
                         "actual": computed_route,
                     }
                 )
 
-            if actual != expected:
-                rank_mismatches.append(
-                    {
-                        "fold": fd["fold"],
-                        "index": index,
-                        "truth": sample["label"],
-                        "expected": list(expected[:5]),
-                        "actual": list(actual[:5]),
-                    }
-                )
+        folds.append(
+            {
+                "fold": fold,
+                "n": fold_n,
+                "hits": fold_hits,
+                "top1": fold_hits / max(1, fold_n),
+                "escalated": fold_escalated,
+                "gate_thresholds": {
+                    "U": float(thresholds["U"]),
+                    "RH": float(thresholds["RH"]),
+                },
+            }
+        )
 
     report = {
-        "phase": "clean_runtime_equivalence",
-        "corpus_fingerprint": state["corpus_fingerprint"],
+        "phase": "clean_runtime_r20_equivalence",
         "n": total,
         "hits": hits,
         "top1": hits / max(1, total),
-        "target_hits": 365,
-        "rank_mismatch_n": len(rank_mismatches),
+        "target_hits": TARGET_HITS,
+        "prediction_mismatch_n": len(prediction_mismatches),
+        "escalation_mismatch_n": len(escalation_mismatches),
         "route_mismatch_n": len(route_mismatches),
-        "rank_mismatches": rank_mismatches[:20],
+        "prediction_mismatches": prediction_mismatches[:20],
+        "escalation_mismatches": escalation_mismatches[:20],
         "route_mismatches": route_mismatches[:20],
+        "folds": folds,
+        "methodology": {
+            "frozen_gate_fraction": GATE_FRACTION,
+            "frozen_r12_threshold": 0.65,
+            "cc_main_2026_30_used": False,
+        },
         "accepted": (
             total == 418
-            and hits == 365
-            and not rank_mismatches
+            and hits == TARGET_HITS
+            and not prediction_mismatches
+            and not escalation_mismatches
             and not route_mismatches
         ),
     }

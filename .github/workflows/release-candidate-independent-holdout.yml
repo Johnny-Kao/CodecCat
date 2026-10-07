@@ -1,13 +1,6 @@
 name: Release candidate independent holdout
 
 on:
-  push:
-    branches:
-      - staging/initial-package
-    paths:
-      - ".github/workflows/release-candidate-independent-holdout.yml"
-      - "experiments/charset-normalizer-e2e-baseline/release_candidate_independent_holdout.py"
-      - "src/codeccat/model_io.py"
   workflow_dispatch:
 
 permissions:

@@ -1,3 +1,5 @@
+> **Current boundary (2026-10-07):** R20/R21 is frozen after the R22 fresh-crawl one-shot. Do not tune against `CC-MAIN-2026-25`. Future work is governed by `research/VNEXT_HYBRID_RESEARCH_CONTRACT.md`: explanation-first structural candidate elimination, then candidate-mask integration, then only narrowly justified ambiguity specialists.
+
 > **Source-of-truth note (2026-10-06):** The original charset-detection research began in `Johnny-Kao/OSS-Engineering-Toolkit` on branch `research/charset-normalizer-e2e-baseline`. That historical material has now been migrated into CodecCat. This repository is the sole active source of truth for future CodecCat research, implementation, benchmarking, and release planning. Historical snapshots are preserved under `research/history/`.
 
 # Charset Detection Research Handoff

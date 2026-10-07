@@ -1,0 +1,51 @@
+name: R22 fresh crawl one-shot
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      PAIR_A: utf-8
+      PAIR_B: utf-8-sig
+      PYTHONHASHSEED: "0"
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      R21_RUN_ID: "37568792009"
+      R21_MODEL_SHA256: "e792df1be4a4a07f052c7786e61122d547a3c87501ad5b40f729621e8019fb54"
+      R21_DEV_FINGERPRINT: "66fdefd2dc010b63948e1c9ff944151fea6f528450a589d15a7c920d497fd3f4"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pinned dependencies
+        run: |
+          python -m pip install --no-cache-dir \
+            numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 \
+            joblib==1.6.0 requests==2.34.2 warcio==1.8.1 \
+            charset-normalizer==3.5.2 chardet==7.6.0
+          python -m pip install -e .
+      - name: Download immutable R21 artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p artifacts/r21
+          gh run download "$R21_RUN_ID" \
+            --repo "${{ github.repository }}" \
+            --name codeccat-r20-release-candidate \
+            --dir artifacts/r21
+      - name: Verify and evaluate fresh crawl once
+        run: |
+          PYTHONPATH=src:experiments/charset-normalizer-e2e-baseline python \
+            experiments/charset-normalizer-e2e-baseline/r22_fresh_crawl_one_shot.py \
+            --model artifacts/r21/codeccat-r20-release-candidate.npz \
+            --expected-model-sha256 "$R21_MODEL_SHA256" \
+            --dev-fingerprint "$R21_DEV_FINGERPRINT"

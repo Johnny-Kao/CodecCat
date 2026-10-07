@@ -1,6 +1,10 @@
 name: R22 fresh crawl one-shot
 
 on:
+  push:
+    branches: [staging/initial-package]
+    paths:
+      - ".github/workflows/r22-fresh-crawl-one-shot.yml"
   workflow_dispatch:
 
 permissions:

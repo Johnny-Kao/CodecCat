@@ -5,6 +5,11 @@ import math
 import numpy as np
 
 S3_THRESHOLD = 0.02
+BASE_WIDTH = 518
+EXTRA_WIDTH = 368
+FULL_WIDTH = BASE_WIDTH + EXTRA_WIDTH
+
+_REDUCE_IDX = np.asarray([32, 127, 128], dtype=np.intp)
 
 
 def hmt768(data: bytes) -> bytes:
@@ -12,6 +17,10 @@ def hmt768(data: bytes) -> bytes:
         return data
     middle = len(data) // 2
     return data[:256] + data[middle - 128 : middle + 128] + data[-256:]
+
+
+def hmt768_array(data: bytes) -> np.ndarray:
+    return np.frombuffer(hmt768(data), dtype=np.uint8)
 
 
 def strict_utf8(data: bytes) -> bool:
@@ -62,21 +71,14 @@ def byte_signals(data: bytes) -> tuple[bool, bool, bool, float, float, int]:
     return bom, strict, ascii_only, high, nul, len(array)
 
 
-_REDUCE_IDX = np.asarray([32, 127, 128], dtype=np.intp)
-
-
-def feature_vector(data: bytes) -> np.ndarray:
-    sampled = hmt768(data)
-    array = np.frombuffer(sampled, dtype=np.uint8)
+def baseline_from_array(array: np.ndarray) -> np.ndarray:
     n = max(1, len(array))
-
     counts = np.bincount(array, minlength=256)
-    out = np.empty(518, dtype=np.float32)
+    out = np.empty(BASE_WIDTH, dtype=np.float32)
     out[:256] = counts
     out[:256] *= 1.0 / n
 
     if len(array) >= 2:
-        # uint8 addition intentionally wraps modulo 256.
         bins = array[:-1] + array[1:]
         bigram_counts = np.bincount(bins, minlength=256)
         out[256:512] = bigram_counts
@@ -104,3 +106,41 @@ def feature_vector(data: bytes) -> np.ndarray:
         cr,
     )
     return out
+
+
+def full_b_extra_from_array(array: np.ndarray, route_name: str) -> np.ndarray:
+    out = np.zeros(EXTRA_WIDTH, dtype=np.float32)
+    if route_name not in ("U", "RH"):
+        return out
+
+    if len(array) >= 2:
+        left = array[:-1]
+        right = array[1:]
+        x = left.astype(np.int16, copy=False)
+        y = right.astype(np.int16, copy=False)
+        diff = ((y - x) & 255).astype(np.intp, copy=False)
+        out[:256] = np.bincount(diff, minlength=256).astype(np.float32) / (len(array) - 1)
+
+        xb = (np.bitwise_xor(left, right) >> 2).astype(np.intp, copy=False)
+        out[256:320] = np.bincount(xb, minlength=64).astype(np.float32) / (len(array) - 1)
+
+    p = 320
+    for chunk in (array[:256], array[256:512], array[512:768]):
+        high = chunk[chunk >= 128]
+        if len(high):
+            idx = ((high.astype(np.uint16) - 128) >> 3).astype(np.intp, copy=False)
+            out[p : p + 16] = np.bincount(idx, minlength=16).astype(np.float32) / len(high)
+        p += 16
+    return out
+
+
+def feature_vector(data: bytes) -> np.ndarray:
+    return baseline_from_array(hmt768_array(data))
+
+
+def full_b_vector(data: bytes, route_name: str | None = None) -> np.ndarray:
+    route_name = route_name or route(data)
+    array = hmt768_array(data)
+    baseline = baseline_from_array(array)
+    extra = full_b_extra_from_array(array, route_name)
+    return np.concatenate([baseline, extra])

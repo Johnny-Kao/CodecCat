@@ -1,0 +1,53 @@
+name: H2f production-shape structural screen
+
+on:
+  push:
+    branches: [staging/initial-package]
+    paths:
+      - ".github/workflows/h2f-production-shape-screen.yml"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      R21_RUN_ID: "37568792009"
+      R21_MODEL_SHA256: "e792df1be4a4a07f052c7786e61122d547a3c87501ad5b40f729621e8019fb54"
+      PYTHONHASHSEED: "0"
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pinned dependencies
+        run: |
+          python -m pip install --no-cache-dir \
+            numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 \
+            joblib==1.6.0 requests==2.34.2 warcio==1.8.1 Cython==3.1.4
+          python -m pip install -e .
+      - name: Build H2f compiled structural mask
+        working-directory: experiments/charset-normalizer-e2e-baseline
+        run: python setup_h2f_structural_mask.py build_ext --inplace
+      - name: Download immutable R21 artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p artifacts/r21
+          gh run download "$R21_RUN_ID" \
+            --repo "${{ github.repository }}" \
+            --name codeccat-r20-release-candidate \
+            --dir artifacts/r21
+      - name: Run H2f same-run benchmark
+        run: |
+          PYTHONPATH=src:experiments/charset-normalizer-e2e-baseline python \
+            experiments/charset-normalizer-e2e-baseline/h2f_production_shape_structural_screen.py \
+            --model artifacts/r21/codeccat-r20-release-candidate.npz \
+            --expected-model-sha256 "$R21_MODEL_SHA256"

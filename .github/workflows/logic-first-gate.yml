@@ -1,0 +1,24 @@
+name: Logic-first vNext correctness gate
+on:
+  push:
+    branches: [staging/initial-package]
+    paths:
+      - ".github/workflows/logic-first-gate.yml"
+      - "src/codeccat/logic_first.py"
+      - "tests/test_logic_first.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  logic-correctness:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install pytest==8.4.2 numpy==2.5.3
+      - run: python -m pip install -e .
+      - run: python -m compileall -q src/codeccat/logic_first.py tests/test_logic_first.py
+      - run: python -m pytest -q tests/test_logic_first.py

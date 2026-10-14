@@ -1,0 +1,36 @@
+name: H5 frozen downstream decision audit
+on:
+  push:
+    branches: [staging/initial-package]
+    paths: [".github/workflows/h5-downstream-audit.yml"]
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      MODEL_SHA: "e792df1be4a4a07f052c7786e61122d547a3c87501ad5b40f729621e8019fb54"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0 requests==2.34.2 warcio==1.8.1
+          python -m pip install -e .
+      - name: Load frozen R21
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p artifacts/r21
+          gh run download 37568792009 --repo "${{ github.repository }}" --name codeccat-r20-release-candidate --dir artifacts/r21
+      - name: Audit downstream mechanisms
+        run: |
+          PYTHONPATH=src:experiments/charset-normalizer-e2e-baseline python experiments/charset-normalizer-e2e-baseline/h5_downstream_decision_audit.py --model artifacts/r21/codeccat-r20-release-candidate.npz --sha256 "$MODEL_SHA"

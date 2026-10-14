@@ -31,7 +31,7 @@ def observe(rows,rt):
     by_route=defaultdict(lambda:defaultdict(Counter))
     by_family=defaultdict(lambda:defaultdict(Counter))
     transitions=defaultdict(Counter)
-    contrast=defaultdict(Counter)
+    contrast=Counter()
     for s in rows:
         data=s["data"];truth=normalize(s["label"]); sig=_signals(data)
         a=hmt768_array(data);v=baseline_from_array(a)

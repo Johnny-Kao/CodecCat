@@ -1,11 +1,6 @@
 name: Logic-first vNext correctness gate
 on:
-  push:
-    branches: [staging/initial-package]
-    paths:
-      - ".github/workflows/logic-first-gate.yml"
-      - "src/codeccat/logic_first.py"
-      - "tests/test_logic_first.py"
+  # Manual legacy diagnostic only. Full tests live in logic-first-batch.yml.
   workflow_dispatch:
 permissions:
   contents: read

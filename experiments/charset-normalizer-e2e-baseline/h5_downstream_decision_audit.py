@@ -30,7 +30,7 @@ def observe(rows,rt):
     stages=defaultdict(Counter)
     by_route=defaultdict(lambda:defaultdict(Counter))
     by_family=defaultdict(lambda:defaultdict(Counter))
-    transitions=defaultdict(lambda:defaultdict(Counter))
+    transitions=defaultdict(Counter)
     contrast=defaultdict(Counter)
     for s in rows:
         data=s["data"];truth=normalize(s["label"]); sig=_signals(data)
@@ -91,6 +91,19 @@ def main():
     p=argparse.ArgumentParser();p.add_argument("--model",required=True);p.add_argument("--sha256",required=True);args=p.parse_args()
     assert hashlib.sha256(Path(args.model).read_bytes()).hexdigest()==args.sha256
     rt=Runtime(load_bundle(Path(args.model)));pooled=[];per={};meta={}
+    # Smoke-check every production route before fetching remote WARC data.
+    smoke=[
+        {"data":b"hello", "label":"utf-8"},
+        {"data":b"hello\\x80", "label":"cp1252"},
+        {"data":bytes([0x80,0x81])*300, "label":"cp1251"},
+        {"data":b"\\x00\\xff"*300, "label":"utf-16-le"},
+    ]
+    # Literal bytes are constructed here; this diagnostic preflight is not scored.
+    smoke[1]["data"]=b"hello"+bytes([0x80])
+    smoke[3]["data"]=bytes([0,255])*300
+    smoke_result=observe(smoke,rt)
+    assert smoke_result["contrast"]["n"]==4, "route smoke preflight failed"
+    print("H5_ROUTE_PREFLIGHT_PASS", flush=True)
     for crawl in CRAWLS:
         rows,paths,stats=collect(crawl);rows=dedupe(rows);pooled.extend(rows)
         per[crawl]=observe(rows,rt);meta[crawl]={"n":len(rows),"paths":len(paths),"stats":stats}

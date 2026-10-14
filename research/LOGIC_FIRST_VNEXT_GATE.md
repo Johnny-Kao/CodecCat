@@ -39,3 +39,15 @@ Do not retrain R21, modify main, change released packages, or declare that a str
 - Full-five-codec structural throughput 172,881 encoding evaluations/s in this run; batch process peak 32.36 MiB RSS. These are *not* production detector timings or model RSS metrics.
 - This result supports byte-structure soundness on synthetic/reference-codec samples. It is NOT a general accuracy proof, an exhaustive multi-byte proof, nor evidence that new architecture beats chardet or charset-normalizer.
 - Do not repeat this large batch unchanged. Next meaningful batch should include new independently verified multi-encoding datasets, schema experiments and final candidate comparisons as one predeclared tournament.
+
+### Differential strict-decoder review (additional analysis, no new runner run)
+- Original run artifact: `logic-first-consolidated-batch` from run 38651401085.
+- Structural VALID when Python strict decoder rejects, among non-decodable checked cases: UTF-8 **0/101568**, Shift-JIS **8289/73083** (11.34%), EUC-JP **2405/96861** (2.48%), Big5 **7093/87384** (8.12%), GB18030 **0/72854**.
+- These are permissive pattern matches (including unmapped codepoints). **VALID is not positive proof of decodability or language identity.** Python-version-specific codec semantics and complete versus truncated buffer behavior must be considered.
+- ZERO structural false exclusions seen across checked corpus; the conservative byte-state layer may reject clearly invalid candidates, but does not suffice as a final decoder verdict.
+- Next evaluation should measure paired candidate rejection/abstention, false-reject safety, real labelled accuracy, p50/p95 CPU, and RSS in one locked batch. Do not re-run the same synthetic million-case sample unchanged.
+
+### CI economy and training dependency
+- Research pushes no longer auto-run package compatibility across Python 3.10–3.14, nor the costly clean-package-equivalence workflow; both are manual sign-off workflows.
+- Baseline library install stays NumPy-only; optional `train` extra installs scikit-learn. Generic package tests skip the dedicated training-contract module when the optional extra is not installed; consolidated training CI installs and exercises it.
+- Historical package compatibility runs failed only because sklearn was absent from the general `[dev]` install. These failures were not algorithmic regressions. Re-run the cross-version matrix only at the package/release acceptance gate.

@@ -1,14 +1,7 @@
 name: Package compatibility
 
+# Manual-only on staging: avoid costly repeated CI jobs on research commits.
 on:
-  push:
-    branches:
-      - staging/initial-package
-    paths:
-      - ".github/workflows/package-compatibility.yml"
-      - "src/codeccat/**"
-      - "tests/**"
-      - "pyproject.toml"
   workflow_dispatch:
 
 permissions:

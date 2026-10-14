@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pytest
 
+pytest.importorskip("sklearn", reason="Optional training dependency; tested in the consolidated training gate")
+
 from codeccat.model_io import load_bundle
 from codeccat.api import Detector
 from codeccat.training import fit

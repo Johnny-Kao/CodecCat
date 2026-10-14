@@ -1,15 +1,7 @@
 name: Clean package equivalence
 
+# Manual-only on staging: avoid costly repeated CI jobs on research commits.
 on:
-  push:
-    branches:
-      - staging/initial-package
-    paths:
-      - ".github/workflows/clean-package-equivalence.yml"
-      - "src/codeccat/**"
-      - "tests/**"
-      - "pyproject.toml"
-      - "experiments/charset-normalizer-e2e-baseline/validate_clean_runtime.py"
   workflow_dispatch:
 
 permissions:

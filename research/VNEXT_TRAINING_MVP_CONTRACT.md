@@ -45,3 +45,6 @@ Tests validate training, model bundle roundtrip, independent source groups, and 
 3. Replace hard-coded downstream decision branches with a parameterized decision scorer where supported; preserve deterministic BOM semantics.
 4. Provide dataset QC, independent benchmark fixture formats, official regression gates, and a stable CLI.
 5. Do not conflate a user-trained customized model with a superior official model; publish only after an untouched cross-domain benchmark.
+
+## Optional dependencies and CI separation
+Install the trainer with `pip install -e '.[train]'`. The NumPy-only inference package deliberately does not require scikit-learn. Core packaging compatibility may skip the optional trainer contract, while consolidated training CI always installs training dependencies and runs it.

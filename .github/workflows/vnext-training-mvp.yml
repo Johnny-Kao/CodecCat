@@ -1,11 +1,6 @@
 name: vNext unified training MVP
+# Manual-only: training contract included in the consolidated research gate.
 on:
-  push:
-    branches: [staging/initial-package]
-    paths:
-      - ".github/workflows/vnext-training-mvp.yml"
-      - "src/codeccat/training.py"
-      - "tests/test_training_contract.py"
   workflow_dispatch:
 permissions:
   contents: read

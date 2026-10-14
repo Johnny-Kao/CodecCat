@@ -1,0 +1,37 @@
+name: Logic-first consolidated evidence batch
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  consolidated-gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONHASHSEED: "0"
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install once
+        run: |
+          python -m pip install -e . pytest==8.4.2 scipy==1.18.1 scikit-learn==1.9.1
+      - name: All correctness, contract, exhaustive differential, fuzz and throughput gates
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/test_logic_first.py tests/test_training_contract.py
+          python -m compileall -q src/codeccat/logic_first.py experiments/logic_first/batch_gate.py
+          python experiments/logic_first/batch_gate.py --valid-per-codec 50000 --random-cases 60000 --output research-results/logic-first/batch.json
+      - name: Evidence artifact from single job
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: logic-first-consolidated-batch
+          path: research-results/logic-first/batch.json
+          retention-days: 30

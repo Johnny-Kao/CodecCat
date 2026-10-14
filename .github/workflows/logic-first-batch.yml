@@ -1,5 +1,8 @@
 name: Logic-first consolidated evidence batch
 on:
+  push:
+    branches: [staging/initial-package]
+    paths: ['.github/workflows/logic-first-batch.yml']
   workflow_dispatch:
 permissions:
   contents: read

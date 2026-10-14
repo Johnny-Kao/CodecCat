@@ -31,14 +31,22 @@ def select_crawls():
     registry.raise_for_status()
     available = sorted({
         str(item.get("id", "")) for item in registry.json()
-        if str(item.get("id", "")).startswith("CC-MAIN-2026-")
+        if (str(item.get("id", "")).startswith("CC-MAIN-2025-")
+            or str(item.get("id", "")).startswith("CC-MAIN-2026-"))
         and str(item.get("id", "")).rsplit("-", 1)[-1].isdigit()
-        and int(str(item["id"]).rsplit("-", 1)[-1]) not in HISTORICAL
-        and int(str(item["id"]).rsplit("-", 1)[-1]) < 40
+        and (
+            str(item["id"]).startswith("CC-MAIN-2025-")
+            or int(str(item["id"]).rsplit("-", 1)[-1]) not in HISTORICAL
+        )
     })
     if len(available) < 4:
-        raise RuntimeError(f"Insufficient new published 2026 crawls: {available}")
-    return sorted(random.Random(SEED).sample(available, 4))
+        raise RuntimeError(f"Insufficient independent published crawls: {available}")
+    # Preregister a 2026 fresh index plus independently seeded 2025 draws.
+    recent = sorted(x for x in available if x.startswith("CC-MAIN-2026-"))
+    older = sorted(x for x in available if x.startswith("CC-MAIN-2025-"))
+    if not recent or len(older) < 3:
+        raise RuntimeError(f"Need 2026 and 3 distinct 2025 indexes: {available}")
+    return sorted((recent[-1], *random.Random(SEED).sample(older, 3)))
 
 
 def predict_one(model, data, runtime):

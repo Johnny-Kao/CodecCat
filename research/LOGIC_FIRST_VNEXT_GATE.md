@@ -22,3 +22,20 @@ Structural validity is **not** full codec decodability: valid byte-range pattern
 
 ## Non-goals
 Do not retrain R21, modify main, change released packages, or declare that a structural validator itself improves detection accuracy. No paid runners.
+
+
+## Single-batch execution rule (2026-10-15)
+- One CI setup, one runner job, one seeded batch, one result artifact; never launch a standalone workflow per hypothesis or encoding family.
+- Group cheap unit checks, contract checks, deterministic exhaustive spaces, property-based generated valid samples, adversarial/random inputs, negative mutations, truncation, and CPU/RSS evidence into the same execution.
+- Freeze inputs/seeds and register all candidates before launching; avoid inspecting partial results to start follow-on runner jobs.
+- Consolidated workflow: .github/workflows/logic-first-batch.yml. Only a deliberate workflow-file update on staging triggers the batch; workflow_dispatch is available once the workflow exists on the default branch. The prior logic-first-gate.yml auto-push trigger is retired.
+- Preserve JSON with per-encoding counters as the downloadable Actions artifact, and log high-level summary. One benchmark invocation should gather multiple metrics, not one test per runner invocation.
+
+### First batch evidence
+- Run: https://github.com/Johnny-Kao/CodecCat/actions/runs/38651401085
+- Exactly 1,055,568 structural checks, including exhaustive 65,536 two-byte strings across five encodings, 50,000 generated known-valid samples per encoding, 60,000 random/adversarial strings across five encodings, mutations, truncations and 20,000 complete five-codec performance passes.
+- Differential cross-check against Python strict codecs: 0 false exclusions observed. Existing logic and dataset/training tests: 11/11 passed.
+- Measured script phases: 1.168 s exhaustive; 7.666 s generated; 2.371 s random/adversarial; 0.578 s five-codec throughput, for 11.783 s substantive batch execution (not including unit tests, package install, or Actions provisioning).
+- Full-five-codec structural throughput 172,881 encoding evaluations/s in this run; batch process peak 32.36 MiB RSS. These are *not* production detector timings or model RSS metrics.
+- This result supports byte-structure soundness on synthetic/reference-codec samples. It is NOT a general accuracy proof, an exhaustive multi-byte proof, nor evidence that new architecture beats chardet or charset-normalizer.
+- Do not repeat this large batch unchanged. Next meaningful batch should include new independently verified multi-encoding datasets, schema experiments and final candidate comparisons as one predeclared tournament.

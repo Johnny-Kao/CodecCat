@@ -1,0 +1,38 @@
+name: H11 RH-CJK failure mechanisms
+on:
+  push:
+    branches: [staging/initial-package]
+    paths:
+      - ".github/workflows/h11-rh-cjk-failures.yml"
+      - "experiments/charset-normalizer-e2e-baseline/h11_rh_cjk_failure_mechanisms.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate script
+        run: python -m compileall -q experiments/charset-normalizer-e2e-baseline/h11_rh_cjk_failure_mechanisms.py
+      - name: Download frozen H7 trace
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p artifacts/h7
+          gh run download 38553419903 --repo "${{ github.repository }}" --name h7-paired-attribution --dir artifacts/h7
+          test -s artifacts/h7/sample-trace.csv
+      - name: Trace RH and CJK failure mechanisms
+        run: |
+          python experiments/charset-normalizer-e2e-baseline/h11_rh_cjk_failure_mechanisms.py --input artifacts/h7/sample-trace.csv
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: h11-failure-mechanisms
+          path: research-results/h11/
+          retention-days: 30

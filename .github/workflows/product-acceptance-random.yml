@@ -1,0 +1,53 @@
+name: Final product benchmark - random unseen crawls
+on:
+  push:
+    branches: [staging/initial-package]
+    paths:
+      - ".github/workflows/product-acceptance-random.yml"
+      - "experiments/charset-normalizer-e2e-baseline/product_acceptance_random_benchmark.py"
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      MODEL_SHA: "e792df1be4a4a07f052c7786e61122d547a3c87501ad5b40f729621e8019fb54"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pinned model and benchmark dependencies
+        run: |
+          python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0 requests==2.34.2 warcio==1.8.1 chardet==7.0.1 charset-normalizer==3.4.4
+          python -m pip install -e .
+      - name: Preflight compile and import
+        run: |
+          python -m compileall -q src/codeccat experiments/charset-normalizer-e2e-baseline/product_acceptance_random_benchmark.py
+          PYTHONPATH=src:experiments/charset-normalizer-e2e-baseline python -c "import product_acceptance_random_benchmark as b; assert len(b.MODELS)==3; assert not (b.HISTORICAL - {8,12,17,21,25,30,34,39}); print('PRODUCT_PREFLIGHT_PASS')"
+      - name: Download frozen R21 and verify SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p artifacts/r21
+          gh run download 37568792009 --repo "${{ github.repository }}" --name codeccat-r20-release-candidate --dir artifacts/r21
+          echo "$MODEL_SHA  artifacts/r21/codeccat-r20-release-candidate.npz" | sha256sum -c -
+      - name: Single-run three-detector acceptance comparison
+        run: |
+          PYTHONPATH=src:experiments/charset-normalizer-e2e-baseline python experiments/charset-normalizer-e2e-baseline/product_acceptance_random_benchmark.py --model artifacts/r21/codeccat-r20-release-candidate.npz
+      - name: Upload manifest, speed and accuracy report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: product-acceptance-random
+          path: |
+            research-results/product-benchmark/summary.json
+            research-results/product-benchmark/sample-manifest.json
+          retention-days: 30
+          if-no-files-found: warn

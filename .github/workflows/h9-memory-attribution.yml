@@ -1,0 +1,44 @@
+name: H9 memory attribution
+on:
+  push:
+    branches: [staging/initial-package]
+    paths:
+      - ".github/workflows/h9-memory-attribution.yml"
+      - "experiments/charset-normalizer-e2e-baseline/h9_memory_stage_attribution.py"
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  attribution:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install numpy==2.5.3
+          python -m pip install -e .
+      - name: Preflight
+        run: python -m compileall -q experiments/charset-normalizer-e2e-baseline/h9_memory_stage_attribution.py
+      - name: Download immutable model
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p artifacts/r21
+          gh run download 37568792009 --repo "${{ github.repository }}" --name codeccat-r20-release-candidate --dir artifacts/r21
+      - name: Independent-stage RSS attribution
+        run: |
+          PYTHONPATH=src python experiments/charset-normalizer-e2e-baseline/h9_memory_stage_attribution.py --model artifacts/r21/codeccat-r20-release-candidate.npz
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: h9-memory-stage-attribution
+          path: research-results/memory-attribution/
+          retention-days: 30

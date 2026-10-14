@@ -2,7 +2,9 @@ name: H5 frozen downstream decision audit
 on:
   push:
     branches: [staging/initial-package]
-    paths: [".github/workflows/h5-downstream-audit.yml"]
+    paths:
+      - ".github/workflows/h5-downstream-audit.yml"
+      - "experiments/charset-normalizer-e2e-baseline/h5_downstream_decision_audit.py"
   workflow_dispatch:
 permissions:
   actions: read

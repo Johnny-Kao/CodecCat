@@ -99,8 +99,9 @@ def main():
         {"data":b"\\x00\\xff"*300, "label":"utf-16-le"},
     ]
     # Literal bytes are constructed here; this diagnostic preflight is not scored.
-    smoke[1]["data"]=b"hello"+bytes([0x80])
+    smoke[1]["data"]=b"A"*512+bytes([0x80])
     smoke[3]["data"]=bytes([0,255])*300
+    assert [_signals(s["data"]).route for s in smoke]==["U","RL","RH","N"]
     smoke_result=observe(smoke,rt)
     assert smoke_result["contrast"]["n"]==4, "route smoke preflight failed"
     print("H5_ROUTE_PREFLIGHT_PASS", flush=True)

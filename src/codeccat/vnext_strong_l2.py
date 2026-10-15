@@ -239,7 +239,7 @@ class TrainableDetector:
         )
         vec.fixed_vocabulary_ = True
         vec.vocabulary_ = dict(vocab)
-        vec._tfidf = TfidfTransformer(norm="l2", use_idf=True, smooth_idf=True)
+        vec._tfidf = TfidfTransformer(norm="l2", use_idf=True, smooth_idf=True, sublinear_tf=True)
         vec._tfidf.idf_ = idf
         clf = SGDClassifier(loss="modified_huber")
         clf.classes_ = classes

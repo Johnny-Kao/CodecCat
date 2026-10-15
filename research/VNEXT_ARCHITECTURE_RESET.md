@@ -124,3 +124,19 @@ Run https://github.com/Johnny-Kao/CodecCat/actions/runs/38671086756, success; co
 - Research finding: validity evidence rarely uniquely identifies real-world encoding; language evidence must be discriminative and source-aware, rather than coarse script totals. The next round must avoid re-running the same competitor-owned corpus as a surrogate for generalization.
 
 Budget now: independent rounds 1,2,3 completed. **Two rounds remain** under current user instruction; save one for final locked acceptance. Stop changing weights without new provenance. Core Logic-First structural state contract remains valid as design goal but no complete detector is accepted.
+
+## Independent Round 4 sign-off — full layered ablation (2026-10-15)
+
+Run: https://github.com/Johnny-Kao/CodecCat/actions/runs/38673401495 — GitHub Action SUCCESS for execution; **architecture FAIL**. Test code `experiments/logic_first/new_arch_round4.py`, one runner, single grouped development corpus, no R21.
+
+On 3,117 development fixtures, 4-KB paired model scores:
+- L2-only 714/3117 = 22.91%.
+- L1→L2 962/3117 = 30.86%.
+- L2→L3 853/3117 = 27.37%.
+- L1→L2→L3 962/3117 = 30.86%.
+- Initial gate: 345 helps, 97 harms, 153 cases where true label excluded from surviving supported candidates. **NOT sound enough** for hard rejection. Some exclusions could reflect raw-label alias/BOM or boundary choices; cannot assert all are true invalidity until investigated.
+- L3: invoked for 3,116 of 3,117 cases at 4 KB, with **zero changes to outcome** after L1. Redundant structural verification: it should be removed/replaced, not optimized.
+- Eager L1 scans candidate codecs; median L1-only 0.492 ms/sample at 4 KB. This is **not** total pipeline latency. Test mixed-process peak RSS 415.34 MiB, not inference-only RSS.
+- Test corpus remains competitor-owned chardet/test-data and model statistical features are intentionally simple, so no competitive detection claim. The numeric comparison across independent rounds is not controlled due to changed estimators and features.
+
+**Decision:** Keep only the three-layer interface as research hypothesis. Reject current hard L1, current almost-always L3 and current L2 classifier as production implementations. One remaining authorized new-architecture research round; it must focus on *correcting false exclusions and demonstrating informative conditional L3*, with independent label provenance and holistic cost. No auto-promotion to release, even if CI green.

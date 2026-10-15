@@ -42,6 +42,7 @@ def run(a):
     original=[(b,y,g) for b,y,g,k,_ in corpus(Path(a.train))]
     train,_=residual_subset(original)
     detector=TrainableDetector.fit(train)
+    experimental=TrainableDetector.fit(train,feature_profile="experimental13")
     known_b={hashlib.sha256(b).hexdigest() for b,y,g in original}
     known_t=set()
     for b,y,g in original:
@@ -82,7 +83,9 @@ def run(a):
         raw=r["data"];y=r["label"];expected=r["expected"]
         cn=from_bytes(raw).best()
         ranked=detector.rank(raw,final=len(raw)<4096)
+        ranked13=experimental.rank(raw,final=len(raw)<4096)
         predictions={"ours":norm(ranked.encoding),
+                     "experimental13":norm(ranked13.encoding),
                      "chardet_7":norm(chardet.detect(raw).get("encoding")),
                      "charset_normalizer":norm(cn.encoding if cn else None)}
         metrics={}
@@ -103,7 +106,7 @@ def run(a):
            "family_counts":dict(collections.Counter(x["family"] for x in rows)),
            "metrics":{name:{"exact":sum(x["metrics"][name]["exact"] for x in rows),
                               "same_text":sum(x["metrics"][name]["same_text"] for x in rows)}
-                      for name in ("ours","chardet_7","charset_normalizer")}}
+                      for name in ("ours","experimental13","chardet_7","charset_normalizer")}}
     report["paired_error_diagnostics"]={}
     for title,items in (("balanced_source_family",balanced),("pooled_random",natural)):
         rows=[scored[x["sample_id"]] for x in items]
@@ -120,6 +123,9 @@ def run(a):
                 "only_ours":len(only_ours),"only_chardet":len(only_other),
                 "top_ours_errors":[{"truth":a,"pred":b,"n":count} for (a,b),count in wrong.most_common(12)]}
         report["paired_error_diagnostics"][title]=diag
+        report["distributions"][title]["experimental13_paired"]={
+            "gained":sum(x["metrics"]["experimental13"]["same_text"] and not x["metrics"]["ours"]["same_text"] for x in rows),
+            "lost":sum(x["metrics"]["ours"]["same_text"] and not x["metrics"]["experimental13"]["same_text"] for x in rows)}
     output=Path(a.output);output.mkdir(parents=True,exist_ok=True)
     (output/"report.json").write_text(json.dumps(report,indent=2))
     (output/"traces.jsonl").write_text("\n".join(json.dumps(x) for x in scored.values())+"\n")

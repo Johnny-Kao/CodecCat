@@ -21,6 +21,7 @@ from .vnext_escape import select_escape_encoding
 from .vnext_unicode_structure import select_utf32_no_bom
 
 SCHEMA = "vnext-l2-tfidf-ordered23-sgd-huber-v1"
+SCHEMA_V2 = "vnext-l2-tfidf-ordered13-sgd-huber-v2"
 
 @dataclass(frozen=True)
 class Ranked:
@@ -37,7 +38,7 @@ class TrainableDetector:
         self.fingerprint = fingerprint
 
     @classmethod
-    def fit(cls, samples: Iterable[tuple[bytes, str, str]]) -> "TrainableDetector":
+    def fit(cls, samples: Iterable[tuple[bytes, str, str]], *, feature_profile: str = "stable23") -> "TrainableDetector":
         rows = list(samples)
         if not rows:raise ValueError("empty dataset")
         labels, strings = [], []
@@ -54,8 +55,11 @@ class TrainableDetector:
             labels.append(encoding)
             fingerprint.update(digest.encode()+b"\0"+encoding.encode()+b"\0"+source_group.encode()+b"\0")
         if len(set(labels)) < 2: raise ValueError("need at least two classes")
-        vec=TfidfVectorizer(analyzer="char",ngram_range=(2,3),min_df=2,
-                            max_features=45000,sublinear_tf=True)
+        if feature_profile not in ("stable23", "experimental13"):
+            raise ValueError("unknown feature profile")
+        params = ((2,3),2,45000) if feature_profile=="stable23" else ((1,3),1,90000)
+        vec=TfidfVectorizer(analyzer="char",ngram_range=params[0],min_df=params[1],
+                            max_features=params[2],sublinear_tf=True)
         features=vec.fit_transform(strings)
         clf=SGDClassifier(loss="modified_huber",alpha=0.0001,
                           random_state=20261015,max_iter=1500)
@@ -180,7 +184,7 @@ class TrainableDetector:
         out = Path(path)
         vocab = self.vectorizer.vocabulary_
         meta = {
-            "schema": SCHEMA,
+            "schema": SCHEMA if self.vectorizer.ngram_range == (2,3) else SCHEMA_V2,
             "fingerprint": self.fingerprint,
             "vocabulary": {str(k): int(v) for k, v in vocab.items()},
             "classes": [str(x) for x in self.classifier.classes_],
@@ -216,11 +220,13 @@ class TrainableDetector:
             if archive.getinfo("weights.npz").file_size > 200_000_000:
                 raise ValueError("weights are too large")
             meta = json.loads(archive.read("manifest.json"))
-            if meta.get("schema") != SCHEMA:
+            schema = meta.get("schema")
+            if schema not in (SCHEMA, SCHEMA_V2):
                 raise ValueError("model schema mismatch")
             params = meta["params"]
+            expected_range = [2, 3] if schema == SCHEMA else [1, 3]
             if params != {
-                "ngram_range": [2, 3],
+                "ngram_range": expected_range,
                 "sublinear_tf": True,
                 "lowercase": True,
                 "norm": "l2",
@@ -245,7 +251,7 @@ class TrainableDetector:
                 not np.isfinite(intercept).all()):
             raise ValueError("invalid portable model shape or values")
         vec = TfidfVectorizer(
-            analyzer="char", ngram_range=(2, 3),
+            analyzer="char", ngram_range=tuple(expected_range),
             vocabulary=vocab, sublinear_tf=True,
         )
         vec.fixed_vocabulary_ = True

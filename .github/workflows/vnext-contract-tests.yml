@@ -2,7 +2,12 @@ name: vNext deterministic logic contract
 on:
   push:
     branches: [staging/initial-package]
-    paths: [".github/workflows/vnext-contract-tests.yml"]
+    paths:
+      - ".github/workflows/vnext-contract-tests.yml"
+      - "src/codeccat/vnext_gate.py"
+      - "src/codeccat/vnext_bom.py"
+      - "tests/test_vnext_gate.py"
+      - "tests/test_vnext_bom.py"
   workflow_dispatch:
 permissions:
   contents: read

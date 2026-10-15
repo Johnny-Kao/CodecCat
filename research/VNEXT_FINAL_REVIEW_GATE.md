@@ -78,3 +78,15 @@ Two distinct sampling distributions:
 Sample provenance and distribution matter strongly: stratified 227 = uchardet 77 and generated suite 150, families 54 East-Asian / 87 single-byte / 79 Unicode / 7 other. Pooled 350 = generated suite 325 and uchardet 25, of which 278 Unicode. The pooled fixture frequency is **not** production/natural frequency and generated suites are correlated by original UDHR document. The two samples overlap, so do not treat them as statistically independent benchmark replications. Byte equality and decoded-text equality remove only exact duplicates, not near duplicates.
 
 **Fail gate:** CodecCat remains behind chardet 7 in both randomized distributions; not ready for owner's final review. Engineering direction: repair structural Unicode false exclusions and group-specific ambiguity, then test against the now-locked sample IDs without selecting hyperparameters on the evaluation set; a separate unseen confirmation set is required after model changes. Do not claim success based only on prior chardet 5.2 or in-sample 98.93% results.
+
+## L1 escape designation implementation and fixed-sample ablation (2026-10-15)
+
+Added `src/codeccat/vnext_escape.py` with conservative, validated ISO-2022 JP/KR initial escape-designation recognition. Integrates before statistical scoring, only accepts labels already supported by the trained model, preserves incomplete/unknown/noisy escape cases by falling back to L2. Added unit regressions for both codecs, untrained codec and terminal escape; core contract [Actions #38724512604](https://github.com/Johnny-Kao/CodecCat/actions/runs/38724512604) SUCCESS.
+
+Compared the exact same frozen random external selections (seed 20261015) to the prior no-escape result; [Actions #38724622552](https://github.com/Johnny-Kao/CodecCat/actions/runs/38724622552) SUCCESS:
+- 227 source-family-balanced: CodecCat decoded-text **127/227 before and after**, exact label **108→107** (one lost).
+- 350 pooled random: CodecCat decoded-text **147→149**, exact label **122→123**.
+- chardet 7 stays at 147/227 and 161/350 decoded-text. **No stable, broad external win established**. Variations potentially from ISO-2022 evidence; inspect traces and structural false positives before promoting to a default.
+- Explicitly note: these existing frozen external datasets are validation diagnostics and should not be used for repeated optimization selection. New unseen confirmation must decide whether structural path stays enabled.
+
+Pending final release blockers remain: Unicode variants, actual script consistency L3, independent coverage, benchmark gap to chardet 7, and cross-architecture resource testing. No main or release changes.

@@ -47,3 +47,19 @@ The user correctly pointed out that independent-source score discussions were pr
 - All changes on staging; core tests [#38701661584](https://github.com/Johnny-Kao/CodecCat/actions/runs/38701661584) passed. No main/release changes.
 
 Next **mandatory priority**: explain + close source-group validation gap on the same current dataset, with error per-label/source-group and clean train/validation partition, before any new external corpus work.
+
+## Newly selected untrained corpus — 2026-10-15
+
+Created a frozen external benchmark from **amrali-eg/UnicodeTestSuite** SHA `80684bd405505b069cfec4e07493c8713a26f41a`, originating from independently sourced UDHR multilingual passages and their generated encodings; the generator creates versioned documented Unicode/legacy text samples. This is not a natural file-frequency distribution: multiple samples share UDHR source documents, and Unicode variants are overrepresented. Selected up to 300 filepaths using a stable hash BEFORE scoring, and excluded exact byte/decoded-text overlap with the chardet/test-data training samples. Tested CodecCat capped-residual, **chardet 7.6.0** and charset-normalizer 3.4.4 using the same 4,096-byte prefix, exact-label and incremental decoded-content equivalence rules.
+
+[CI Run #38705403056](https://github.com/Johnny-Kao/CodecCat/actions/runs/38705403056) SUCCESS, n=300:
+
+| Model | Exact encoding label | Same decoded text |
+|---|---:|---:|
+| CodecCat vNext | 121/300 = 40.33% | 158/300 = 52.67% |
+| **chardet 7.6.0** | **132/300 = 44.00%** | **175/300 = 58.33%** |
+| charset-normalizer 3.4.4 | 103/300 = 34.33% | 144/300 = 48.00% |
+
+**Result: NOT PASS.** On this externally sourced synthetically re-encoded corpus, the current CodecCat model is **5.67 percentage points behind chardet 7** in decoded-content correctness. Historic comparisons against chardet 5.2.0 are obsolete for a latest-market claim. The n=300 set overrepresents UTF-16/UTF-32, UTF-8, GB18030 and BOM variants; inspect per-label trace to separate Unicode false-negative pathways, labeling semantics and genuine byte-language errors. This run did not modify model parameters or train on the new holdout.
+
+**Decision:** do not claim overall benchmark victory or ask owner for final audit. Focus existing-corpus source-group generalization and diagnostic correctness, then run locked multiple external corpora, including current chardet 7.

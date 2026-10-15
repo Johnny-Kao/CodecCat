@@ -195,3 +195,23 @@ def test_bomless_utf32_not_forced_on_utf16_or_untrained_class():
     assert select_utf32_no_bom(("English text "*30).encode("utf-16-le"),labels,final=True) is None
     assert select_utf32_no_bom(("English text "*30).encode("utf-16-be"),labels,final=True) is None
     assert select_utf32_no_bom(("English text "*30).encode("utf-32-le"),(),final=True) is None
+
+def test_opt_in_13_profile_portable_roundtrip(tmp_path):
+    samples=training_data()
+    samples += [
+        (("More mixed language examples "+str(i)).encode("utf-8"),"utf-8","new-"+str(i))
+        for i in range(4)
+    ]
+    model=TrainableDetector.fit(samples,feature_profile="experimental13")
+    assert model.vectorizer.ngram_range == (1,3)
+    name=tmp_path/"experimental13.zip"
+    model.save_portable(name)
+    loaded=TrainableDetector.load_portable(name)
+    assert loaded.vectorizer.ngram_range==(1,3)
+    for raw,y,g in samples:
+        assert loaded.rank(raw).encoding==model.rank(raw).encoding
+
+def test_unknown_profile_rejected():
+    import pytest
+    with pytest.raises(ValueError,match="unknown feature profile"):
+        TrainableDetector.fit(training_data(),feature_profile="invalid")

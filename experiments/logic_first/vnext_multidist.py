@@ -105,12 +105,12 @@ def run(a):
     for title,items in (("balanced_source_family",balanced),("pooled_random",natural)):
         rows=[scored[x["sample_id"]] for x in items]
         diag={}
-        for family in sorted(set(x["family"] for x in rows)):
-            rr=[x for x in rows if x["family"]==family]
+        for fam_name in sorted(set(x["family"] for x in rows)):
+            rr=[x for x in rows if x["family"]==fam_name]
             only_ours=[x for x in rr if x["metrics"]["ours"]["same_text"] and not x["metrics"]["chardet_7"]["same_text"]]
             only_other=[x for x in rr if x["metrics"]["chardet_7"]["same_text"] and not x["metrics"]["ours"]["same_text"]]
             wrong=collections.Counter((x["label"],x["metrics"]["ours"]["pred"]) for x in rr if not x["metrics"]["ours"]["same_text"])
-            diag[family]={"n":len(rr),
+            diag[fam_name]={"n":len(rr),
                 "ours_text":sum(x["metrics"]["ours"]["same_text"] for x in rr),
                 "chardet_text":sum(x["metrics"]["chardet_7"]["same_text"] for x in rr),
                 "only_ours":len(only_ours),"only_chardet":len(only_other),

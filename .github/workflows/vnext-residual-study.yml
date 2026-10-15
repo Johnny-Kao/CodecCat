@@ -4,6 +4,7 @@ on:
     branches: [staging/initial-package]
     paths:
       - ".github/workflows/vnext-residual-study.yml"
+      - "experiments/logic_first/vnext_residual_study.py"
   workflow_dispatch:
 permissions:
   contents: read

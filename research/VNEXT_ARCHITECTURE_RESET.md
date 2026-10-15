@@ -102,3 +102,13 @@ Implement selective C-backed validity, lazy feature extraction, streaming/prefix
 Evaluate frozen implementation and model on separately sourced, audited labels unexposed in rounds 2–4. Include short/long/binary-adjacent and per-language coverage, confidence/abstention and total cost. If no such data or unacceptable metrics, fail explicitly and stop; no post-hoc tuning.
 
 **Execution control:** one job, one runner, one artifact per round; no automatic cross-version CI or parallel hypotheses launched as independent workflows. The existing round-1 sample remains development-only. For each run, record datasets, hashes, seed, split provenance, exact commit and predeclared metrics before running.
+
+## Independent Round 2 sign-off (2026-10-15)
+
+Actions run https://github.com/Johnny-Kao/CodecCat/actions/runs/38668670491; code `experiments/logic_first/new_arch_round2.py`. Successful single job. Total: 3,117 chardet/test-data samples, three grouped folds, 6 predeclared model configurations, 128/1024/4096 byte prefix lengths, with and without strict decode top-five screening. No R21 references.
+
+**4096-byte:** ComplementNB directional hashed 2–3grams 1177/3117 raw, 1544/3117 logic gated (49.53%), SGD 881/3117 raw and 1460/3117 gated (46.84%). Other gated models <=1476/3117. Full running time ~96.84s; single-process peak RSS 420 MiB (training+inference, not production memory). Gate result: no viable winner; worse than Round 1 independent unigram+ordered NB 1713/3117.
+
+**Interpretation:** structural legality *helps* ranking but not enough. Testing several estimators over the same hashed features is insufficient diversity: the next experiment must compare genuinely different feature representation / evidence ordering and train/test provenance, not more SGD/Naive Bayes tweaks. A decoder accepting bytes is not a proof of correct identity. Held-out data is competitor-owned and contains transcoded sibling data; grouped splits mitigate but do not guarantee source independence.
+
+**Research budget:** NEW architecture Rounds 1 and 2 completed, THREE rounds remain (3/4/5). Round 3 must address evidence representation, input provenance, ambiguity and metric calibration in one batch. Do not use historical R21.

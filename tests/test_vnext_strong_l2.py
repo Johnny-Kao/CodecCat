@@ -124,3 +124,22 @@ def test_portable_bundle_rejects_unknown_schema():
             archive.writestr("weights.npz",weights)
         with pytest.raises(ValueError,match="schema"):
             TrainableDetector.load_portable(f)
+
+def test_portable_multiclass_model_roundtrip():
+    import numpy as np
+    samples=training_data()+[
+        (("Русский текст на русском языке "*24).encode("cp1251"),"cp1251","ru1"),
+        (("Информация на русском языке "*24).encode("cp1251"),"cp1251","ru2"),
+    ]
+    detector=TrainableDetector.fit(samples)
+    assert len(detector.classifier.classes_)==3
+    with tempfile.TemporaryDirectory() as folder:
+        archive=Path(folder)/"multiclass.ccnext"
+        detector.save_portable(archive)
+        loaded=TrainableDetector.load_portable(archive)
+        for raw,_,_ in samples:
+            original=detector.rank(raw)
+            repeated=loaded.rank(raw)
+            assert original.encoding==repeated.encoding
+            assert original.candidates==repeated.candidates
+            np.testing.assert_allclose(original.scores,repeated.scores,rtol=1e-11,atol=1e-11)

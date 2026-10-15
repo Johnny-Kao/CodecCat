@@ -33,7 +33,10 @@ def evaluate(data: bytes, candidates: tuple[str, ...], *, final: bool = True) ->
             if not final and dec.getstate()[0]:
                 incomplete.append(name)
             possible.append(name)
-        except UnicodeDecodeError as exc:
+        except UnicodeError as exc:
+            if not isinstance(exc, UnicodeDecodeError):
+                impossible.append(name)
+                continue
             if not final and exc.end == len(data) and (
                 "unexpected end" in exc.reason.lower()
                 or "incomplete" in exc.reason.lower()

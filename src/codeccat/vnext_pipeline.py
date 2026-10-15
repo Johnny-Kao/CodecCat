@@ -124,7 +124,10 @@ class Model:
         gap=scores[ordered[0]]-scores[ordered[1]]
         # L3 has to use a different signal: decoded Unicode printability and
         # control characters on the top two, never repeat L1 validity.
-        need_l3=gap<margin_threshold and len(data)>=16
+        # Round-5 development evaluation showed this control-char L3 causes
+        # substantially more harms than helps. Keep the evidence hook disabled
+        # until a separately held-out calibration proves positive net value.
+        need_l3=False
         effective_scores=dict(scores)
         if need_l3:
             revised={}

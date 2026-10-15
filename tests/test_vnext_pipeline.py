@@ -20,7 +20,7 @@ def test_user_data_roundtrip():
 def test_ignores_invalid_candidate_without_legacy_model():
     m=train([
       (b"\xff\xfe\x00\x00H\x00\x00\x00","utf-32","source1"),
-      ("Hello café "*20).encode(),"utf-8","source2"),
+      (("Hello café "*20).encode(),"utf-8","source2"),
     ])
     r=m.detect(b"\xff\xfe\x00\x00H\x00\x00\x00")
     assert "utf-8" not in r.candidates

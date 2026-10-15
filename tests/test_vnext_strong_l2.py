@@ -177,3 +177,21 @@ def test_terminal_escape_without_iso2022_designation_is_not_forced():
     choices=("iso2022_jp","iso2022_kr")
     assert select_escape_encoding(b"\x1b[31mRED\x1b[0m",choices,final=True) is None
     assert select_escape_encoding(b"\x1b$",choices,final=False) is None
+
+def test_bomless_utf32_ascii_lane_evidence():
+    data=training_data()+[
+      (("A longer ASCII paragraph for testing. "*15).encode("utf-32-le"),"utf-32-le","u32le"),
+      (("Another ASCII text body for evidence "*15).encode("utf-32-be"),"utf-32-be","u32be"),
+    ]
+    model=TrainableDetector.fit(data)
+    for label in ("utf-32-le","utf-32-be"):
+        raw=("English alphabetic text. "*20).encode(label)
+        got=model.rank(raw)
+        assert got.encoding==label
+        assert got.candidates==(label,)
+def test_bomless_utf32_not_forced_on_utf16_or_untrained_class():
+    from codeccat.vnext_unicode_structure import select_utf32_no_bom
+    labels=("utf-32-le","utf-32-be")
+    assert select_utf32_no_bom(("English text "*30).encode("utf-16-le"),labels,final=True) is None
+    assert select_utf32_no_bom(("English text "*30).encode("utf-16-be"),labels,final=True) is None
+    assert select_utf32_no_bom(("English text "*30).encode("utf-32-le"),(),final=True) is None

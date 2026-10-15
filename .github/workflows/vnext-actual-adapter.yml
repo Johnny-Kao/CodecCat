@@ -5,6 +5,7 @@ on:
     paths:
       - ".github/workflows/vnext-actual-adapter.yml"
       - "experiments/logic_first/vnext_actual_adapter.py"
+      - "src/codeccat/vnext_strong_l2.py"
   workflow_dispatch:
 permissions:
   contents: read

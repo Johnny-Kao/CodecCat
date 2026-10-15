@@ -39,3 +39,25 @@ def test_sampling_cut_does_not_exclude_utf8_with_partial_terminal_sequence():
     ])
     result = m.detect(data)
     assert "utf-8" in result.candidates
+
+def test_same_bytes_conflicting_labels_rejected():
+    import pytest
+    with pytest.raises(ValueError, match="conflicting"):
+        train([(b"same bytes","utf-8","one"),(b"same bytes","latin1","two")])
+
+def test_bom_unseen_label_not_mislabeled_as_utf16():
+    m = train([
+        ("UTF16 text".encode("utf-16"), "utf-16", "src1"),
+        ("Hello café".encode("utf-8"), "utf-8", "src2"),
+    ])
+    data = "Hello UTF32".encode("utf-32")
+    assert m.detect(data).bom_hint in ("utf-32-le","utf-32-be")
+    assert m.detect(data).encoding != "utf-16"
+
+def test_short_ambiguous_sample_skips_expensive_verification():
+    m = train([
+        (b"english words "*10,"utf-8","src1"),
+        (b"latin words "*10,"latin1","src2"),
+    ])
+    r=m.detect(b"abc")
+    assert r.l3_called is False

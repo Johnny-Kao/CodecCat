@@ -206,3 +206,18 @@ Evidence: [aggressive run #38687344481](https://github.com/Johnny-Kao/CodecCat/a
 **Engineering decision:** treat L1-resolved sample exclusion as **weighted/limited data selection**, not unlimited pruning. Prefer retaining enough samples per encoding, variation of source groups and edge conditions. Never eliminate an encoding class just because its most obvious examples are structurally identifiable. The current prototype uses max removal 35% per label; this is **a tuned development candidate** and must not be shipped as a generalized default until separately held-out cross-domain results prove gains. Trainable L2 should focus on residual ambiguous strings; structural L1 should not train its byte grammar on shifting language distributions.
 
 The latest 84.608% is not directly comparable to prior 84.116% audit as the dataset is 3,086 vs 3,003 effective prefix-deduplicated samples and independent evaluation policy differs.
+
+## Paired easy-sample weighting versus capped removal (2026-10-15)
+
+[GitHub Actions 38689808845](https://github.com/Johnny-Kao/CodecCat/actions/runs/38689808845) compares four policies on exactly the same 3,086 source-group-held-out development examples, with the same TF-IDF 2/3-gram + SGD model and train/test grouping. Trained examples L1 could correctly solve were either capped-removed or assigned reduced SGD `sample_weight`.
+
+| Policy | Correct / 3,086 | Accuracy | By-fold correct |
+|---|---:|---:|---|
+| Full-weight all samples | 2,598 | 84.187% | 971 / 705 / 922 |
+| Capped removal (max 35% per label) | **2,611** | **84.608%** | 987 / 708 / 916 |
+| Retain all, L1-easy weight 0.35 | 2,610 | 84.576% | 973 / 710 / 927 |
+| Retain all, L1-easy weight 0.65 | 2,598 | 84.187% | 973 / 710 / 915 |
+
+0.35 weighting vs capped removal: **68 helps / 69 harms**, net -1. 0.65 weight vs capped removal: 50 helps / 63 harms, net -13. Neither weighted candidate exceeds capped pruning. Because per-fold patterns differ, **do not promote fixed weight or pruning parameter as a generally optimal setting**. Better next study: partition paired disagreements by label, language/source group and identifiability; collect truly independent corpora before further tuning.
+
+The key transferable design is to avoid repeatedly training L2 on samples already resolved by stable L1 structural evidence while retaining class diversity and enough hard-negative examples. Do not let L1's byte pattern shortcut become a hard-coded language prior. R21/main/release unchanged.

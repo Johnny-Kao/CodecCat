@@ -2,7 +2,10 @@ name: vNext independent pipeline smoke contract
 on:
   push:
     branches: [staging/initial-package]
-    paths: [".github/workflows/vnext-pipeline-contract.yml"]
+    paths:
+      - ".github/workflows/vnext-pipeline-contract.yml"
+      - "src/codeccat/vnext_pipeline.py"
+      - "tests/test_vnext_pipeline.py"
   workflow_dispatch:
 permissions:
   contents: read

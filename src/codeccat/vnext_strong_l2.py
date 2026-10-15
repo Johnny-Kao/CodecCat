@@ -158,3 +158,89 @@ class TrainableDetector:
         if payload.get("schema")!=SCHEMA:raise ValueError("schema mismatch")
         return cls(vectorizer=payload["vectorizer"],classifier=payload["classifier"],
                    fingerprint=payload["fingerprint"])
+
+    def save_portable(self, path: str | Path) -> None:
+        """Non-executable model archive: JSON schema and numeric NumPy arrays.
+
+        Do not treat any untrusted model as authoritative even when parsing is safe.
+        """
+        import io
+        import zipfile
+        out = Path(path)
+        vocab = self.vectorizer.vocabulary_
+        meta = {
+            "schema": SCHEMA,
+            "fingerprint": self.fingerprint,
+            "vocabulary": {str(k): int(v) for k, v in vocab.items()},
+            "classes": [str(x) for x in self.classifier.classes_],
+            "params": {
+                "ngram_range": list(self.vectorizer.ngram_range),
+                "sublinear_tf": bool(self.vectorizer.sublinear_tf),
+                "lowercase": bool(self.vectorizer.lowercase),
+                "norm": self.vectorizer.norm,
+            },
+        }
+        arrays = io.BytesIO()
+        np.savez_compressed(
+            arrays,
+            idf=np.asarray(self.vectorizer.idf_, dtype=np.float64),
+            coef=np.asarray(self.classifier.coef_, dtype=np.float64),
+            intercept=np.asarray(self.classifier.intercept_, dtype=np.float64),
+        )
+        with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("manifest.json", json.dumps(meta, sort_keys=True, separators=(",", ":")))
+            archive.writestr("weights.npz", arrays.getvalue())
+
+    @classmethod
+    def load_portable(cls, path: str | Path) -> "TrainableDetector":
+        """Load numeric-only archive; never unpickle a model bundle."""
+        import io
+        import zipfile
+        from sklearn.feature_extraction.text import TfidfTransformer
+        with zipfile.ZipFile(path, "r") as archive:
+            if set(archive.namelist()) != {"manifest.json", "weights.npz"}:
+                raise ValueError("unexpected model archive entries")
+            if archive.getinfo("manifest.json").file_size > 8_000_000:
+                raise ValueError("manifest is too large")
+            if archive.getinfo("weights.npz").file_size > 200_000_000:
+                raise ValueError("weights are too large")
+            meta = json.loads(archive.read("manifest.json"))
+            if meta.get("schema") != SCHEMA:
+                raise ValueError("model schema mismatch")
+            params = meta["params"]
+            if params != {
+                "ngram_range": [2, 3],
+                "sublinear_tf": True,
+                "lowercase": True,
+                "norm": "l2",
+            }:
+                raise ValueError("unsupported vectorizer configuration")
+            with np.load(io.BytesIO(archive.read("weights.npz")), allow_pickle=False) as tensors:
+                if set(tensors.files) != {"idf", "coef", "intercept"}:
+                    raise ValueError("unexpected model tensors")
+                idf = tensors["idf"].copy()
+                coef = tensors["coef"].copy()
+                intercept = tensors["intercept"].copy()
+        vocab = meta["vocabulary"]
+        classes = np.asarray(meta["classes"], dtype=str)
+        if (not isinstance(vocab, dict) or not vocab or
+                sorted(vocab.values()) != list(range(len(vocab))) or
+                idf.shape != (len(vocab),) or coef.ndim != 2 or
+                coef.shape[1] != len(vocab) or
+                intercept.shape != (coef.shape[0],) or
+                coef.shape[0] != (1 if len(classes) == 2 else len(classes)) or
+                len(classes) < 2 or
+                not np.isfinite(idf).all() or not np.isfinite(coef).all() or
+                not np.isfinite(intercept).all()):
+            raise ValueError("invalid portable model shape or values")
+        vec = TfidfVectorizer(
+            analyzer="char", ngram_range=(2, 3),
+            vocabulary=vocab, sublinear_tf=True,
+        )
+        vec._tfidf = TfidfTransformer(norm="l2", use_idf=True, smooth_idf=True)
+        vec._tfidf.idf_ = idf
+        clf = SGDClassifier(loss="modified_huber")
+        clf.classes_ = classes
+        clf.coef_ = coef
+        clf.intercept_ = intercept
+        return cls(vectorizer=vec, classifier=clf, fingerprint=str(meta["fingerprint"]))

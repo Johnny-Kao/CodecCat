@@ -63,3 +63,18 @@ Created a frozen external benchmark from **amrali-eg/UnicodeTestSuite** SHA `806
 **Result: NOT PASS.** On this externally sourced synthetically re-encoded corpus, the current CodecCat model is **5.67 percentage points behind chardet 7** in decoded-content correctness. Historic comparisons against chardet 5.2.0 are obsolete for a latest-market claim. The n=300 set overrepresents UTF-16/UTF-32, UTF-8, GB18030 and BOM variants; inspect per-label trace to separate Unicode false-negative pathways, labeling semantics and genuine byte-language errors. This run did not modify model parameters or train on the new holdout.
 
 **Decision:** do not claim overall benchmark victory or ask owner for final audit. Focus existing-corpus source-group generalization and diagnostic correctness, then run locked multiple external corpora, including current chardet 7.
+
+## Randomized multi-distribution external test (2026-10-15)
+
+[GitHub Actions #38705931581](https://github.com/Johnny-Kao/CodecCat/actions/runs/38705931581) successfully ran `experiments/logic_first/vnext_multidist.py` with locked seed `20261015`. Training only on previously defined chardet/test-data with capped L1 easy-case removal, and zero external examples introduced into training. External candidate sources were uchardet and generated UnicodeTestSuite; exclude exact matching training bytes/text; deduplicate bytes across the pooled candidate set. Remaining **1,068 distinct candidates**: 77 uchardet, 991 UnicodeTestSuite. Output artifact contains `report.json`, `traces.jsonl`, and the fixed selected IDs `selection.json`.
+
+Two distinct sampling distributions:
+
+| Fixed sampling strategy | n | CodecCat exact / text | chardet 7.6 exact / text | charset-normalizer exact / text |
+|---|---:|---:|---:|---:|
+| **Source × encoding-family stratified**, max 50 per cell | 227 | 108 / **127 (55.95%)** | 119 / **147 (64.76%)** | 93 / 119 (52.42%) |
+| **Pooled random**, max 350 | 350 | 122 / **147 (42.00%)** | 131 / **161 (46.00%)** | 115 / 148 (42.29%) |
+
+Sample provenance and distribution matter strongly: stratified 227 = uchardet 77 and generated suite 150, families 54 East-Asian / 87 single-byte / 79 Unicode / 7 other. Pooled 350 = generated suite 325 and uchardet 25, of which 278 Unicode. The pooled fixture frequency is **not** production/natural frequency and generated suites are correlated by original UDHR document. The two samples overlap, so do not treat them as statistically independent benchmark replications. Byte equality and decoded-text equality remove only exact duplicates, not near duplicates.
+
+**Fail gate:** CodecCat remains behind chardet 7 in both randomized distributions; not ready for owner's final review. Engineering direction: repair structural Unicode false exclusions and group-specific ambiguity, then test against the now-locked sample IDs without selecting hyperparameters on the evaluation set; a separate unseen confirmation set is required after model changes. Do not claim success based only on prior chardet 5.2 or in-sample 98.93% results.

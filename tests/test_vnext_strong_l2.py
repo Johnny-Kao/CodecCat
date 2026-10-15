@@ -32,3 +32,14 @@ def test_eager_bom_does_not_mislabel_untrained_utf32():
     result=model.rank("Hello".encode("utf-32"))
     assert result.encoding is None
     assert result.ambiguous
+
+def test_utf8_bom_fastpath_and_unsupported_utf32_abstain():
+    data=training_data()+[(("UTF8 BOM text"*20).encode("utf-8-sig"),"utf-8-sig","bom1")]
+    model=TrainableDetector.fit(data)
+    r=model.rank("A UTF8 BOM document".encode("utf-8-sig"))
+    assert r.encoding=="utf-8-sig"
+    assert r.bom_hint=="utf-8-sig"
+    assert len(r.candidates)==1
+    unknown=model.rank("A UTF32 document".encode("utf-32"))
+    assert unknown.encoding is None
+    assert unknown.ambiguous

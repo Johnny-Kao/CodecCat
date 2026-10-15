@@ -188,3 +188,21 @@ This is a concrete accuracy gain from proper contract semantics, not increased t
 - L1/L2 boundary repair: added narrowly guarded BOM-less UTF-16 endian inference only for ASCII-heavy data with strong zero-byte parity (>=12 or 30% of pairs, >=4x opposite parity), and only when exact trained endian label has strict-decode viability. Other samples fall back to trainable L2; avoids broad hard-coded word lists.
 - [Paired run #38683570487](https://github.com/Johnny-Kao/CodecCat/actions/runs/38683570487), SAME 3,003 fixtures and metric: **2,526/3,003 = 84.12%** exact-label vs **2,476/3,003 = 82.45%** before; gain **+50 correct predictions**. chardet 55.54%, charset-normalizer 72.56% unchanged. This is still competitor-owned development corpus, not independent acceptance. Structural tests [#38683599634](https://github.com/Johnny-Kao/CodecCat/actions/runs/38683599634) pass.
 - Critical remaining work is accurate decoded-language evidence for near-identical single-byte codepages and independent corpus acceptance. Avoid forcing arbitrary historical encoding labels on byte streams that produce identical decoded text.
+
+## Residual training after L1 (2026-10-15, accuracy-first)
+
+User-approved principle: encode deterministic byte/grammar evidence separately from trainable language evidence, do not keep teaching L2 easy patterns that L1 already resolves. Implemented source-group-fold paired ablations at `experiments/logic_first/vnext_residual_study.py`, no R21.
+
+**Same 3,086 development holdout samples, 3 group-held-out folds, same feature/model/parameters:**
+
+| Training strategy | Cumulative 3-fold train examples | Correct out of 3,086 | Accuracy |
+|---|---:|---:|---:|
+| All train rows | 6,172 | 2,598 | 84.187% |
+| Aggressive removal of all L1-correct, >=2 per class retained | 4,720 (-23.5%) | 2,594 | 84.057% |
+| **Conservative removal capped to 35% of each label**, >=2 per class | **5,598 (-9.3%)** | **2,611** | **84.608%** |
+
+Evidence: [aggressive run #38687344481](https://github.com/Johnny-Kao/CodecCat/actions/runs/38687344481) and [capped run #38687567824](https://github.com/Johnny-Kao/CodecCat/actions/runs/38687567824). Capped residual training gained 76 previously wrong predictions and harmed 63 previously correct ones: **net +13**. Per-fold deltas **+16, +3, -6**, so non-uniform and not independent confirmation. No hyperparameter change; measured effect comes from the *choice of training examples*. Group-separation asserts no stem overlap across train and test. The corpus remains competitor-owned and is not an independent acceptance sample.
+
+**Engineering decision:** treat L1-resolved sample exclusion as **weighted/limited data selection**, not unlimited pruning. Prefer retaining enough samples per encoding, variation of source groups and edge conditions. Never eliminate an encoding class just because its most obvious examples are structurally identifiable. The current prototype uses max removal 35% per label; this is **a tuned development candidate** and must not be shipped as a generalized default until separately held-out cross-domain results prove gains. Trainable L2 should focus on residual ambiguous strings; structural L1 should not train its byte grammar on shifting language distributions.
+
+The latest 84.608% is not directly comparable to prior 84.116% audit as the dataset is 3,086 vs 3,003 effective prefix-deduplicated samples and independent evaluation policy differs.

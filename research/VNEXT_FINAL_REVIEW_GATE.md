@@ -133,3 +133,16 @@ Never tune on external datasets used here, preserve frozen rows/seed, do not mod
 | balanced class weights 2-3gram | 2518 | 2754 | 2782 |
 
 The 1–3 gram alternative gained **+16 exact labels, +24 same-decoded text, +7 truth-in-top3** on this source-group development set; the gain is modest (24/3086=0.78 pp). Despite increased top3 recall, the much larger external source coverage gap still exists. Neither 2–4 gram nor balanced class weights should be promoted. **Do not yet replace the packaged 2–3 gram runtime**: the frozen evaluation sources have been repeatedly inspected and cannot independently confirm this choice. Run a separately locked unseen-source confirmation, test per-source degradation and archive compatibility first. Current portable schema explicitly expects 2–3 ngrams; a model change without migration would break load_portable.
+
+## Paired 1–3gram validation by encoding family (2026-10-15)
+
+Built `experiments/logic_first/vnext_paired_features.py` and dedicated free Ubuntu workflow. Unlike simple aggregate comparisons, both candidates use exactly matching immutable source-group folds and every evaluated byte sample is paired, recording gains, losses, top3 and family/codec breakdown.
+
+**[GitHub Actions #38747332529](https://github.com/Johnny-Kao/CodecCat/actions/runs/38747332529) SUCCESS**, source-held-out development n=3086:
+- Original 2–3gram: 2,800 correctly decoded text; candidate 1–3gram: **2,825**; 40 new wins, 15 new losses (net +25).
+- Every group-disjoint fold improves: fold0 1041→1053, fold1 738→742, fold2 1021→1030.
+- Single-byte family n=877: 715→737 (+22); East Asian n=203: 190→192 (+2); Unicode n=1544: 1523→1523 (no net change); Other n=462: 372→373 (+1).
+- Not a uniformly dominating model: CP437 declines 27→25, CP850 38→37, UTF16-BE 153→152, UTF7 141→140. Per-label regression veto / risk tolerances must be specified independently of this observed result.
+- This paired run reports 2800→2825, whereas the earlier broad 4-way experiment reported 2809→2833. **These nominally identical configuration discrepancies require investigation** (e.g. corpus fixture state, candidate source version and scoring implementation) before any signoff. Do not merge the two report numbers or claim fully stable reproducibility.
+
+**Decision:** 1–3gram is a credible staged candidate in the current dev corpus, not yet promoted; previous portable archive schema is 2–3gram only, so live model replacement would invalidate the archive contract. Another genuinely withheld corpus is still required before final acceptance, plus targeted regression checks for adversely affected encodings. No changes to main or published artifacts.

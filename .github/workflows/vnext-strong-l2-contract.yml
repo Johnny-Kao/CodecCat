@@ -2,7 +2,10 @@ name: vNext strong L2 adapter contract
 on:
   push:
     branches: [staging/initial-package]
-    paths: [".github/workflows/vnext-strong-l2-contract.yml"]
+    paths:
+      - ".github/workflows/vnext-strong-l2-contract.yml"
+      - "src/codeccat/vnext_strong_l2.py"
+      - "tests/test_vnext_strong_l2.py"
   workflow_dispatch:
 permissions:
   contents: read

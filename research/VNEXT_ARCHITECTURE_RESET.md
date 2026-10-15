@@ -140,3 +140,17 @@ On 3,117 development fixtures, 4-KB paired model scores:
 - Test corpus remains competitor-owned chardet/test-data and model statistical features are intentionally simple, so no competitive detection claim. The numeric comparison across independent rounds is not controlled due to changed estimators and features.
 
 **Decision:** Keep only the three-layer interface as research hypothesis. Reject current hard L1, current almost-always L3 and current L2 classifier as production implementations. One remaining authorized new-architecture research round; it must focus on *correcting false exclusions and demonstrating informative conditional L3*, with independent label provenance and holistic cost. No auto-promotion to release, even if CI green.
+
+## Strong L2 comparative result and negative L3 evidence (2026-10-15)
+
+[GitHub Actions #38678823019](https://github.com/Johnny-Kao/CodecCat/actions/runs/38678823019), success. This was a further development experiment after the original four research rounds, NOT an independent final sign-off. All 3,117 samples originated in chardet/test-data; 3-fold filename-derived grouped splits, 7 labels unseen in training for one fold. No R21 code or model used. Report artifact `vnext-strong-l2-development`.
+
+| New L2 evidence/policy | Direct L2 | After L1 | After existing L3 |
+|---|---:|---:|---:|
+| Count byte 1–2gram + ComplementNB | 1,564 | 2,137 | 2,102 |
+| TF-IDF ordered 2–3gram + LinearSVC | 2,213 | 2,410 | 2,384 |
+| TF-IDF ordered 2–3gram + SGD modified_huber | 2,346 | **2,493** | 2,458 |
+
+Counts are out of 3,117. 2,493/3,117 = 79.98%, **development-only**. The last model's L3 caused 39 harms vs 4 corrections (negative 35), so existing control-character-based L3 has been **disabled by default** in `src/codeccat/vnext_pipeline.py`. The L1 viability accounting excluded 7 true labels, which are also unseen training labels; do not call these seven proven decoder invalidities. Peak mixed Python research-process RSS was 478.82 MiB and includes training, not inference-only memory.
+
+**Architecture implication:** L2 requires directional contextual evidence and a trained discriminative decision function rather than the initial unigram + simplistic model. The current `vnext_pipeline.Model` still trains a small native byte-transition model; this test does **not** mean the stronger sklearn model has been installed in the runtime. Next engineering task is to implement an independent `strong_l2` adapter + one versioned bundled model with deterministic feature schema, validate it source-disjoint, then measure isolated inference p50/p95/RSS and external corpus transfer. L3 should stay disabled until a selective NEW evidence mechanism demonstrates positive corrections minus harms.

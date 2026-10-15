@@ -120,3 +120,16 @@ The pooled-random distribution (350) is heavily overrepresented by synthetic Uni
 **Engineering gate change:** increase top-k *recall* and source-group performance before implementing the L3 reranker. New controlled independent-of-external-holdout experiment `experiments/logic_first/vnext_l2_feature_ablation.py` with workflow `vnext-l2-feature-ablation.yml`; evaluates 2–3 ngrams original, 2–4 ngrams, 1–3 ngrams and class-balanced SGD using 3-fold group-disjoint training, with exact, decoded-text and top-three coverage. [Action #38738942106](https://github.com/Johnny-Kao/CodecCat/actions/runs/38738942106) launched; results must be checked before any trained-runtime change. It may be slow due to 12 group-trained full sparse-text classifiers and is **not evidence of improved accuracy until PASS and measured**.
 
 Never tune on external datasets used here, preserve frozen rows/seed, do not modify main or R21. Final review gate remains not passed.
+
+### Completed four-way L2 grouped feature ablation
+
+[GitHub Actions #38738942106](https://github.com/Johnny-Kao/CodecCat/actions/runs/38738942106) **SUCCESS** on all 3,086 corpus rows, same frozen source-group three-fold split, group disjoint training/test and no external tuning:
+
+| Feature specification | Exact labels | Identical decoded text | Truth in validated top3 |
+|---|---:|---:|---:|
+| baseline 2-3gram min_df2 | 2610 | 2809 | 2879 |
+| 2-4gram min_df1 | 2585 | 2784 | 2853 |
+| **1-3gram min_df1** | **2626** | **2833** | **2886** |
+| balanced class weights 2-3gram | 2518 | 2754 | 2782 |
+
+The 1–3 gram alternative gained **+16 exact labels, +24 same-decoded text, +7 truth-in-top3** on this source-group development set; the gain is modest (24/3086=0.78 pp). Despite increased top3 recall, the much larger external source coverage gap still exists. Neither 2–4 gram nor balanced class weights should be promoted. **Do not yet replace the packaged 2–3 gram runtime**: the frozen evaluation sources have been repeatedly inspected and cannot independently confirm this choice. Run a separately locked unseen-source confirmation, test per-source degradation and archive compatibility first. Current portable schema explicitly expects 2–3 ngrams; a model change without migration would break load_portable.

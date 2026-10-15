@@ -7,7 +7,7 @@ import argparse,collections,codecs,json,sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from vnext_actual_adapter import corpus
-from vnext_l2_feature_ablation import CONFIGS,fit
+from vnext_l2_feature_ablation import CONFIGS,fit,evaluate as original_evaluate
 
 def fam(s):
     if s.startswith(("utf-","utf_")):return "unicode"
@@ -28,6 +28,9 @@ def main(args):
         assert {x[2] for x in tr}.isdisjoint({x[2] for x in te})
         models={name:fit(tr,CONFIGS[name]) for name in ("baseline","coverage_13")}
         summary=collections.Counter()
+        raw_evaluation={(b,y,g) for b,y,g,sha in te}
+        del raw_evaluation
+        reference={name:original_evaluate(m,[(b,y,g) for b,y,g,sha in te]) for name,m in models.items()}
         for b,y,g,sha in te:
             pred={name:model.rank(b,final=len(b)<4096) for name,model in models.items()}
             a=same_text(b,y,pred["baseline"].encoding)
@@ -40,6 +43,10 @@ def main(args):
             paired.append(r)
             summary["n"]+=1
             summary["old_correct"]+=int(a);summary["new_correct"]+=int(z)
+        summary["reference_old"]=reference["baseline"]["text"]
+        summary["reference_new"]=reference["coverage_13"]["text"]
+        assert summary["old_correct"]==summary["reference_old"], ("baseline metric divergence",k,summary)
+        assert summary["new_correct"]==summary["reference_new"], ("candidate metric divergence",k,summary)
         folds.append({"fold":k,**dict(summary)})
         print("PAIRED_FOLD_DONE",k,flush=True)
     by_family={};by_label={}

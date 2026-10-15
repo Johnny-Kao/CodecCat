@@ -21,6 +21,7 @@ def corpus(root):
         if not b:continue
         try:b.decode(label,"strict")
         except (UnicodeError,LookupError):continue
+        b=b[:4096]
         sha=hashlib.sha256(b).hexdigest()
         if sha in seen:continue
         seen.add(sha)

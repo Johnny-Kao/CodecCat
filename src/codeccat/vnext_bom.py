@@ -1,6 +1,6 @@
-"""Stable BOM parsing: longest prefix first, with no trained-model dependency.
+"""Stable BOM parsing; longest signature first.
 
-This identifies a signature, not a language and not a mandatory detector label.
+Returns evidence only, never forces unsupported model label.
 """
 from __future__ import annotations
 from dataclasses import dataclass
@@ -22,9 +22,9 @@ _SIGNATURES = (
 def inspect_bom(data: bytes, final: bool = True) -> BomEvidence:
     if not isinstance(data, bytes):
         raise TypeError("expected bytes")
-    if not final and data and any(sig.startswith(data) and len(data)<len(sig) for sig,_ in _SIGNATURES):
-        return BomEvidence(None,None,True)
-    for sig,encoding in _SIGNATURES:
+    if not final and data and any(sig.startswith(data) and len(data) < len(sig) for sig, _ in _SIGNATURES):
+        return BomEvidence(None, None, True)
+    for sig, encoding in _SIGNATURES:
         if data.startswith(sig):
-            return BomEvidence(encoding,sig,False)
-    return BomEvidence(None,None,False)
+            return BomEvidence(encoding, sig, False)
+    return BomEvidence(None, None, False)

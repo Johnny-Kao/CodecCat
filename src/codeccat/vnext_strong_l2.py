@@ -15,6 +15,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import SGDClassifier
 
 from .vnext_gate import evaluate
+from .vnext_bom import inspect_bom
 
 SCHEMA = "vnext-l2-tfidf-ordered23-sgd-huber-v1"
 
@@ -60,6 +61,23 @@ class TrainableDetector:
 
     def rank(self,data:bytes,*,final:bool=True) -> Ranked:
         if not isinstance(data,bytes):raise TypeError("expected bytes")
+        # BOM evidence is stable and cheap: avoid trained scoring when decisive.
+        signature=inspect_bom(data, final=final)
+        if signature.incomplete:
+            return Ranked(None,tuple(),tuple(),None,True)
+        if signature.encoding:
+            family="-".join(signature.encoding.split("-")[:2])
+            supported=[str(name) for name in self.classifier.classes_
+                       if str(name).replace("_","-").startswith(family)]
+            if not supported:
+                return Ranked(None,tuple(),tuple(),signature.encoding,True)
+            if len(supported)==1:
+                label=supported[0]
+                try:
+                    data.decode(label,"strict")
+                except (UnicodeError,LookupError):
+                    return Ranked(None,tuple(),tuple(),signature.encoding,True)
+                return Ranked(label,(label,),(1.0,),signature.encoding,False)
         x=self.vectorizer.transform([data[:4096].decode("latin1")])
         raw=self.classifier.decision_function(x)
         # scikit-learn binary case emits one signed margin.

@@ -143,3 +143,14 @@ def test_portable_multiclass_model_roundtrip():
             assert original.encoding==repeated.encoding
             assert original.candidates==repeated.candidates
             np.testing.assert_allclose(original.scores,repeated.scores,rtol=1e-11,atol=1e-11)
+
+def test_utf8_bom_4096_byte_incomplete_prefix_is_not_rejected():
+    data=training_data()+[
+        (("日本語"*700).encode("utf-8-sig"),"utf-8-sig","sig-prefix")
+    ]
+    model=TrainableDetector.fit(data)
+    sample=("日本語"*800).encode("utf-8-sig")[:4096]
+    assert len(sample)==4096
+    expected=model.rank(sample,final=False)
+    assert expected.encoding=="utf-8-sig"
+    assert not expected.ambiguous

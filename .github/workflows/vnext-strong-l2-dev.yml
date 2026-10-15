@@ -2,7 +2,9 @@ name: vNext stronger L2 source-grouped development comparison
 on:
   push:
     branches: [staging/initial-package]
-    paths: [".github/workflows/vnext-strong-l2-dev.yml"]
+    paths:
+      - ".github/workflows/vnext-strong-l2-dev.yml"
+      - "experiments/logic_first/vnext_strong_l2_dev.py"
   workflow_dispatch:
 permissions:
   contents: read

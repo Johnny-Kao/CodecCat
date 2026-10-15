@@ -1,0 +1,38 @@
+name: vNext outside-corpus encoding accuracy gate
+on:
+  push:
+    branches: [staging/initial-package]
+    paths: [".github/workflows/vnext-external-holdout.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  external:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: training-fixtures
+      - uses: actions/checkout@v4
+        with:
+          repository: TypesettingTools/uchardet
+          ref: 6789ebf11be838019c6b0ed979ab87e6dac5e1f8
+          path: external-fixtures
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0 chardet==5.2.0 charset-normalizer==3.4.4
+      - run: PYTHONPATH=src python experiments/logic_first/vnext_external_holdout.py --train training-fixtures --external external-fixtures
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vnext-external-holdout
+          path: research-results/vnext-external-holdout/
+          retention-days: 30

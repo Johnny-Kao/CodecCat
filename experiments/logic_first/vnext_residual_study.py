@@ -28,7 +28,7 @@ def stable_structural_guess(data,known):
         if result in known:return result
     return None
 
-def residual_subset(training,min_anchors=2):
+def residual_subset(training,min_anchors=2,max_drop_fraction=0.35):
     """Drop redundant L1-solved samples only, with per-label coverage anchors.
 
     Does not use the ground truth to make inference decisions. During training,
@@ -38,9 +38,10 @@ def residual_subset(training,min_anchors=2):
     labels={label for _,label,_ in training}
     per_label=collections.Counter(label for _,label,_ in training)
     covered=collections.Counter();chosen=[];drop=collections.Counter()
+    drop_limit={label:min(per_label[label]-min_anchors,int(per_label[label]*max_drop_fraction)) for label in per_label}
     for data,label,group in training:
         decision=stable_structural_guess(data,labels)
-        if decision==label and per_label[label]-covered[label]>min_anchors:
+        if decision==label and covered[label]<drop_limit[label]:
             covered[label]+=1
             drop[label]+=1
         else:
@@ -76,7 +77,7 @@ def run(args):
     totals["baseline_pct"]=round(100*totals["baseline"]/totals["n"],3)
     totals["residual_pct"]=round(100*totals["residual"]/totals["n"],3)
     result={"source":"chardet/test-data: competitor-owned development ONLY","schema":"vnext-residual-training-study-1","totals":totals,"folds":reports,
-      "method":"same model, same features, same grouped folds; only L1-resolved training rows removed; keeps >=2 per class"}
+      "method":"same model, same features, same grouped folds; drops max 35% per label of L1-resolved rows, retaining >=2 per class"}
     out=Path(args.output);out.mkdir(parents=True,exist_ok=True)
     (out/"report.json").write_text(json.dumps(result,indent=2))
     (out/"paired.jsonl").write_text("\n".join(map(json.dumps,paired))+"\n")

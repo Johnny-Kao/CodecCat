@@ -72,3 +72,14 @@ def test_multiclass_rank_agrees_with_sklearn_raw_scores():
             try:raw.decode(str(label),"strict");expected_viable.append(str(label))
             except (UnicodeError,LookupError):pass
         assert got.encoding==expected_viable[0]
+
+def test_bom_generic_model_label_preferred_to_endian_subclass():
+    data=training_data()+[
+        ("UTF16 text".encode("utf-16"),"utf-16","u16"),
+        ("UTF16LE text".encode("utf-16-le"),"utf-16-le","u16le"),
+        ("UTF32 text".encode("utf-32"),"utf-32","u32"),
+        ("UTF32LE text".encode("utf-32-le"),"utf-32-le","u32le"),
+    ]
+    model=TrainableDetector.fit(data)
+    assert model.rank("Hi".encode("utf-16")).encoding=="utf-16"
+    assert model.rank("Hi".encode("utf-32")).encoding=="utf-32"

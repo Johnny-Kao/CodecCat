@@ -87,6 +87,27 @@ class TrainableDetector:
                 except (UnicodeError,LookupError):
                     return Ranked(None,tuple(),tuple(),signature.encoding,True)
                 return Ranked(label,(label,),(1.0,),signature.encoding,False)
+        # UTF-16 ASCII-heavy text without BOM has a strong byte-position
+        # invariant: nulls cluster on the high byte. Only act with substantial
+        # evidence; mixed/non-ASCII text falls through to trained L2.
+        if not signature.encoding and len(data)>=32:
+            prefix=data[:4096]
+            pairs=len(prefix)//2
+            if pairs:
+                even_zeros=prefix[0:2*pairs:2].count(0)
+                odd_zeros=prefix[1:2*pairs:2].count(0)
+                dominant=max(even_zeros,odd_zeros)
+                minor=min(even_zeros,odd_zeros)
+                if dominant>=max(12,int(pairs*0.30)) and dominant>=4*max(1,minor):
+                    suggested="utf-16-be" if even_zeros>odd_zeros else "utf-16-le"
+                    if suggested in self.classifier.classes_:
+                        try:
+                            decoder=codecs.getincrementaldecoder(suggested)("strict")
+                            decoder.decode(prefix,final=final and len(data)<=4096)
+                        except (UnicodeError,LookupError):
+                            pass
+                        else:
+                            return Ranked(suggested,(suggested,),(1.0,),None,False)
         x=self.vectorizer.transform([data[:4096].decode("latin1")])
         # Native sparse linear projection avoids sklearn's prediction-layer
         # overhead, while using EXACTLY the learned coefficients/intercept.

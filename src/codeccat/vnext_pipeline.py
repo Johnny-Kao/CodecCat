@@ -88,6 +88,13 @@ class Model:
         if not self.labels:raise ValueError("no classes")
         gate=evaluate(data[:4096],self.labels,final=final and len(data)<=4096)
         viable=gate.possible
+        # A recognized BOM outweighs incidental decoder validity.
+        if gate.bom.encoding:
+            bom_base="-".join(gate.bom.encoding.split("-")[:2])
+            compatible=tuple(c for c in viable if c.replace("_","-").startswith(bom_base))
+            if not compatible:
+                return Result(None,0.0,viable,False,True,gate.bom.encoding)
+            viable=compatible
         if not viable:
             return Result(None,0.0,(),False,True,gate.bom.encoding)
         if len(viable)==1:

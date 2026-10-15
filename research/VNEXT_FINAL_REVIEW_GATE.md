@@ -105,3 +105,18 @@ Added deterministic, conservative trained-label-gated paths:
 - These 2 random distributions overlap and are development diagnostics once revisited; they cannot certify generalization. The correct next step is paired source/family breakdown and prioritization, not continued hand-tuning from these exact rows.
 
 Final status: **NOT READY FOR RELEASE OR OWNER SIGNOFF**. Remaining crucial gaps: general Unicode/script coverage, source-heldout accuracy, trained language-based selective reranker, multilingual representative benchmark with additional held-out sources, cross-architecture and resource gate. No changes to main/R21/releases.
+
+## Latest source-stratified candidate-recall root-cause study (2026-10-15)
+
+Do not continue adding arbitrary L1 rules or promise a working L3 without top-k coverage. Updated `experiments/logic_first/vnext_multidist.py` to emit per-source/family paired error matrices, top-3 candidate coverage, exact mistake pairs and separate score metrics. [Validated action #38738657459](https://github.com/Johnny-Kao/CodecCat/actions/runs/38738657459) succeeded.
+
+Frozen external source × family sample, n=227, decoded text:
+- East Asian 54: CodecCat 15, chardet 7 17; **correct encoding in CodecCat top 3 only 15/54**. GB18030 frequently misranked as KOI8-T or CP1006. This is an L2 class/feature coverage issue, not an L3 rescoring issue.
+- Single-byte 87: CodecCat 58, chardet 7 76; **correct top-3 candidate 61/87**. Largest paired competitor loss (18 text hits) concentrated here.
+- Unicode 79: CodecCat 47, chardet 7 47; correct top-3 47/79. Repeated BOM/generic/explicit endian label-semantic differences warrant *separate* comparison; do not silently normalize away BOM or count invalid decoding as success.
+- Other 7: both 7.
+The pooled-random distribution (350) is heavily overrepresented by synthetic Unicode suite and must not be interpreted as a real-world production prevalence.
+
+**Engineering gate change:** increase top-k *recall* and source-group performance before implementing the L3 reranker. New controlled independent-of-external-holdout experiment `experiments/logic_first/vnext_l2_feature_ablation.py` with workflow `vnext-l2-feature-ablation.yml`; evaluates 2–3 ngrams original, 2–4 ngrams, 1–3 ngrams and class-balanced SGD using 3-fold group-disjoint training, with exact, decoded-text and top-three coverage. [Action #38738942106](https://github.com/Johnny-Kao/CodecCat/actions/runs/38738942106) launched; results must be checked before any trained-runtime change. It may be slow due to 12 group-trained full sparse-text classifiers and is **not evidence of improved accuracy until PASS and measured**.
+
+Never tune on external datasets used here, preserve frozen rows/seed, do not modify main or R21. Final review gate remains not passed.

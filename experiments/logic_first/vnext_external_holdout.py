@@ -69,6 +69,30 @@ def main(args):
         for name in ("ours","chardet","charset_normalizer"):
             report[category][name]={"exact":sum(x["metrics"][name]["exact"] for x in rows),
                     "equiv":sum(x["metrics"][name]["equiv"] for x in rows)}
+    # Evidence ledger: focus on real decoded-text errors, not encoding aliases.
+    clean=[x for x in trace if not x["overlap_bytes"] and not x["overlap_text"]]
+    per_label=collections.defaultdict(lambda:collections.Counter())
+    examples=[]
+    for item in clean:
+        truth=item["truth"]
+        c=per_label[truth]
+        c["n"]+=1
+        for name in ("ours","chardet","charset_normalizer"):
+            c[name+"_exact"]+=int(item["metrics"][name]["exact"])
+            c[name+"_text"]+=int(item["metrics"][name]["equiv"])
+        if not item["metrics"]["ours"]["equiv"]:
+            examples.append({"path":item["path"],"truth":truth,
+                             "ours":item["predictions"]["ours"],
+                             "charset_normalizer":item["predictions"]["charset_normalizer"],
+                             "competitor_text_correct":item["metrics"]["charset_normalizer"]["equiv"]})
+    report["nonoverlap_by_label"]=[
+        {"label":name,**dict(count)} for name,count in sorted(per_label.items(),
+                    key=lambda kv:(-(kv[1]["n"]-kv[1]["ours_text"]),kv[0]))]
+    report["actual_text_failure_examples"]=examples
+    report["nonoverlap_head_to_head"]={
+        "ours_only_text_correct":sum(x["metrics"]["ours"]["equiv"] and not x["metrics"]["charset_normalizer"]["equiv"] for x in clean),
+        "competitor_only_text_correct":sum(not x["metrics"]["ours"]["equiv"] and x["metrics"]["charset_normalizer"]["equiv"] for x in clean)}
+    report["acceptance_note"]="Small external diagnostic; not a fixed accuracy acceptance criterion. Never tune model on these records."
     dest=Path(args.output);dest.mkdir(parents=True,exist_ok=True)
     (dest/"report.json").write_text(json.dumps(report,indent=2))
     (dest/"trace.jsonl").write_text("\n".join(json.dumps(t) for t in trace)+"\n")

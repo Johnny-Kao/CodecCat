@@ -67,7 +67,9 @@ class TrainableDetector:
             return Ranked(None,tuple(),tuple(),None,True)
         if signature.encoding:
             family="-".join(signature.encoding.split("-")[:2])
-            supported=[str(name) for name in self.classifier.classes_
+            exact=[str(name) for name in self.classifier.classes_
+                   if str(name).replace("_","-")==signature.encoding]
+            supported=exact if exact else [str(name) for name in self.classifier.classes_
                        if str(name).replace("_","-").startswith(family)]
             if not supported:
                 return Ranked(None,tuple(),tuple(),signature.encoding,True)

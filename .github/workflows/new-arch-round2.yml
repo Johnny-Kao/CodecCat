@@ -1,0 +1,38 @@
+name: NEW architecture Round 2 of 5
+on:
+  push:
+    branches: [staging/initial-package]
+    paths: [".github/workflows/new-arch-round2.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  single-batch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      PYTHONHASHSEED: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: fixtures
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: One installation
+        run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1
+      - name: New architecture topology comparisons and grouped validation
+        run: |
+          PYTHONPATH=fixtures/scripts python experiments/logic_first/new_arch_round2.py --fixtures fixtures
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: new-architecture-round2
+          path: research-results/new-arch-round2/
+          retention-days: 30

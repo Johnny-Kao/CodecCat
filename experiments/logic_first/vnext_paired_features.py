@@ -3,7 +3,8 @@
 Report source-family and individual label changes, score same bytes with same
 folds, and reject candidate if it harms a major family despite aggregate gain.
 """
-import argparse,collections,codecs,json,sys
+import argparse,collections,codecs,hashlib,json,sys
+import sklearn, numpy
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from vnext_actual_adapter import corpus
@@ -22,11 +23,14 @@ def same_text(b,t,p):
 def main(args):
     rows=corpus(Path(args.train))
     paired=[];folds=[]
+    dataset_fingerprint=hashlib.sha256("\\n".join(f"{sha}:{label}:{group}:{fold}" for b,label,group,fold,sha in rows).encode()).hexdigest()
+    fingerprints=[]
     for k in range(3):
         tr=[(b,y,g) for b,y,g,fold,h in rows if fold!=k]
         te=[(b,y,g,sha) for b,y,g,fold,sha in rows if fold==k]
         assert {x[2] for x in tr}.isdisjoint({x[2] for x in te})
         models={name:fit(tr,CONFIGS[name]) for name in ("baseline","coverage_13")}
+        fingerprints.append({"fold":k,**{name:hashlib.sha256(m.classifier.coef_.tobytes()+m.classifier.intercept_.tobytes()+str(sorted(m.vectorizer.vocabulary_.items())).encode()).hexdigest() for name,m in models.items()}})
         summary=collections.Counter()
         raw_evaluation={(b,y,g) for b,y,g,sha in te}
         del raw_evaluation
@@ -60,7 +64,9 @@ def main(args):
                 "lost":sum(x["old_correct"] and not x["new_correct"] for x in q),
                 "top3_before":sum(x["old_top3"] for x in q),
                 "top3_after":sum(x["new_top3"] for x in q)}
-    result={"n":len(paired),"folds":folds,"family":by_family,
+    result={"n":len(paired),"folds":folds,"dataset_fingerprint":dataset_fingerprint,
+        "model_fingerprints":fingerprints,"numpy":numpy.__version__,"sklearn":sklearn.__version__,
+        "family":by_family,
         "labels":by_label,
         "overall":{"before":sum(x["old_correct"] for x in paired),
                    "after":sum(x["new_correct"] for x in paired),

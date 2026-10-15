@@ -1,0 +1,48 @@
+name: vNext Gate 1 of 5 paired tournament
+on:
+  push:
+    branches: [staging/initial-package]
+    paths:
+      - ".github/workflows/vnext-gate1.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  one-shot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 140
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      PYTHONHASHSEED: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install only once
+        run: |
+          python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0 requests==2.34.2 warcio==1.8.1 chardet==7.6.0 charset-normalizer==3.5.2
+          python -m pip install -e .
+      - name: Compile and load frozen R21
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python -m compileall -q experiments/logic_first/gate1_architecture_tournament.py
+          mkdir -p artifacts/r21
+          gh run download 37568792009 --repo "${{ github.repository }}" --name codeccat-r20-release-candidate --dir artifacts/r21
+          echo "e792df1be4a4a07f052c7786e61122d547a3c87501ad5b40f729621e8019fb54  artifacts/r21/codeccat-r20-release-candidate.npz" | sha256sum -c -
+      - name: One dataset collection one architecture tournament
+        run: |
+          PYTHONPATH=src:experiments/charset-normalizer-e2e-baseline python experiments/logic_first/gate1_architecture_tournament.py --model artifacts/r21/codeccat-r20-release-candidate.npz
+      - name: Evidence artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vnext-gate1-paired-tournament
+          path: research-results/vnext-gate1/
+          retention-days: 30

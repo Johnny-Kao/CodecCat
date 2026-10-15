@@ -28,3 +28,14 @@ def test_alias_variants():
     for e in ("utf-8", "shift_jis", "euc_jp", "gb18030", "big5", "utf-16"):
         raw = "abc".encode(e)
         assert e in evaluate(raw, (e,)).possible
+
+def test_incremental_partial_state_reported():
+    r = evaluate(b"\xe3\x81", ("utf-8", "latin1"), final=False)
+    assert "utf-8" in r.possible
+    assert "utf-8" in r.incomplete
+    assert "latin1" not in r.incomplete
+
+def test_full_input_does_not_mark_partial():
+    r = evaluate("日本語".encode("utf-8"), ("utf-8",), final=True)
+    assert r.incomplete == ()
+    assert r.impossible == ()

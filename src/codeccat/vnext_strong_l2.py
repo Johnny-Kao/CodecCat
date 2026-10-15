@@ -83,7 +83,8 @@ class TrainableDetector:
             if len(supported)==1:
                 label=supported[0]
                 try:
-                    data.decode(label,"strict")
+                    decoder=codecs.getincrementaldecoder(label)("strict")
+                    decoder.decode(data[:4096],final=final and len(data)<=4096)
                 except (UnicodeError,LookupError):
                     return Ranked(None,tuple(),tuple(),signature.encoding,True)
                 return Ranked(label,(label,),(1.0,),signature.encoding,False)

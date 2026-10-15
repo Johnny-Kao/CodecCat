@@ -221,3 +221,21 @@ The latest 84.608% is not directly comparable to prior 84.116% audit as the data
 0.35 weighting vs capped removal: **68 helps / 69 harms**, net -1. 0.65 weight vs capped removal: 50 helps / 63 harms, net -13. Neither weighted candidate exceeds capped pruning. Because per-fold patterns differ, **do not promote fixed weight or pruning parameter as a generally optimal setting**. Better next study: partition paired disagreements by label, language/source group and identifiability; collect truly independent corpora before further tuning.
 
 The key transferable design is to avoid repeatedly training L2 on samples already resolved by stable L1 structural evidence while retaining class diversity and enough hard-negative examples. Do not let L1's byte pattern shortcut become a hard-coded language prior. R21/main/release unchanged.
+
+## External-source acceptance diagnostic (2026-10-15)
+
+First train/holdout **different repository** comparison completed successfully at [GitHub Actions #38690966822](https://github.com/Johnny-Kao/CodecCat/actions/runs/38690966822). The source test set is pinned `TypesettingTools/uchardet` SHA `6789ebf11be838019c6b0ed979ab87e6dac5e1f8`, while training only uses `chardet/test-data` SHA `b0c0d206913ba118ffea2f7d306883e7a4a76db7`. Evaluator: `experiments/logic_first/vnext_external_holdout.py`; artifacts contain full per-example trace and report.
+
+**Critical source leakage control:** 113 labeled samples discovered, of which 33 have exact training-byte overlap and 36 have training decoded-text overlap. Only the **77 samples with neither exact bytes nor exact decoded text overlap** are the primary external diagnostic. Independent repo origin does *not* guarantee unique text; removing overlap is necessary.
+
+| Model | External nonoverlap exact label | External nonoverlap identical decoded text |
+|---|---:|---:|
+| CodecCat vNext | **49/77 = 63.64%** | **56/77 = 72.73%** |
+| charset-normalizer 3.4.4 | 46/77 = 59.74% | 55/77 = 71.43% |
+| chardet 5.2.0 | 34/77 = 44.16% | 34/77 = 44.16% |
+
+All 113, including overlaps: CodecCat 82 exact / 89 text; charset-normalizer 64 exact / 85 text; chardet 55 exact / 57 text.
+
+**Do not claim signoff or broad superiority.** The nonoverlap corpus has only 77 samples from many labels with a singleton; 3-sample exact advantage and 1-sample decoded-text advantage are fragile. Data provenance is different, but close textual similarity beyond *exact* decoded SHA was not excluded. This is evidence the approach is viable across a limited external source, but training/source diversity and especially rare encoding coverage are critical next priorities. Avoid hyperparameter training on this protected external diagnostic: doing so would turn it into a development set.
+
+This experiment used the capped L1-resolved residual training policy and unchanged UTF structure gates; no R21/main/release modification.

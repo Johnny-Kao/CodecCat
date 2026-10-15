@@ -2,7 +2,9 @@ name: vNext in-sample model fit audit
 on:
   push:
     branches: [staging/initial-package]
-    paths: [".github/workflows/vnext-fit-audit.yml"]
+    paths:
+      - ".github/workflows/vnext-fit-audit.yml"
+      - "experiments/logic_first/vnext_fit_audit.py"
   workflow_dispatch:
 permissions:
   contents: read

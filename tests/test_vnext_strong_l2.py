@@ -154,3 +154,26 @@ def test_utf8_bom_4096_byte_incomplete_prefix_is_not_rejected():
     expected=model.rank(sample,final=False)
     assert expected.encoding=="utf-8-sig"
     assert not expected.ambiguous
+
+def test_iso2022_escape_gate_with_supported_labels():
+    sample=training_data()+[
+        (("日本語の文章"*40).encode("iso2022_jp"),"iso2022_jp","jp-esc"),
+        (("한국어 텍스트"*40).encode("iso2022_kr"),"iso2022_kr","kr-esc"),
+    ]
+    m=TrainableDetector.fit(sample)
+    for encoding,text in (("iso2022_jp","日本語の文章"*20),
+                          ("iso2022_kr","한국어 텍스트"*20)):
+        r=m.rank(text.encode(encoding))
+        assert r.encoding==encoding
+        assert r.candidates==(encoding,)
+
+def test_escape_gate_never_forces_untrained_codec():
+    m=TrainableDetector.fit(training_data())
+    r=m.rank(("日本語"*20).encode("iso2022_jp"))
+    assert r.encoding!="iso2022_jp"
+
+def test_terminal_escape_without_iso2022_designation_is_not_forced():
+    from codeccat.vnext_escape import select_escape_encoding
+    choices=("iso2022_jp","iso2022_kr")
+    assert select_escape_encoding(b"\x1b[31mRED\x1b[0m",choices,final=True) is None
+    assert select_escape_encoding(b"\x1b$",choices,final=False) is None

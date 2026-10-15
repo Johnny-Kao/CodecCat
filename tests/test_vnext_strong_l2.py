@@ -83,3 +83,13 @@ def test_bom_generic_model_label_preferred_to_endian_subclass():
     model=TrainableDetector.fit(data)
     assert model.rank("Hi".encode("utf-16")).encoding=="utf-16"
     assert model.rank("Hi".encode("utf-32")).encoding=="utf-32"
+
+def test_bomless_utf16_ascii_null_position_evidence():
+    training=training_data()+[
+      (("ASCII-heavy meaningful text "*20).encode("utf-16-le"),"utf-16-le","le1"),
+      (("Other ASCII-heavy prose "*20).encode("utf-16-be"),"utf-16-be","be1"),
+    ]
+    model=TrainableDetector.fit(training)
+    for label in ("utf-16-le","utf-16-be"):
+        raw=("This has many ASCII alphabetic characters "*12).encode(label)
+        assert model.rank(raw).encoding==label

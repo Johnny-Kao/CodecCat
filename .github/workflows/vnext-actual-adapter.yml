@@ -2,7 +2,9 @@ name: vNext actual adapter grouped validation
 on:
   push:
     branches: [staging/initial-package]
-    paths: [".github/workflows/vnext-actual-adapter.yml"]
+    paths:
+      - ".github/workflows/vnext-actual-adapter.yml"
+      - "experiments/logic_first/vnext_actual_adapter.py"
   workflow_dispatch:
 permissions:
   contents: read

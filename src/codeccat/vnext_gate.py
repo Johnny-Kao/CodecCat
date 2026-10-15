@@ -30,6 +30,8 @@ def evaluate(data: bytes, candidates: tuple[str, ...], *, final: bool = True) ->
             continue
         try:
             dec.decode(data, final=final)
+            if not final and dec.getstate()[0]:
+                incomplete.append(name)
             possible.append(name)
         except UnicodeDecodeError as exc:
             if not final and exc.end == len(data) and (

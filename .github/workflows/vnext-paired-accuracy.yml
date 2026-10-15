@@ -2,7 +2,9 @@ name: vNext paired competitor accuracy audit
 on:
   push:
     branches: [staging/initial-package]
-    paths: [".github/workflows/vnext-paired-accuracy.yml"]
+    paths:
+      - ".github/workflows/vnext-paired-accuracy.yml"
+      - "src/codeccat/vnext_strong_l2.py"
   workflow_dispatch:
 permissions:
   contents: read

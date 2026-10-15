@@ -2,7 +2,9 @@ name: vNext outside-corpus encoding accuracy gate
 on:
   push:
     branches: [staging/initial-package]
-    paths: [".github/workflows/vnext-external-holdout.yml"]
+    paths:
+      - ".github/workflows/vnext-external-holdout.yml"
+      - "experiments/logic_first/vnext_external_holdout.py"
   workflow_dispatch:
 permissions:
   contents: read

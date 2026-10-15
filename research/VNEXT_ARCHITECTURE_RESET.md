@@ -167,3 +167,16 @@ Counts are out of 3,117. 2,493/3,117 = 79.98%, **development-only**. The last mo
 - Remaining work: statistically independent verified-labelled source, user-trainable source-disjoint pipeline with immutable schema, confidence calibration and abstention measurement; optimize feature extraction bottleneck (roughly 1.8 ms/sample before recent linear-scoring change) while preserving rank, and report inference-only RSS. `main`, R21 and release are unchanged.
 
 **Research/process correction:** the current `vnext_actual_adapter.py` benchmark uses *effective 4-KB bytes* for duplicate blocking; prior research scripts used full payload SHA and then truncated for features. Numeric comparisons between those corpora are *not paired* and must not be conflated. Model classes absent in a training fold are scored as out-of-coverage, not as prediction mistakes caused by L1.
+
+## Paired competitor comparison and BOM label normalization (2026-10-15)
+
+Independent implementation audited on the same *competitor-owned* chardet/test-data corpus; no release claim.
+
+- [Run 38682597433](https://github.com/Johnny-Kao/CodecCat/actions/runs/38682597433), 3,003 effective-prefix deduplicated examples, source-stem grouped, exact Python codec name accuracy. Initial: CodecCat 2,103/3,003 **70.03%**, chardet 1,668/3,003 **55.54%**, charset-normalizer 2,179/3,003 **72.56%**.
+- Per-label error attribution: **219/219 generic `utf-16` and 154/154 generic `utf-32`** were emitted as explicit `-le/-be` codepage labels and counted wrong. This was a *policy/label normalization defect*, not a language modeling defect.
+- Corrected the BOM fast path: if a trained generic `utf-16` / `utf-32` label exists, prefer that for BOM-bearing streams, without changing the policy for `utf-8-sig`. Regression tests added and passing.
+- [Run 38682966352](https://github.com/Johnny-Kao/CodecCat/actions/runs/38682966352), SAME 3,003 rows: CodecCat **2,476/3,003 = 82.45%**, chardet **55.54%**, charset-normalizer **72.56%**. Paired wins/losses vs charset-normalizer: 583 ours-only correct, 286 theirs-only correct; vs chardet 967 ours-only correct, 159 theirs-only correct.
+- **Important limitations:** This is not an independent holdout (source repository belongs to chardet), the data sample and exact-label metric include encoding-equivalence ambiguities, and competitor versions fixed to chardet 5.2.0 / charset-normalizer 3.4.4. No end-to-end production sign-off.
+- Hardest remaining families: `iso8859-1` (39 errors/74), `cp1252` (34/42), `iso8859-15` (34/41), `cp850` (26/45), `cp437` (24/33), `cp858` (24/32), `cp500` (23/25). Many overlaps are byte-level inherently ambiguous; improve outcome by measuring equivalence-aware decoding accuracy, collecting disjoint modern text, selectively verifying **language plausibility**, and abstaining when unidentifiable. Do not add blanket rules to force inherently ambiguous labels.
+
+This is a concrete accuracy gain from proper contract semantics, not increased trained language model discrimination.

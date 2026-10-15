@@ -3,7 +3,7 @@
 Separates memorization, unseen source groups, indistinguishable labels, and
 actual decoded-text errors. A high train fit is NOT a generalization metric.
 """
-import argparse,collections,hashlib,json,sys
+import argparse,codecs,collections,hashlib,json,sys
 from pathlib import Path
 from codeccat.vnext_strong_l2 import TrainableDetector
 sys.path.insert(0,str(Path(__file__).resolve().parent))
@@ -14,7 +14,15 @@ def score(model,rows):
     counts=collections.Counter();failures=collections.Counter();examples=[]
     for raw,truth,group,fold,sha in rows:
         prediction=model.rank(raw,final=len(raw)<4096).encoding
-        try:same_text=prediction is not None and raw.decode(truth,"strict")==raw.decode(prediction,"strict")
+        # Truncated 4096-byte samples may end mid-multibyte sequence.
+        # Use incremental decoders with final=False for precisely these prefixes.
+        try:
+            if prediction is None:
+                same_text=False
+            else:
+                left=codecs.getincrementaldecoder(truth)("strict").decode(raw,final=len(raw)<4096)
+                right=codecs.getincrementaldecoder(prediction)("strict").decode(raw,final=len(raw)<4096)
+                same_text=(left==right)
         except (UnicodeError,LookupError):same_text=False
         counts["n"]+=1
         counts["exact"]+=int(prediction==truth)

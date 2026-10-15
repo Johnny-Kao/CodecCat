@@ -28,7 +28,7 @@ def collect(path):
         b=f.read_bytes()
         if not b:continue
         try:b.decode(label,"strict")
-        except (UnicodeDecodeError,LookupError):continue
+        except (UnicodeError,LookupError):continue
         sha=hashlib.sha256(b).hexdigest()
         if sha in dedup:continue
         dedup.add(sha)
@@ -46,7 +46,7 @@ def safe_survivors(data,classes,complete):
             dec=codecs.getincrementaldecoder(label)("strict")
             dec.decode(data,final=complete)
             survivors.append(label)
-        except (UnicodeDecodeError,LookupError):pass
+        except (UnicodeError,LookupError):pass
     return survivors
 
 def run(a):
@@ -97,7 +97,7 @@ def run(a):
                             decoded=rows[i][0].decode(label,"strict")
                             ct=sum((ord(c)<32 and c not in "\t\r\n") or 127<=ord(c)<160 for c in decoded)
                             penalties[label]=ct/max(len(decoded),1)
-                        except (UnicodeDecodeError,LookupError):penalties[label]=1
+                        except (UnicodeError,LookupError):penalties[label]=1
                     if penalties[top[1]]+0.02<penalties[top[0]]:
                         best=top[1]
                 outputs[name][i]={"raw":raw,"l1":filtered,"full":best,

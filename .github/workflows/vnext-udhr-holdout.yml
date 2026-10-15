@@ -1,0 +1,39 @@
+name: vNext UDHR distinct corpus vs latest chardet
+on:
+  push:
+    branches: [staging/initial-package]
+    paths: [".github/workflows/vnext-udhr-holdout.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: training
+      - uses: actions/checkout@v4
+        with:
+          repository: amrali-eg/UnicodeTestSuite
+          ref: 80684bd405505b069cfec4e07493c8713a26f41a
+          path: udhr-suite
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0 chardet==7.6.0 charset-normalizer==3.4.4
+      - run: python udhr-suite/GenerateCorpus.py generate
+      - run: PYTHONPATH=src python experiments/logic_first/vnext_udhr_holdout.py --train training --external udhr-suite/UnicodeTestSuite --limit 300
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vnext-udhr-diagnostic
+          path: research-results/vnext-udhr/
+          retention-days: 30

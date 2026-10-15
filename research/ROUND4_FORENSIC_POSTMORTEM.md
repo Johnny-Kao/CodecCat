@@ -30,3 +30,22 @@ mistakes UTF-32 LE BOM `FF FE 00 00` for UTF-16 LE `FF FE` because it checks a s
 - Preserve old experiment outputs and code immutable as forensic evidence. Build corrected implementation separately and test with deterministic unit tests before spending the last GitHub Actions research round.
 
 The error attribution is verified from the trace; a corrected detector is NOT yet validated, and no accuracy improvement is claimed.
+
+## Immediate corrections implemented and checked
+
+- `src/codeccat/vnext_bom.py`: longest-match UTF-32 BOM before overlapping UTF-16 BOM. Returns evidence, not a class decision.
+- `src/codeccat/vnext_gate.py`: conservative decoder validity for each candidate, returning `possible`, `impossible`, `incomplete`, `bom` separately; incremental decoder pending bytes represented as incomplete when `final=False`.
+- `tests/test_vnext_bom.py` and `tests/test_vnext_gate.py`: 10 deterministic regression tests.
+- [GitHub Actions 38675216145](https://github.com/Johnny-Kao/CodecCat/actions/runs/38675216145) **PASS, 10/10 tests**. Does NOT consume fifth research batch.
+- **Important:** contract tests do not yet establish correctness across all encodings and input lengths, and `evaluate` still scans candidates eagerly. It is *not* the eventual fast path. Importing as `codeccat.vnext_gate` currently still executes the package-level legacy imports in `codeccat.__init__`; this needs isolation without breaking existing public API.
+
+## Measurable criteria for future work
+
+Before last research batch, independently check:
+1. No known UTF-32 LE/BE sample can be forced into UTF-16 solely due to prefix overlap.
+2. Source-valid, fully provided byte strings must never be marked impossible by a codec's own strict incremental decoder (canonically mapped label, full input). Truncated samples are checked separately.
+3. Supported-but-unseen labels cannot silently be treated as unsupported failures; separate coverage from detector accuracy.
+4. L3 adds information unavailable at L1; if not, disable it.
+5. End-to-end latency and inference-only RSS, not test harness costs, must fit defined target.
+
+Correctness contract exists; competitive trainable full detector does not. No claim of completion or guaranteed performance.

@@ -82,9 +82,12 @@ class TrainableDetector:
                     return Ranked(None,tuple(),tuple(),signature.encoding,True)
                 return Ranked(label,(label,),(1.0,),signature.encoding,False)
         x=self.vectorizer.transform([data[:4096].decode("latin1")])
-        raw=self.classifier.decision_function(x)
-        # scikit-learn binary case emits one signed margin.
-        margins=np.asarray(raw)
+        # Native sparse linear projection avoids sklearn's prediction-layer
+        # overhead, while using EXACTLY the learned coefficients/intercept.
+        row=x.getrow(0)
+        weights=self.classifier.coef_[:,row.indices]
+        margins=np.asarray(weights @ row.data + self.classifier.intercept_)
+        # scikit-learn binary case stores one signed margin for class 1.
         if margins.ndim==1:
             score=np.array([-float(margins[0]), float(margins[0])])
         else:score=margins[0]

@@ -90,3 +90,18 @@ Compared the exact same frozen random external selections (seed 20261015) to the
 - Explicitly note: these existing frozen external datasets are validation diagnostics and should not be used for repeated optimization selection. New unseen confirmation must decide whether structural path stays enabled.
 
 Pending final release blockers remain: Unicode variants, actual script consistency L3, independent coverage, benchmark gap to chardet 7, and cross-architecture resource testing. No main or release changes.
+
+## Latest implementation checkpoint — 2026-10-15 (L1 structural breadth)
+
+Added deterministic, conservative trained-label-gated paths:
+- `src/codeccat/vnext_escape.py`: initial ISO-2022-JP/KR escape designations with strict incremental decoding; unsupported, unrelated terminal escape or incomplete designation falls through instead of forcing a codec.
+- `src/codeccat/vnext_unicode_structure.py`: no-BOM UTF-32 LE/BE detection based on strongly asymmetric four-lane NUL patterns on ASCII-heavy inputs, with strict incremental decode viability and trained-class eligibility. Evaluated before UTF-16 byte-parity heuristic to avoid nested-encoding false positives.
+- New unit tests include positive JP/KR, UTF32 LE/BE, untrained class, false terminal escape, UTF16 non-interference. [CI core run #38724953721](https://github.com/Johnny-Kao/CodecCat/actions/runs/38724953721) SUCCESS.
+
+**Fixed 20261015-seeded external multi-distribution diagnostic (no training on evaluation sources):**
+- Before any new L1 rules: source×family-balanced 127/227 same-text; pooled 147/350.
+- ISO2022 escape only: balanced 127/227; pooled 149/350.
+- ISO2022 + UTF32 no-BOM: [CI #38725072714](https://github.com/Johnny-Kao/CodecCat/actions/runs/38725072714) balanced **127/227**, pooled **148/350**. Comparators unchanged chardet 7 at 147/227 and 161/350. **There is no broad verified gain** from these easy structural additions.
+- These 2 random distributions overlap and are development diagnostics once revisited; they cannot certify generalization. The correct next step is paired source/family breakdown and prioritization, not continued hand-tuning from these exact rows.
+
+Final status: **NOT READY FOR RELEASE OR OWNER SIGNOFF**. Remaining crucial gaps: general Unicode/script coverage, source-heldout accuracy, trained language-based selective reranker, multilingual representative benchmark with additional held-out sources, cross-architecture and resource gate. No changes to main/R21/releases.

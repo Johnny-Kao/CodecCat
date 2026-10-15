@@ -68,10 +68,16 @@ class TrainableDetector:
             return Ranked(None,tuple(),tuple(),None,True)
         if signature.encoding:
             family="-".join(signature.encoding.split("-")[:2])
+            # BOM-bearing generic UTF-16/32 streams use the generic codec
+            # label when that class is supported. Explicit endian labels
+            # remain eligible for BOM-less streams via the learned ranking.
+            generic=[str(name) for name in self.classifier.classes_
+                     if str(name).replace("_","-")==family]
             exact=[str(name) for name in self.classifier.classes_
                    if str(name).replace("_","-")==signature.encoding]
-            supported=exact if exact else [str(name) for name in self.classifier.classes_
-                       if str(name).replace("_","-").startswith(family)]
+            supported=generic if generic else (exact if exact else [
+                str(name) for name in self.classifier.classes_
+                if str(name).replace("_","-").startswith(family)])
             if not supported:
                 return Ranked(None,tuple(),tuple(),signature.encoding,True)
             if len(supported)==1:

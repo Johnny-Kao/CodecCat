@@ -1,0 +1,20 @@
+name: vNext independent pipeline smoke contract
+on:
+  push:
+    branches: [staging/initial-package]
+    paths: [".github/workflows/vnext-pipeline-contract.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install numpy==2.5.3 pytest==8.4.2
+      - name: Pipeline and structural contracts
+        run: PYTHONPATH=src python -m pytest -q tests/test_vnext_bom.py tests/test_vnext_gate.py tests/test_vnext_pipeline.py

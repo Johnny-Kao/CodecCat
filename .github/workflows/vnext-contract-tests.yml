@@ -1,0 +1,21 @@
+name: vNext deterministic logic contract
+on:
+  push:
+    branches: [staging/initial-package]
+    paths: [".github/workflows/vnext-contract-tests.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Independent standard-library gate contract
+        run: |
+          python -m pip install pytest==8.4.2
+          PYTHONPATH=src python -m pytest tests/test_vnext_bom.py tests/test_vnext_gate.py -q

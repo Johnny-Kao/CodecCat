@@ -68,3 +68,29 @@ In ONE runner, collect and cache source metadata and sampled bytes ONCE, retain 
 5. Combined structural + ordered byte-pair features + learned scorer and selective policy.
 No new thresholds after seeing results. Fit fixed-configuration models with source-disjoint folds and report per-label/route/source, plus throughput and the model/schema bytes. Preserve raw-data caching in the artifact subject to size limits; make any truncation explicit, and never treat cached development bytes as future untouched holdout.
 Candidate decision: if no trainable candidate beats R21+H14+strict across source-held-out evaluation, flag learned-feature direction as unproven and use Gate 3 for a fundamentally different decision topology, not tweaks to the same parameters.
+
+## Gate 2 sign-off — completed (2026-10-15)
+
+Run: https://github.com/Johnny-Kao/CodecCat/actions/runs/38658506103
+Artifact: vnext-gate2-trainable-tournament; includes per-sample source-group cross-year predictions, report, and `development_feature_cache.npz` (~4 MB). Schema code: `src/codeccat/vnext_features.py`. This is an experimental schema, not wired to production Runtime or emitted as a deployable Bundle.
+
+- 1,549 deduplicated research-exposed Common Crawl samples. Year-grouped three-fold leave-one-year-out evaluation. Evaluation hosts entirely excluded from each fold's training.
+- Labels from provenance tier A 1,467, tier B 82; 1,462 / 1,549 (94.4%) samples have visible charset declarations inside the bytes. **This benchmark is dangerously declaration-heavy**. Since the source labels themselves use declarations, newest chardet's metadata inspection may contribute to its observed lead. A verified, declaration-independent benchmark is mandatory; do not infer algorithmic statistical model dominance from these results alone.
+- R21 1,414 / 1,549 (91.28%), frozen R21+H14+strict 1,448 / 1,549 (93.48%).
+- Fixed trainable variants, trained by sklearn SGDClassifier with common config (alpha 0.0001, balanced, max_iter 1200, seeded): baseline 518-d 1,182 / 1,549 (76.31%); baseline+logic 1,159 (74.82%); baseline+ordered 1,151 (74.31%); combined 1,173 (75.73%). The strongest +0.90 confidence-abstention hybrid 1,358 (87.67%), STILL substantially inferior to frozen control. **No learned feature family was eligible for promotion.**
+- New combined evidence feature extraction averaged 0.790 ms/sample before any model inference and before R21. It breaches the speed budget; eager multiple-codec decoding and Python character scans are not viable fast-path production logic.
+- The **no-visible-declaration** subgroup is only 87 samples: frozen H14+strict 79 correct, direct combined SGD 43 and hybrid 61. This is not a sufficient independent assessment.
+- This experiment shows that training a brand-new broad classifier on ~1.5k weakly labelled samples cannot reliably replace the larger R21 training history; it does NOT prove training from more trustworthy user-supplied data is impossible.
+
+### Gate 2 architectural decision
+
+REJECT: eager all-codec structural scanning on every input, standalone replacement SGD scorer, blind learned high-confidence overrides, and global prescore candidate masking.
+
+RETAIN: immutable standards-level BOM and codec safety checks; lightweight *conditional* structural evidence; frozen R21 as a strong base scorer; externally configurable model weights; learned specialist and calibration only when source-disjoint datasets demonstrate net positive on errors vs already-strong frozen baseline.
+
+**Gate 3 must change the data and decision logic, not iterate SGD hyperparameters.** First construct and freeze an independently verified, declaration-absent/conflicting-declaration corpus and dedicated stress cases; then compare (a) cheap BOM/markup+consistency gate, (b) lazy C-backed codec viability for an uncertain candidate, (c) narrow expert with abstention on genuinely ambiguous samples, and (d) frozen R21. Track assertion provenance and avoid letting label-bearing markup alone count as proof of language-model accuracy. One batch only. Do not blindly refetch six known weak-label crawls a third time.
+
+## Research budget
+- Gate 1 complete: SUCCESS for diagnosis, not product acceptance.
+- Gate 2 complete: FAIL to improve frozen model with standalone supervised replacements.
+- Gate 3, Gate 4, Gate 5 remain available (3 of max 5 research batches).

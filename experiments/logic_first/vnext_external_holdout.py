@@ -22,6 +22,15 @@ def main(args):
     source_rows=[(b,y,g) for b,y,g,k,sha in training]
     kept,dropped=residual_subset(source_rows)
     model=TrainableDetector.fit(kept)
+    # Two independent fits on immutable ordered rows must produce identical models.
+    repeat=TrainableDetector.fit(kept)
+    import numpy as np
+    if model.vectorizer.vocabulary_ != repeat.vectorizer.vocabulary_:
+        raise AssertionError("non-deterministic vocabulary")
+    if not np.array_equal(model.classifier.coef_,repeat.classifier.coef_):
+        raise AssertionError("non-deterministic coefficients")
+    if not np.array_equal(model.classifier.intercept_,repeat.classifier.intercept_):
+        raise AssertionError("non-deterministic intercept")
     train_hashes={hashlib.sha256(b).hexdigest() for b,_,_ in source_rows}
     train_text_hashes=set()
     for b,y,_ in source_rows:
@@ -43,6 +52,8 @@ def main(args):
         seen.add(dig)
         text_hash=hashlib.sha256(correct.encode()).hexdigest()
         ours=model.rank(b,final=len(b)<4096).encoding
+        if ours!=repeat.rank(b,final=len(b)<4096).encoding:
+            raise AssertionError("repeat training prediction mismatch")
         competitor1=canonical(chardet.detect(b).get("encoding") or "")
         try:
             result=from_bytes(b).best()
@@ -59,6 +70,8 @@ def main(args):
                       "predictions":labels,"metrics":evals})
     if not trace:raise RuntimeError("No external labeled corpus records discovered")
     n=len(trace);report={"n":n,"train":len(source_rows),"train_after_residual":len(kept),
+         "deterministic_retrain_equal":True,
+         "model_fingerprint":model.fingerprint,
          "duplicate_training_bytes":sum(x["overlap_bytes"] for x in trace),
          "duplicate_training_decoded_text":sum(x["overlap_text"] for x in trace),
          "source":"TypesettingTools/uchardet/test @ pinned commit, distinct repository; byte/text overlap tracked",

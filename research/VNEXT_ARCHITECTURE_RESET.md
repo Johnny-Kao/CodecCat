@@ -112,3 +112,15 @@ Actions run https://github.com/Johnny-Kao/CodecCat/actions/runs/38668670491; cod
 **Interpretation:** structural legality *helps* ranking but not enough. Testing several estimators over the same hashed features is insufficient diversity: the next experiment must compare genuinely different feature representation / evidence ordering and train/test provenance, not more SGD/Naive Bayes tweaks. A decoder accepting bytes is not a proof of correct identity. Held-out data is competitor-owned and contains transcoded sibling data; grouped splits mitigate but do not guarantee source independence.
 
 **Research budget:** NEW architecture Rounds 1 and 2 completed, THREE rounds remain (3/4/5). Round 3 must address evidence representation, input provenance, ambiguity and metric calibration in one batch. Do not use historical R21.
+
+## New independent Round 3 sign-off (2026-10-15)
+
+Run https://github.com/Johnny-Kao/CodecCat/actions/runs/38671086756, success; code `experiments/logic_first/new_arch_round3.py`, single GitHub Actions job with artifact. NO R21 imports.
+- Dataset: chardet/test-data 3,117 strictly decodable, byte-deduplicated development examples, 3 grouped folds.
+- Source-disjoint decoded-script prototype (mean 18-dimensional Unicode script ratios per encoding) and byte 2/3gram MultinomialNB, tested 128/1024/4096 bytes with explicit ambiguity.
+- At 4096 bytes: byte statistical 818/3117=26.24%; decoded-language 594/3117=19.06%; combined 764/3117=24.51%; logic-only unique-candidate classification 0/3117. All 3,117 had multiple decoder-acceptable candidates; the true label was a viable candidate for 3,116/3,117 (the one discrepancy may reflect prefix/alias/truncation handling and needs triage). This is **not** an acceptable accuracy result.
+- Combined score employed a preregistered fixed multiplier, not calibrated source-generalizing model. Therefore cannot infer that all hybrid architectures are poor. Byte statistical baseline differs from Round 1/2 and must not be described as controlled architecture-versus-architecture regression.
+- Eager five-codec decoder diagnostic ~40.2 microseconds/sample; process max RSS 475 MiB includes Python/scikit training and traces, not inference-only memory.
+- Research finding: validity evidence rarely uniquely identifies real-world encoding; language evidence must be discriminative and source-aware, rather than coarse script totals. The next round must avoid re-running the same competitor-owned corpus as a surrogate for generalization.
+
+Budget now: independent rounds 1,2,3 completed. **Two rounds remain** under current user instruction; save one for final locked acceptance. Stop changing weights without new provenance. Core Logic-First structural state contract remains valid as design goal but no complete detector is accepted.

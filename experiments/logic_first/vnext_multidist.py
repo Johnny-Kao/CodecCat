@@ -81,7 +81,8 @@ def run(a):
     for uid,r in targets.items():
         raw=r["data"];y=r["label"];expected=r["expected"]
         cn=from_bytes(raw).best()
-        predictions={"ours":norm(detector.rank(raw,final=len(raw)<4096).encoding),
+        ranked=detector.rank(raw,final=len(raw)<4096)
+        predictions={"ours":norm(ranked.encoding),
                      "chardet_7":norm(chardet.detect(raw).get("encoding")),
                      "charset_normalizer":norm(cn.encoding if cn else None)}
         metrics={}
@@ -90,7 +91,9 @@ def run(a):
             except (UnicodeError,LookupError,TypeError):equiv=False
             metrics[name]={"exact":p==y,"same_text":equiv,"pred":p}
         scored[uid]={"source":r["source"],"file":r["filename"],"label":y,
-                     "family":r["category"],"sha":uid,"metrics":metrics}
+                     "family":r["category"],"sha":uid,"metrics":metrics,
+                     "ours_candidates":[norm(x) for x in ranked.candidates],
+                     "truth_in_top3":y in {norm(x) for x in ranked.candidates}}
     report={"seed":a.seed,"candidate_pool":len(records),
             "strata":{"/".join(k):len(v) for k,v in sorted(by_stratum.items())},
             "distributions":{},"warning":"both distributions reuse the same data sources; not statistically independent; generated text overrepresentation"}
@@ -111,6 +114,7 @@ def run(a):
             only_other=[x for x in rr if x["metrics"]["chardet_7"]["same_text"] and not x["metrics"]["ours"]["same_text"]]
             wrong=collections.Counter((x["label"],x["metrics"]["ours"]["pred"]) for x in rr if not x["metrics"]["ours"]["same_text"])
             diag[fam_name]={"n":len(rr),
+                "truth_in_top3":sum(x["truth_in_top3"] for x in rr),
                 "ours_text":sum(x["metrics"]["ours"]["same_text"] for x in rr),
                 "chardet_text":sum(x["metrics"]["chardet_7"]["same_text"] for x in rr),
                 "only_ours":len(only_ours),"only_chardet":len(only_other),

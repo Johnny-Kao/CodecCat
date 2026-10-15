@@ -17,5 +17,5 @@ jobs:
           python-version: "3.12"
       - name: Independent standard-library gate contract
         run: |
-          python -m pip install pytest==8.4.2
+          python -m pip install pytest==8.4.2 numpy==2.5.3
           PYTHONPATH=src python -m pytest tests/test_vnext_bom.py tests/test_vnext_gate.py -q

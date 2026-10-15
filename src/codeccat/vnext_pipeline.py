@@ -81,7 +81,7 @@ class Model:
     def detect(self,data:bytes,*,final:bool=True,margin_threshold:float=0.2) -> Result:
         if not isinstance(data,bytes):raise TypeError("data must be bytes")
         if not self.labels:raise ValueError("no classes")
-        gate=evaluate(data[:4096],self.labels,final=final)
+        gate=evaluate(data[:4096],self.labels,final=final and len(data)<=4096)
         viable=gate.possible
         if not viable:
             return Result(None,0.0,(),False,True,gate.bom.encoding)

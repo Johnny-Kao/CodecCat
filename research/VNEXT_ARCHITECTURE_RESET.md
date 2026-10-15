@@ -77,3 +77,28 @@ Run https://github.com/Johnny-Kao/CodecCat/actions/runs/38668067484 (successful,
 **Gate:** Soundness of byte-level comparisons already needs an explicit fresh proof for the new logic. Training pipeline can fit user-supplied labels, but learned naïve byte frequencies cannot by themselves disambiguate overlapping encodings or reliably generalize. Neither topology nor parameters are accepted for release.
 
 **Required next and final research batch:** test alternative statistical architectures beyond naïve Bayes (e.g. calibrated discriminative models, character script likelihood and truly sequential evidence), short-text abstention/uncertainty, source-disjoint generalization and verified corpus strategy, all predeclared within ONE GitHub Actions job. No R21, H-series or old benchmarks as controls. If a trustworthy independent holdout cannot be found, stop short of any competitive claim.
+
+## Updated research budget — user explicitly allocates FOUR remaining rounds (2026-10-15)
+
+This overrides the earlier "two total new batches" language. One independent new-architecture batch has already finished; FOUR more distinct consolidated research rounds are authorized. **No R21 or H-series imports, model downloads, benchmark controls, or architecture reuse.**
+
+### Round 2 — Full architecture topology tournament (NEXT)
+One fixed source-group-disjoint dev corpus; compare at least:
+- Separate structural candidate generation and conservative rejection/ambiguity, including a no-veto ablation and incomplete-prefix handling;
+- Raw ordered byte n-gram evidence vs decoded-script coherence and their combination;
+- Count-based model vs discriminative multinomial logistic/SGD calibrated decisions, with abstention and class imbalance;
+- Short 128/1024/4096-byte examples, long inputs, known vs unknown labels, domain strata, confusion clusters;
+- Fit cost, end-to-end p50/p95 latency, resource overhead, model parameter sizes, acceptance coverage.
+
+**Primary purpose:** choose a *topology*, not a threshold. Freeze no more than TWO independent architectures for Round 3. A candidate must improve on the independent NB round-1 baseline on source-disjoint data; compare to itself only, never R21.
+
+### Round 3 — Source/domain drift and data sufficiency
+Train on separate real-origin sources, test distinct wild/transcoded/suite subpopulations; grouped duplicate-family blocking; learning curves for sample count; confidence stability, insufficient text, UTF/CJK/single-byte balance; no test-file leakage or declaration leakage. Choose ONE architecture and fixed training rules. If data lacks independence, mark uncertainty rather than accept.
+
+### Round 4 — Runtime cost/implementation design
+Implement selective C-backed validity, lazy feature extraction, streaming/prefix correctness and schema/bundle reproducibility, no unconditional heavy decode. Test multiple CPU shapes on available free runners in ONE workflow execution, latency distribution, throughput, peak inference-only RSS, bundle size and trainability; freeze implementation. No optimization guided by a future acceptance dataset.
+
+### Round 5 — Independent locked acceptance / final decision
+Evaluate frozen implementation and model on separately sourced, audited labels unexposed in rounds 2–4. Include short/long/binary-adjacent and per-language coverage, confidence/abstention and total cost. If no such data or unacceptable metrics, fail explicitly and stop; no post-hoc tuning.
+
+**Execution control:** one job, one runner, one artifact per round; no automatic cross-version CI or parallel hypotheses launched as independent workflows. The existing round-1 sample remains development-only. For each run, record datasets, hashes, seed, split provenance, exact commit and predeclared metrics before running.

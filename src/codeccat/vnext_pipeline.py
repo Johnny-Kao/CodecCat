@@ -24,14 +24,19 @@ def train(samples: list[tuple[bytes,str,str]], *, alpha: float = 0.5) -> "Model"
     if alpha <= 0: raise ValueError("alpha must be positive")
     labels: dict[str,Counter[int]] = defaultdict(Counter)
     counts = Counter()
-    groups: dict[str,set[str]] = defaultdict(set)
+    group_labels: dict[str,set[str]] = defaultdict(set)
+    seen_bytes: dict[str,str] = {}
     digest = hashlib.sha256()
     for data,label,group in samples:
         if not isinstance(data,bytes) or not label or not group:
             raise ValueError("expected bytes, nonempty encoding and source_group")
+        key = hashlib.sha256(data).hexdigest()
+        if key in seen_bytes and seen_bytes[key] != label:
+            raise ValueError("identical bytes have conflicting labels")
+        seen_bytes[key] = label
+        group_labels[group].add(label)
         labels[label].update(transitions(data))
         counts[label] += 1
-        groups[group].add(label)
         digest.update(len(data).to_bytes(8,"big"))
         digest.update(data)
         digest.update(label.encode())
@@ -88,6 +93,14 @@ class Model:
         if len(viable)==1:
             return Result(viable[0],1.0,viable,False,False,gate.bom.encoding)
         obs=transitions(data)
+        # Constant-time BOM evidence may rank supported compatible labels, but
+        # an untrained BOM codec is never silently substituted by a different one.
+        bom_codec=gate.bom.encoding
+        if bom_codec:
+            family=bom_codec.split("-")[:2]
+            supported_bom=[c for c in viable if c.startswith("-".join(family))]
+            if supported_bom and len(supported_bom)==1:
+                return Result(supported_bom[0],1.0,tuple(supported_bom),False,False,bom_codec)
         n=max(1,len(data[:4096])-1)
         total_examples=sum(self.counts.values())
         scores={}
@@ -104,7 +117,8 @@ class Model:
         gap=scores[ordered[0]]-scores[ordered[1]]
         # L3 has to use a different signal: decoded Unicode printability and
         # control characters on the top two, never repeat L1 validity.
-        need_l3=gap<margin_threshold
+        need_l3=gap<margin_threshold and len(data)>=16
+        effective_scores=dict(scores)
         if need_l3:
             revised={}
             for label in ordered[:2]:
@@ -114,8 +128,10 @@ class Model:
                 controls=sum((ord(ch)<32 and ch not in "\t\n\r") or 0x7f<=ord(ch)<=0x9f for ch in txt)
                 revised[label]=scores[label]-0.2*controls/len(txt)
             if revised:
-                ordered[:2]=sorted(ordered[:2],key=lambda x:(-revised.get(x,scores[x]),x))
+                effective_scores.update(revised)
+                ordered[:2]=sorted(ordered[:2],key=lambda x:(-effective_scores[x],x))
         best=ordered[0]
-        confidence=1/(1+math.exp(-min(gap,80)))
-        uncertain=gap<0.015 and not gate.bom.encoding
+        final_gap=effective_scores[ordered[0]]-effective_scores[ordered[1]]
+        confidence=1/(1+math.exp(-min(max(final_gap,0.0),80)))
+        uncertain=final_gap<0.015 and not gate.bom.encoding
         return Result(None if uncertain else best,confidence,tuple(ordered),need_l3,uncertain,gate.bom.encoding)

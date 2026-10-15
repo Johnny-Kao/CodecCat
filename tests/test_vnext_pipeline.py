@@ -28,3 +28,14 @@ def test_ignores_invalid_candidate_without_legacy_model():
 def test_no_training_set():
     import pytest
     with pytest.raises(ValueError):train([])
+
+def test_sampling_cut_does_not_exclude_utf8_with_partial_terminal_sequence():
+    # UTF-8 starts a multi-byte sequence at byte 4095; full input is valid.
+    data = b"A" * 4095 + "日".encode("utf-8") + b"tail"
+    assert len(data) > 4096
+    m = train([
+        (("日本語"*20).encode("utf-8"),"utf-8","ja"),
+        (("Cyrillic example "*20).encode("cp1251"),"cp1251","ru"),
+    ])
+    result = m.detect(data)
+    assert "utf-8" in result.candidates

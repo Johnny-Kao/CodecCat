@@ -88,9 +88,10 @@ class TrainableDetector:
         weights=self.classifier.coef_[:,row.indices]
         margins=np.asarray(weights @ row.data + self.classifier.intercept_)
         # scikit-learn binary case stores one signed margin for class 1.
-        if margins.ndim==1:
-            score=np.array([-float(margins[0]), float(margins[0])])
-        else:score=margins[0]
+        if len(self.classifier.classes_) == 2:
+            score=np.array([-float(margins[0]),float(margins[0])])
+        else:
+            score=margins
         classes=list(self.classifier.classes_)
         order=np.argsort(score)[::-1]
         # Lazy L1: visit candidates in learned-score order; validate the

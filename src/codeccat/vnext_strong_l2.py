@@ -72,7 +72,7 @@ class TrainableDetector:
             # label when that class is supported. Explicit endian labels
             # remain eligible for BOM-less streams via the learned ranking.
             generic=[str(name) for name in self.classifier.classes_
-                     if str(name).replace("_","-")==family]
+                     if family in ("utf-16","utf-32") and str(name).replace("_","-")==family]
             exact=[str(name) for name in self.classifier.classes_
                    if str(name).replace("_","-")==signature.encoding]
             supported=generic if generic else (exact if exact else [

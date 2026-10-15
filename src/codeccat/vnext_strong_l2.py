@@ -18,6 +18,7 @@ from sklearn.linear_model import SGDClassifier
 from .vnext_gate import evaluate
 from .vnext_bom import inspect_bom
 from .vnext_escape import select_escape_encoding
+from .vnext_unicode_structure import select_utf32_no_bom
 
 SCHEMA = "vnext-l2-tfidf-ordered23-sgd-huber-v1"
 
@@ -93,6 +94,10 @@ class TrainableDetector:
             data,tuple(str(x) for x in self.classifier.classes_),final=final)
         if escape_label is not None:
             return Ranked(escape_label,(escape_label,),(1.0,),None,False)
+        utf32=select_utf32_no_bom(
+            data,tuple(str(x) for x in self.classifier.classes_),final=final)
+        if utf32 is not None:
+            return Ranked(utf32,(utf32,),(1.0,),None,False)
         # UTF-16 ASCII-heavy text without BOM has a strong byte-position
         # invariant: nulls cluster on the high byte. Only act with substantial
         # evidence; mixed/non-ASCII text falls through to trained L2.

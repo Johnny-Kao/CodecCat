@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Iterable
 import hashlib
 import json
+import codecs
 
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -89,20 +90,27 @@ class TrainableDetector:
         else:score=margins[0]
         classes=list(self.classifier.classes_)
         order=np.argsort(score)[::-1]
-        gate=evaluate(data[:4096],tuple(classes),final=final and len(data)<=4096)
-        compatible=set(gate.possible)
-        bom=gate.bom.encoding
-        if bom:
-            base="-".join(bom.split("-")[:2])
-            allowed={c for c in compatible if c.replace("_","-").startswith(base)}
-            if not allowed:
-                return Ranked(None,tuple(),tuple(),bom,True)
-            compatible=allowed
-        filtered=[int(i) for i in order if classes[int(i)] in compatible]
-        if not filtered:return Ranked(None,tuple(),tuple(),bom,True)
-        top=filtered[0]
-        ordered=tuple(classes[i] for i in filtered)
-        scores=tuple(float(score[i]) for i in filtered)
+        # Lazy L1: visit candidates in learned-score order; validate the
+        # contenders that can affect the outcome, not every trained codec.
+        # Returned candidates are the validated TOP THREE, not the full
+        # set of theoretically valid encodings.
+        validated=[]
+        prefix=data[:4096]
+        for idx in order:
+            label=str(classes[int(idx)])
+            try:
+                dec=codecs.getincrementaldecoder(label)("strict")
+                dec.decode(prefix,final=final and len(data)<=4096)
+            except (UnicodeError,LookupError):
+                continue
+            validated.append(int(idx))
+            if len(validated)>=3:
+                break
+        if not validated:return Ranked(None,tuple(),tuple(),signature.encoding,True)
+        top=validated[0]
+        ordered=tuple(str(classes[i]) for i in validated)
+        scores=tuple(float(score[i]) for i in validated)
+        bom=signature.encoding
         # No uncalibrated numeric probability claims.
         return Ranked(classes[top],ordered,scores,bom,False)
 

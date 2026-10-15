@@ -53,3 +53,22 @@ def test_sparse_linear_score_equivalence_to_sklearn():
         direct=model.classifier.coef_[:,row.indices] @ row.data + model.classifier.intercept_
         sklearn=model.classifier.decision_function(x)
         np.testing.assert_allclose(np.ravel(direct),np.ravel(sklearn),rtol=1e-11,atol=1e-11)
+
+def test_multiclass_rank_agrees_with_sklearn_raw_scores():
+    import numpy as np
+    data=training_data()+[
+        (("Русский язык информация "*30).encode("cp1251"),"cp1251","ru1"),
+        (("Другие русские слова "*30).encode("cp1251"),"cp1251","ru2")
+    ]
+    model=TrainableDetector.fit(data)
+    assert len(model.classifier.classes_) == 3
+    for raw,_,_ in data:
+        x=model.vectorizer.transform([raw.decode("latin1")])
+        expected=model.classifier.classes_[np.argsort(model.classifier.decision_function(x)[0])[::-1]]
+        got=model.rank(raw)
+        expected_viable=[]
+        import codecs
+        for label in expected:
+            try:raw.decode(str(label),"strict");expected_viable.append(str(label))
+            except (UnicodeError,LookupError):pass
+        assert got.encoding==expected_viable[0]

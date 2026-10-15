@@ -43,3 +43,13 @@ def test_utf8_bom_fastpath_and_unsupported_utf32_abstain():
     unknown=model.rank("A UTF32 document".encode("utf-32"))
     assert unknown.encoding is None
     assert unknown.ambiguous
+
+def test_sparse_linear_score_equivalence_to_sklearn():
+    import numpy as np
+    model=TrainableDetector.fit(training_data())
+    for data,_,_ in training_data():
+        x=model.vectorizer.transform([data[:4096].decode("latin1")])
+        row=x.getrow(0)
+        direct=model.classifier.coef_[:,row.indices] @ row.data + model.classifier.intercept_
+        sklearn=model.classifier.decision_function(x)
+        np.testing.assert_allclose(np.ravel(direct),np.ravel(sklearn),rtol=1e-11,atol=1e-11)

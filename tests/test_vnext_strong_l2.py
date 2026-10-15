@@ -93,3 +93,34 @@ def test_bomless_utf16_ascii_null_position_evidence():
     for label in ("utf-16-le","utf-16-be"):
         raw=("This has many ASCII alphabetic characters "*12).encode(label)
         assert model.rank(raw).encoding==label
+
+def test_portable_numeric_only_model_roundtrip():
+    model=TrainableDetector.fit(training_data())
+    with tempfile.TemporaryDirectory() as folder:
+        path=Path(folder)/"model.ccnext"
+        model.save_portable(path)
+        restored=TrainableDetector.load_portable(path)
+        assert restored.fingerprint==model.fingerprint
+        for raw,_,_ in training_data():
+            before=model.rank(raw)
+            after=restored.rank(raw)
+            assert before.encoding==after.encoding
+            assert before.candidates==after.candidates
+            import numpy as np
+            np.testing.assert_allclose(before.scores,after.scores,rtol=1e-11,atol=1e-11)
+
+def test_portable_bundle_rejects_unknown_schema():
+    import json,zipfile
+    model=TrainableDetector.fit(training_data())
+    with tempfile.TemporaryDirectory() as folder:
+        f=Path(folder)/"bundle.ccnext"
+        model.save_portable(f)
+        with zipfile.ZipFile(f,"r") as archive:
+            manifest=json.loads(archive.read("manifest.json"))
+            weights=archive.read("weights.npz")
+        manifest["schema"]="incompatible"
+        with zipfile.ZipFile(f,"w") as archive:
+            archive.writestr("manifest.json",json.dumps(manifest))
+            archive.writestr("weights.npz",weights)
+        with pytest.raises(ValueError,match="schema"):
+            TrainableDetector.load_portable(f)

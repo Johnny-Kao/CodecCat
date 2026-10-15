@@ -1,0 +1,47 @@
+name: vNext Gate 2 of 5 trainable feature tournament
+on:
+  push:
+    branches: [staging/initial-package]
+    paths:
+      - ".github/workflows/vnext-gate2.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  one-shot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 140
+    env:
+      PYTHONHASHSEED: "0"
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install once
+        run: |
+          python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0 requests==2.34.2 warcio==1.8.1 chardet==7.6.0 charset-normalizer==3.5.2
+          python -m pip install -e .
+      - name: Compile and restore frozen model
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python -m compileall -q src/codeccat/vnext_features.py experiments/logic_first/gate2_trainable_tournament.py
+          mkdir -p artifacts/r21
+          gh run download 37568792009 --repo "${{ github.repository }}" --name codeccat-r20-release-candidate --dir artifacts/r21
+          echo "e792df1be4a4a07f052c7786e61122d547a3c87501ad5b40f729621e8019fb54  artifacts/r21/codeccat-r20-release-candidate.npz" | sha256sum -c -
+      - name: One collection four feature families grouped cross-year evaluation
+        run: |
+          PYTHONPATH=src:experiments/charset-normalizer-e2e-baseline:experiments/logic_first python experiments/logic_first/gate2_trainable_tournament.py --model artifacts/r21/codeccat-r20-release-candidate.npz
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vnext-gate2-trainable-tournament
+          path: research-results/vnext-gate2/
+          retention-days: 30

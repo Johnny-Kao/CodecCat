@@ -1,0 +1,39 @@
+name: vNext third independent source test
+on:
+  push:
+    branches: [staging/initial-package]
+    paths:
+      - ".github/workflows/vnext-third-source.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  external:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: training-fixtures
+      - uses: actions/checkout@v4
+        with:
+          repository: Ousret/charset_normalizer
+          ref: 4b335594aee803e04b62e8ffa1a5a2b7ebd4d33c
+          path: third-source
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0 chardet==5.2.0 charset-normalizer==3.4.4
+      - run: PYTHONPATH=src python experiments/logic_first/vnext_third_source.py --train training-fixtures --external third-source
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vnext-third-source
+          path: research-results/vnext-third-source/
+          retention-days: 30

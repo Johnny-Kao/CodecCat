@@ -239,3 +239,13 @@ All 113, including overlaps: CodecCat 82 exact / 89 text; charset-normalizer 64 
 **Do not claim signoff or broad superiority.** The nonoverlap corpus has only 77 samples from many labels with a singleton; 3-sample exact advantage and 1-sample decoded-text advantage are fragile. Data provenance is different, but close textual similarity beyond *exact* decoded SHA was not excluded. This is evidence the approach is viable across a limited external source, but training/source diversity and especially rare encoding coverage are critical next priorities. Avoid hyperparameter training on this protected external diagnostic: doing so would turn it into a development set.
 
 This experiment used the capped L1-resolved residual training policy and unchanged UTF structure gates; no R21/main/release modification.
+
+## Protected external error taxonomy (2026-10-15)
+
+[Run #38691779807](https://github.com/Johnny-Kao/CodecCat/actions/runs/38691779807) extended the external uchardet non-overlap diagnostic with per-label errors and exact files. In the same 77 non-overlap samples, CodecCat reports **48/77 exact label, 56/77 same-text decoding**, charset-normalizer **46/77 exact, 55/77 same text**. Earlier [run #38690966822](https://github.com/Johnny-Kao/CodecCat/actions/runs/38690966822) returned **49/77 exact and 56/77 text**: **one-exact-result discrepancy remains unexplained**, despite evaluator-only changes, so investigate determinism/version/input ordering before sign-off. Do not exaggerate tiny 77-case differences.
+
+Against charset-normalizer on identical decoded-text criterion: CodecCat-only correct **9 cases**, competitor-only correct **8 cases**; the 1-sample net margin is fragile.
+
+Largest non-overlap actual-text error families: ISO-8859-13 4/5 wrong, Windows-1252 3/3 wrong, ISO-8859-10 2/2 wrong, ISO-8859-2 2/5 wrong, ISO-8859-4 2/3 wrong; many labels have only 1 case. Error trace includes examples such as `test/et/windows-1252.txt` predicted `cp775`, and `test/et/iso-8859-13.txt` predicted `cp775`. UTF-16/32 generic versus explicit endian labels also appear among remaining confusions. These are independent-source diagnostics, **not permission to tune hyperparameters on protected holdout**. Future L2 should learn Estonian/Baltic language-coherence signals on separate training data, and validate on a third disjoint source.
+
+No R21, main or release changes.

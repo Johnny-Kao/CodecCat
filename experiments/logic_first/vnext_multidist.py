@@ -36,6 +36,12 @@ def gather(root,source):
                 if label:out.append((p,label))
     return out
 
+def _strict_valid(raw,encoding):
+    try:
+        codecs.getincrementaldecoder(encoding)("strict").decode(raw,final=len(raw)<4096)
+        return True
+    except (LookupError,UnicodeError,TypeError):return False
+
 def run(a):
     import chardet
     from charset_normalizer import from_bytes
@@ -126,6 +132,10 @@ def run(a):
           "utf8_sig_errors_with_bom":sum(scored[uid]["metrics"]["experimental13"]["pred"]=="utf-8-sig" and r["data"].startswith(codecs.BOM_UTF8) for uid,r in rr if not scored[uid]["metrics"]["experimental13"]["same_text"]),
           "utf8_sig_errors_without_bom":sum(scored[uid]["metrics"]["experimental13"]["pred"]=="utf-8-sig" and not r["data"].startswith(codecs.BOM_UTF8) for uid,r in rr if not scored[uid]["metrics"]["experimental13"]["same_text"]),
           "median_length":sorted(len(r["data"]) for uid,r in rr)[len(rr)//2],
+          "utf8_valid":sum(_strict_valid(r["data"],"utf-8") for uid,r in rr),
+          "truth_codec_valid":sum(_strict_valid(r["data"],truth) for uid,r in rr),
+          "wrong_pred_strict_valid":sum(_strict_valid(r["data"],scored[uid]["metrics"]["experimental13"]["pred"]) for uid,r in rr if not scored[uid]["metrics"]["experimental13"]["same_text"]),
+          "wrong_pred_singlebyte":sum(scored[uid]["metrics"]["experimental13"]["pred"] in ("cp857","cp437","cp775","koi8-t","iso8859-16","iso8859-3","mac-latin2","cp273") for uid,r in rr if not scored[uid]["metrics"]["experimental13"]["same_text"]),
           "experimental13_correct_text":sum(scored[uid]["metrics"]["experimental13"]["same_text"] for uid,r in rr),
           "common_wrong_predictions":errors.most_common(6)}
     report["paired_error_diagnostics"]={}

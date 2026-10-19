@@ -41,3 +41,16 @@ PYTHONPATH=src python experiments/logic_first/vnext_annual_retrain.py --year 202
 ```
 
 The workflow currently uses a **pinned 2026 baseline corpus**. For 2027 and later, first update and freeze the approved annual sources and their SHAs; merely changing `training_year` does **not** incorporate new data. Review annual results; do not schedule silent auto-promotion. Retain exported GitHub Actions artifacts somewhere durable before their 30-day expiry.
+
+## 2026-10-19 research gate: independent 1/2/3gram weighting
+
+Added `experiments/logic_first/vnext_family_weights.py` and the free Ubuntu workflow `vnext-family-weights.yml`. Weighting is applied to per-ngram-length groups **after fitting the TF-IDF vocabulary, before row renormalization and classifier fitting**, and is reapplied at inference. The comparison must use the actual L1 + L2 `TrainableDetector.rank` path. An early experiment bypassed L1 and was discarded, not used for selection.
+
+[Corrected source-group CV run #39188178613](https://github.com/Johnny-Kao/CodecCat/actions/runs/39188178613), 3,086 rows over frozen three source-disjoint folds:
+- Equal weights (1,1,1): **2,833** same decoded text.
+- Downweight unigram (0.5,1,1): **2,831**.
+- Upweight unigram (1.5,1,1): **2,834** (+1).
+- Upweight trigram (1,1,1.5): **2,814**.
+- Results by fold should be inspected: slight aggregate improvement can hide regressions. The **+1 / 3,086 is not a meaningful verified win** and does not justify changing model defaults or portable archive format. Do not tune weights based on external corpora.
+- Equal-weight score 2,833 agrees with the original 4-way ablation 2,833, but differs from later paired 2,825; discrepancy remains open and may relate to process/runtime non-determinism or dataset/metric implementation rather than weights. Align `PYTHONHASHSEED`, sample order and model fingerprints before accepting a promoted result.
+- Next experiment should target *substantially different* features (language-specific decoded-context consistency, byte structural validity) rather than fine-tuning ngram family scalars. A brand-new, unexamined blind source must confirm any subsequent improvements.

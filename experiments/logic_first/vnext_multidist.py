@@ -43,6 +43,7 @@ def run(a):
     train,_=residual_subset(original)
     detector=TrainableDetector.fit(train)
     experimental=TrainableDetector.fit(train,feature_profile="experimental13")
+    trained_labels=collections.Counter(y for b,y,g in train)
     known_b={hashlib.sha256(b).hexdigest() for b,y,g in original}
     known_t=set()
     for b,y,g in original:
@@ -96,7 +97,10 @@ def run(a):
         scored[uid]={"source":r["source"],"file":r["filename"],"label":y,
                      "family":r["category"],"sha":uid,"metrics":metrics,
                      "ours_candidates":[norm(x) for x in ranked.candidates],
-                     "truth_in_top3":y in {norm(x) for x in ranked.candidates}}
+                     "truth_in_top3":y in {norm(x) for x in ranked.candidates},
+                     "train_class_count":trained_labels.get(y,0),
+                     "truth_in_model":y in {norm(x) for x in detector.classifier.classes_},
+                     "experimental13_top3":[norm(x) for x in ranked13.candidates]}
     report={"seed":a.seed,"candidate_pool":len(records),
             "strata":{"/".join(k):len(v) for k,v in sorted(by_stratum.items())},
             "distributions":{},"warning":"both distributions reuse the same data sources; not statistically independent; generated text overrepresentation"}
@@ -107,6 +111,7 @@ def run(a):
            "metrics":{name:{"exact":sum(x["metrics"][name]["exact"] for x in rows),
                               "same_text":sum(x["metrics"][name]["same_text"] for x in rows)}
                       for name in ("ours","experimental13","chardet_7","charset_normalizer")}}
+    report["train_label_coverage"]={name:int(count) for name,count in sorted(trained_labels.items())}
     report["paired_error_diagnostics"]={}
     for title,items in (("balanced_source_family",balanced),("pooled_random",natural)):
         rows=[scored[x["sample_id"]] for x in items]
@@ -117,6 +122,9 @@ def run(a):
             only_other=[x for x in rr if x["metrics"]["chardet_7"]["same_text"] and not x["metrics"]["ours"]["same_text"]]
             wrong=collections.Counter((x["label"],x["metrics"]["ours"]["pred"]) for x in rr if not x["metrics"]["ours"]["same_text"])
             diag[fam_name]={"n":len(rr),
+                "truth_absent_model":sum(not x["truth_in_model"] for x in rr),
+                "truth_in_model_missed_top3":sum(x["truth_in_model"] and not x["truth_in_top3"] for x in rr),
+                "truth_in_experimental13_top3":sum(x["label"] in x["experimental13_top3"] for x in rr),
                 "truth_in_top3":sum(x["truth_in_top3"] for x in rr),
                 "ours_text":sum(x["metrics"]["ours"]["same_text"] for x in rr),
                 "chardet_text":sum(x["metrics"]["chardet_7"]["same_text"] for x in rr),

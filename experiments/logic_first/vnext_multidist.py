@@ -123,6 +123,8 @@ def run(a):
           "n":len(rr),"training_examples":trained_labels.get(truth,0),
           "sources":dict(collections.Counter(r["source"] for uid,r in rr)),
           "ascii_only":sum(all(byte<128 for byte in r["data"]) for uid,r in rr),
+          "utf8_sig_errors_with_bom":sum(scored[uid]["metrics"]["experimental13"]["pred"]=="utf-8-sig" and r["data"].startswith(codecs.BOM_UTF8) for uid,r in rr if not scored[uid]["metrics"]["experimental13"]["same_text"]),
+          "utf8_sig_errors_without_bom":sum(scored[uid]["metrics"]["experimental13"]["pred"]=="utf-8-sig" and not r["data"].startswith(codecs.BOM_UTF8) for uid,r in rr if not scored[uid]["metrics"]["experimental13"]["same_text"]),
           "median_length":sorted(len(r["data"]) for uid,r in rr)[len(rr)//2],
           "experimental13_correct_text":sum(scored[uid]["metrics"]["experimental13"]["same_text"] for uid,r in rr),
           "common_wrong_predictions":errors.most_common(6)}

@@ -199,3 +199,15 @@ Ran existing frozen multi-distribution audit with additional per-family decompos
 ### UTF-8-SIG hypothesis confirmed as BOM semantics, not arbitrary misclassification
 
 [CI #39189574114](https://github.com/Johnny-Kao/CodecCat/actions/runs/39189574114) **SUCCESS**. All **35** erroneous `experimental13 -> utf-8-sig` predictions among truth-labelled UTF-8 examples have a literal `EF BB BF` prefix; **zero** such errors lacked the prefix. Python `utf-8` decoder preserves initial U+FEFF while `utf-8-sig` strips it. The reported identical-decoded-text metric is therefore sensitive to how source gold labels declare BOM semantics. This is not valid evidence to force the model to prefer `utf-8` on all BOM files; retain labels and compute separate (a) exact codec label, (b) literal decoded-text equality, and (c) optionally BOM-normalized equivalence as an **explicitly secondary** diagnostic metric. Do not silently change established primary metrics or train on these evaluated rows.
+
+### 2026-10-19 strict decoding ambiguity audit
+
+[Source-locked diagnostic action #39200566617](https://github.com/Johnny-Kao/CodecCat/actions/runs/39200566617) succeeded. This is a **diagnostic-only** change to `experiments/logic_first/vnext_multidist.py`; runtime, defaults, model weights, and external data sources remain unchanged. Among external codec-specific targets:
+- GB18030: 40 items, experimental13 correctly decodes 3; every one of its **37 wrong predictions** is still strict-decoder-valid; 22 of those errors are among named single-byte distractors.
+- EUC-JP: 15 items, 4 correct; **11/11 wrong predictions** are strict-decoder-valid, 8 among named single-byte distractors.
+- Shift-JIS: 8 items, 3 correct; **5/5 wrong predictions** strict-decoder-valid, 4 among named single-byte distractors.
+- UTF-8: 114 items, 77 correct in this run; all 114 inputs strict-valid as UTF-8; all 37 wrong predictions also strict-decode. Prior BOM analysis attributes 35 of these to BOM semantics.
+
+**Implication:** feasibility gating is already operating, but it is a necessary rather than sufficient condition for selecting an encoding. Adding more generic strict-codec checks cannot distinguish the observed valid competing decoders. Hypothesis for next bounded research: compare decoded-script coherence and encoding-native byte pattern evidence to resolve *valid-but-wrong* alternatives. This hypothesis is **not yet validated** and must be tested source-group-disjoint with negative controls on genuine legacy single-byte encodings. Do not force GB18030 based on non-ASCII bytes or tune thresholds against already examined fixtures.
+
+Known external fixtures are diagnostic only; untouched blind data and resources remain release blockers.

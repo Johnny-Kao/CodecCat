@@ -1,5 +1,8 @@
 name: vNext annual candidate retrain (no promotion)
 on:
+  push:
+    branches: [staging/initial-package]
+    paths: ['.github/workflows/vnext-annual-retrain.yml']
   workflow_dispatch:
     inputs:
       training_year:
@@ -29,10 +32,10 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0
       - name: Train both annual candidates and verify numeric archives
-        run: PYTHONPATH=src python experiments/logic_first/vnext_annual_retrain.py --year ${{ inputs.training_year }} --training training --training-commit b0c0d206913ba118ffea2f7d306883e7a4a76db7
+        run: PYTHONPATH=src python experiments/logic_first/vnext_annual_retrain.py --year ${{ inputs.training_year || '2026' }} --training training --training-commit b0c0d206913ba118ffea2f7d306883e7a4a76db7
       - uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: vnext-annual-candidates-${{ inputs.training_year }}
+          name: vnext-annual-candidates-${{ inputs.training_year || '2026' }}
           path: research-results/vnext-annual-models/
           retention-days: 30

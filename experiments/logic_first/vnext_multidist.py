@@ -112,6 +112,20 @@ def run(a):
                               "same_text":sum(x["metrics"][name]["same_text"] for x in rows)}
                       for name in ("ours","experimental13","chardet_7","charset_normalizer")}}
     report["train_label_coverage"]={name:int(count) for name,count in sorted(trained_labels.items())}
+    # Case audit: distinguish class coverage from source and byte-shape shifts.
+    report["codec_case_audit"]={}
+    for truth in ("gb18030","euc_jp","shift_jis","cp1251","koi8-r","utf-8"):
+        rr=[(uid,r) for uid,r in targets.items() if r["label"]==truth]
+        if not rr:continue
+        errors=collections.Counter(scored[uid]["metrics"]["experimental13"]["pred"]
+            for uid,r in rr if not scored[uid]["metrics"]["experimental13"]["same_text"])
+        report["codec_case_audit"][truth]={
+          "n":len(rr),"training_examples":trained_labels.get(truth,0),
+          "sources":dict(collections.Counter(r["source"] for uid,r in rr)),
+          "ascii_only":sum(all(byte<128 for byte in r["data"]) for uid,r in rr),
+          "median_length":sorted(len(r["data"]) for uid,r in rr)[len(rr)//2],
+          "experimental13_correct_text":sum(scored[uid]["metrics"]["experimental13"]["same_text"] for uid,r in rr),
+          "common_wrong_predictions":errors.most_common(6)}
     report["paired_error_diagnostics"]={}
     for title,items in (("balanced_source_family",balanced),("pooled_random",natural)):
         rows=[scored[x["sample_id"]] for x in items]

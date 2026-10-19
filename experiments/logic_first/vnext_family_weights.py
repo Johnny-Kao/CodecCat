@@ -19,6 +19,14 @@ WEIGHTS={
  "upweight_unigram":(1.5,1.,1.),
  "upweight_trigram":(1.,1.,1.5),
 }
+class WeightedFeatures:
+    def __init__(self,vectorizer,factors):
+        self.vectorizer=vectorizer
+        self.factors=factors
+    def transform(self,values):
+        from sklearn.preprocessing import normalize
+        return normalize(self.vectorizer.transform(values).multiply(self.factors).tocsr())
+
 def fit(rows,weights):
     raw=[b[:4096].decode("latin1") for b,y,g in rows]
     labels=[y for b,y,g in rows]
@@ -31,29 +39,15 @@ def fit(rows,weights):
     clf=SGDClassifier(loss="modified_huber",alpha=0.0001,random_state=20261015,max_iter=1500)
     clf.fit(weighted,labels)
     # Apply exact feature weights again during inference, then normalize.
-    return vec,clf,factors
+    return TrainableDetector(vectorizer=WeightedFeatures(vec,factors),classifier=clf,fingerprint="weight-research")
 def predict(model,b):
-    vec,clf,factors=model
-    from sklearn.preprocessing import normalize
-    row=vec.transform([b[:4096].decode("latin1")]).multiply(factors).tocsr()
-    row=normalize(row)
-    score=clf.decision_function(row)[0]
-    order=np.argsort(np.atleast_1d(score))[::-1]
-    if len(clf.classes_)==2:
-        order=np.argsort(np.array([-float(score),float(score)]))[::-1]
-    for idx in order:
-        label=str(clf.classes_[int(idx)])
-        try:
-            codecs.getincrementaldecoder(label)("strict").decode(b[:4096],final=len(b)<4096)
-        except (UnicodeError,LookupError):continue
-        return label
-    return None
+    return model.rank(b,final=len(b)<4096).encoding
 def equivalent(b,y,p):
     try:return codecs.getincrementaldecoder(y)("strict").decode(b,final=len(b)<4096)==codecs.getincrementaldecoder(p)("strict").decode(b,final=len(b)<4096)
     except (LookupError,UnicodeError,TypeError):return False
 def main(args):
     rows=corpus(Path(args.fixtures))
-    report={"n":len(rows),"configs":{},"warning":"dev-fold-only exploration; not deployable until runtime portable feature-weight schema exists"}
+    report={"n":len(rows),"configs":{},"warning":"group-disjoint dev-only experiment on full production L1+L2 rank path; do not promote without holdout and numeric archive schema"}
     for name,weights in WEIGHTS.items():
         folds=[]
         for k in range(3):

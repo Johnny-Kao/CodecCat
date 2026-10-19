@@ -166,3 +166,14 @@ Tested the actual `TrainableDetector.fit(..., feature_profile="experimental13")`
 - Pooled fixture-random 350: stable23 **148/350**, experimental13 **155/350**, chardet 7.6 **161/350**. Paired wins 13 / loses 6; exact labels 123→129.
 - This is **directionally encouraging**, and narrows the observed gap to chardet 7 from 20 to 11 correct text cases (stratified) and 13 to 6 (pooled). Both selections overlap and are repeatedly examined; **not new untouched confirmation**. Do not claim statistically independent replications or unbiased natural prevalence.
 - Opt-in portable numeric format and roundtrip tests previously passed. Keep `stable23` default until truly new third-source blind confirmation, resource/cross-arch regression gates and regression thresholds are satisfied. Do not update main, release or PyPI.
+
+## 2026-10-19: annual candidate retraining protocol implemented and exercised
+
+Added `experiments/logic_first/vnext_annual_retrain.py`, `.github/workflows/vnext-annual-retrain.yml`, and `research/VNEXT_ANNUAL_RETRAINING_SOP.md`. SOP defines the repeatable sequence: provenance/license and group-based data partition → stable L1 → ordered unigram/bigram/trigram-feature candidate training → source-disjoint paired dev scoring → untouched-source validation → per-family regression → CPU/RAM/architecture checks → **explicit owner review**. The actual implementation uses *combined* 1–3-gram TF-IDF for `experimental13`; independently weighted per-ngram-family extraction has **not** been implemented and must not be claimed as such.
+
+**[2026 annual run #39181320719](https://github.com/Johnny-Kao/CodecCat/actions/runs/39181320719) SUCCESS**: pinned corpus 3,086 accepted examples, 1,124 source groups, 88 labels. Both candidate models fit, exported numeric portable bundles, and passed representative save/load inference parity. Stable23 has 45,000 vocabulary features, 13,685,936 bytes; experimental13 90,000 features, 24,580,570 bytes. SHA256:
+- stable23 `1ba665dc3eddc0dff7e38e7526121d8e80192d9778061fc956ae07d3bcc9ae94`
+- experimental13 `be875ef2842f12429f6a5784952787ed3c8687bd0dc2974277cb67e30`
+- ordered 2026 input metadata SHA256 `6e76b3f45510cadd5b3e83aa9915bddbc6d3474fb5cbc5f2522a0b9a5c330d04`.
+
+GitHub Actions branch-specific workflow_dispatch may not be addressable via `gh workflow run` until GitHub registers the workflow on the repository default branch; **do not modify main just to make it dispatchable**. A staging push trigger permits testing the workflow. Each future year requires updating **new approved data source snapshots and blind holdouts**; the year field by itself only changes labels and does not fetch new data. No auto release, no silent default change, no main/R21 changes. Current annual-run artifact retention = 30 days, so archive externally for year-over-year history.

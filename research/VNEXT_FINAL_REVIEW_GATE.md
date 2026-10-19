@@ -177,3 +177,11 @@ Added `experiments/logic_first/vnext_annual_retrain.py`, `.github/workflows/vnex
 - ordered 2026 input metadata SHA256 `6e76b3f45510cadd5b3e83aa9915bddbc6d3474fb5cbc5f2522a0b9a5c330d04`.
 
 GitHub Actions branch-specific workflow_dispatch may not be addressable via `gh workflow run` until GitHub registers the workflow on the repository default branch; **do not modify main just to make it dispatchable**. A staging push trigger permits testing the workflow. Each future year requires updating **new approved data source snapshots and blind holdouts**; the year field by itself only changes labels and does not fetch new data. No auto release, no silent default change, no main/R21 changes. Current annual-run artifact retention = 30 days, so archive externally for year-over-year history.
+
+## 2026-10-19: hypothesis-driven diagnosis: label availability vs candidate miss
+
+Ran existing frozen multi-distribution audit with additional per-family decomposition. [CI #39189242219](https://github.com/Johnny-Kao/CodecCat/actions/runs/39189242219) **SUCCESS**.
+
+**227 source-family-balanced fixture samples:** all 227 ground-truth codecs are present in trained classifier classes (0 absent). Nonetheless the stable23 validated top-three misses ground-truth class for **39/54 East Asian**, **25/87 single-byte**, **32/79 Unicode**, **0/7 other**; experimental13 top-three recalls 15/54 East Asian, 65/87 single-byte, 47/79 Unicode, 7/7 other. The same class-coverage absence is zero in pooled-random 350. These are label-class membership and candidate-ranking diagnostics, not proof of a specific causative feature or training problem. Training corpus shares all codec *labels* with test; distribution/source mismatch or ambiguous representations remain possible. Contradictory Unicode truth-vs-pred canonical labels and BOM differences require explicit analysis.
+
+**Gate:** stop parameter searches and avoid L3 on top-three before investigating why correct labeled codec is systematically outranked (especially GB18030) and whether expected and predicted codecs can decode identically. Next experiment must capture paired counterexamples and byte-structure/decoded text distinctions with a falsifiable hypothesis and a separate untouched confirmation source. Do not promote any new rule without independently evidenced gain and bounded regressions.

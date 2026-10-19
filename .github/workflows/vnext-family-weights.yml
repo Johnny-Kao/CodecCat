@@ -1,0 +1,33 @@
+name: vNext independent ngram family weight research
+on:
+  push:
+    branches: [staging/initial-package]
+    paths: [".github/workflows/vnext-family-weights.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ablation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: fixtures
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0
+      - run: PYTHONPATH=src python experiments/logic_first/vnext_family_weights.py --fixtures fixtures
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vnext-family-weights
+          path: research-results/vnext-family-weights/
+          retention-days: 30

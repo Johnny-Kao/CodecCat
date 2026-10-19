@@ -195,3 +195,7 @@ Ran existing frozen multi-distribution audit with additional per-family decompos
 - Unseen codec labels are **zero** in both fixed external distributions. The failure is mostly incorrect ranking and semantics, not an absent class label.
 
 **Research discipline:** follow cause → minimal falsifiable change → paired source-group experiments → new holdout. Stop random parameter/feature-weight searches. Keep both candidate models frozen and no main/release changes. These known external files have been examined many times and must not be represented as a fresh blind holdout.
+
+### UTF-8-SIG hypothesis confirmed as BOM semantics, not arbitrary misclassification
+
+[CI #39189574114](https://github.com/Johnny-Kao/CodecCat/actions/runs/39189574114) **SUCCESS**. All **35** erroneous `experimental13 -> utf-8-sig` predictions among truth-labelled UTF-8 examples have a literal `EF BB BF` prefix; **zero** such errors lacked the prefix. Python `utf-8` decoder preserves initial U+FEFF while `utf-8-sig` strips it. The reported identical-decoded-text metric is therefore sensitive to how source gold labels declare BOM semantics. This is not valid evidence to force the model to prefer `utf-8` on all BOM files; retain labels and compute separate (a) exact codec label, (b) literal decoded-text equality, and (c) optionally BOM-normalized equivalence as an **explicitly secondary** diagnostic metric. Do not silently change established primary metrics or train on these evaluated rows.

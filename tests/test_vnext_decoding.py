@@ -64,3 +64,25 @@ def test_integrated_L1_selection_and_lazy_L2_have_same_output(detector):
         for policy in ("preserve","strip"):
             assert decode(detector,data,bom_policy=policy)==decode(
                 detector,data,bom_policy=policy,structural_first=True)
+
+
+def test_prefix_cannot_hide_invalid_trailing_bytes(detector):
+    # L2 may rank from the first 4096 bytes, but text decoding must validate
+    # the full input instead of claiming success for an invalid late suffix.
+    raw=b"\xef\xbb\xbf"+b"ASCII text "*500+b"\xff"
+    assert len(raw)>4096
+    result=decode(detector,raw,bom_policy="strip")
+    assert result.encoding is None
+    assert result.text is None
+    assert result.ambiguous
+    assert result.reason=="invalid_selected_codec"
+
+def test_unknown_bom_family_abstains_without_substituting_encoding():
+    m=TrainableDetector.fit([
+        (b"UTF-8 paragraph"*30,"utf-8","a"),
+        (("日本語とテキスト"*30).encode("shift_jis"),"shift_jis","b"),
+    ])
+    result=decode(m,"Not supported UTF-32".encode("utf-32"))
+    assert not result.accepted
+    assert result.encoding is None
+    assert result.text is None

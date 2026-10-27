@@ -255,3 +255,29 @@ def test_structural_evidence_excludes_proven_impossible_without_forcing_a_family
     assert "shift_jis" in evidence.possible or "shift_jis" in evidence.impossible
     # A strict-decoder gate is an impossibility test, not a unique label oracle.
     assert len(evidence.possible) + len(evidence.impossible) == len(model.classifier.classes_)
+
+def test_astral_utf32_overlap_must_not_be_forced_to_utf16():
+    # Each U+1F680 in UTF-32-LE is 80 F6 01 00. Alternating high
+    # zero bytes also resemble UTF-16-LE and BOTH codecs accept it.
+    # This is an adversarial structural counterexample, not a fit target.
+    model = TrainableDetector.fit(training_data() + [
+        (("ordinary Unicode text " * 25).encode("utf-16-le"), "utf-16-le", "u16"),
+        (("Unicode payload example " * 25).encode("utf-32-le"), "utf-32-le", "u32"),
+    ])
+    for charset in ("utf-32-le", "utf-32-be"):
+        raw = ("🚀" * 96).encode(charset)
+        assert len(raw) > 32
+        result = model.rank(raw)
+        wrong_utf16 = "utf-16-le" if charset.endswith("-le") else "utf-16-be"
+        assert not (result.encoding == wrong_utf16 and result.scores == (1.0,))
+
+def test_ascii_heavy_utf16_still_has_unique_structural_evidence():
+    data = training_data() + [
+        (("ASCII text that stays meaningful " * 30).encode("utf-16-le"),
+         "utf-16-le", "u16"),
+    ]
+    model = TrainableDetector.fit(data)
+    raw = ("A complete English sentence. " * 45).encode("utf-16-le")
+    result = model.rank(raw)
+    assert result.encoding == "utf-16-le"
+    assert result.scores == (1.0,)

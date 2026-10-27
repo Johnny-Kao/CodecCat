@@ -1,0 +1,48 @@
+name: vNext frozen ICU source confirmation
+on:
+  push:
+    branches: [staging/initial-package]
+    paths: [".github/workflows/vnext-icu-confirmation.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  blind:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      PYTHONHASHSEED: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: training
+      - uses: actions/checkout@v4
+        with:
+          repository: unicode-org/icu
+          ref: ad110a2381f1b75bfb875fb0b672b7c38dce4e4b
+          path: icu-fixture
+          sparse-checkout: |
+            icu4c/source/test/testdata/csdetest.xml
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0 chardet==7.6.0 charset-normalizer==3.4.4
+      - name: One-time scoring of frozen ICU source
+        run: >-
+          PYTHONPATH=src python experiments/logic_first/vnext_icu_confirmation.py
+          --train training
+          --fixture icu-fixture/icu4c/source/test/testdata/csdetest.xml
+          --icu-commit ad110a2381f1b75bfb875fb0b672b7c38dce4e4b
+          --train-commit b0c0d206913ba118ffea2f7d306883e7a4a76db7
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frozen-icu-confirmation
+          path: research-results/vnext-icu-confirmation/
+          retention-days: 30

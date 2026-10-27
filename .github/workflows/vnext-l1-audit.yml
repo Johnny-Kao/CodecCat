@@ -30,6 +30,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0
       - run: python unicode-suite-src/GenerateCorpus.py generate
       - run: PYTHONPATH=src python experiments/logic_first/vnext_l1_audit.py --train training --uchardet uchardet --unicode-suite unicode-suite-src/UnicodeTestSuite
       - uses: actions/upload-artifact@v4

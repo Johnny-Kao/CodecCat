@@ -106,7 +106,10 @@ def run(a):
                      "truth_in_top3":y in {norm(x) for x in ranked.candidates},
                      "train_class_count":trained_labels.get(y,0),
                      "truth_in_model":y in {norm(x) for x in detector.classifier.classes_},
-                     "experimental13_top3":[norm(x) for x in ranked13.candidates]}
+                     "experimental13_top3":[norm(x) for x in ranked13.candidates],
+                     "shortcuts":{name:{"forced":len(value.candidates)==1 and value.scores==(1.0,),
+                                        "bom_hint":value.bom_hint}
+                                  for name,value in (("ours",ranked),("experimental13",ranked13))}}
     report={"seed":a.seed,"candidate_pool":len(records),
             "strata":{"/".join(k):len(v) for k,v in sorted(by_stratum.items())},
             "distributions":{},"warning":"both distributions reuse the same data sources; not statistically independent; generated text overrepresentation"}
@@ -118,6 +121,21 @@ def run(a):
                               "same_text":sum(x["metrics"][name]["same_text"] for x in rows)}
                       for name in ("ours","experimental13","chardet_7","charset_normalizer")}}
     report["train_label_coverage"]={name:int(count) for name,count in sorted(trained_labels.items())}
+    # Identify any L1 shortcuts that bypass L2 and get the decoded text wrong.
+    # This is a legacy source diagnostic, not a new blind test.
+    report["fastpath_audit"]={}
+    for name in ("ours","experimental13"):
+        forced=[r for r in scored.values() if r["shortcuts"][name]["forced"]]
+        incorrect=[r for r in forced if not r["metrics"][name]["same_text"]]
+        report["fastpath_audit"][name]={
+            "forced":len(forced),"wrong_decoded_text":len(incorrect),
+            "wrong_exact_label":sum(not r["metrics"][name]["exact"] for r in forced),
+            "by_family":dict(collections.Counter(r["family"] for r in forced)),
+            "wrong_cases":[{"file":r["file"],"source":r["source"],
+                            "truth":r["label"],"pred":r["metrics"][name]["pred"],
+                            "bom_hint":r["shortcuts"][name]["bom_hint"]}
+                           for r in incorrect[:30]]}
+
     # Case audit: distinguish class coverage from source and byte-shape shifts.
     report["codec_case_audit"]={}
     for truth in ("gb18030","euc_jp","shift_jis","cp1251","koi8-r","utf-8"):

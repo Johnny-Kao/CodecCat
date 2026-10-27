@@ -77,5 +77,21 @@ def decode(
         return Detection(None, None, ambiguous=True, reason="invalid_selected_codec", **attrs)
     if bom_policy == "strip" and evidence.signature and decoded.startswith("\ufeff"):
         decoded = decoded[1:]
+    # Seven-bit text can be textually identical under multiple trained
+    # encodings. Report the historical codec label as uncertain without
+    # fabricating a posterior probability or silently discarding the text.
+    if (raw and evidence.signature is None and len(raw) <= 4096 and
+            all(byte in (9, 10, 13) or 32 <= byte <= 126 for byte in raw)):
+        if decoded == raw.decode("ascii"):
+            for alternative in model.classifier.classes_:
+                if str(alternative) == str(ranked.encoding):
+                    continue
+                try:
+                    alt = codecs.getincrementaldecoder(str(alternative))("strict")
+                    if alt.decode(raw, final=True) == decoded:
+                        return Detection(str(ranked.encoding), decoded, ambiguous=True,
+                                         reason="textually_ambiguous_ascii", **attrs)
+                except (UnicodeError, LookupError):
+                    pass
     return Detection(str(ranked.encoding), decoded, ambiguous=ranked.ambiguous,
                      reason="selected", **attrs)

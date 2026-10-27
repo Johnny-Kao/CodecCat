@@ -2,7 +2,13 @@ name: vNext multi-source randomized distribution audit
 on:
   push:
     branches: [staging/initial-package]
-    paths: [".github/workflows/vnext-multidist.yml"]
+    paths:
+      - ".github/workflows/vnext-multidist.yml"
+      - "src/codeccat/vnext_strong_l2.py"
+      - "src/codeccat/vnext_unicode_structure.py"
+      - "src/codeccat/vnext_escape.py"
+      - "src/codeccat/vnext_bom.py"
+      - "experiments/logic_first/vnext_multidist.py"
   workflow_dispatch:
 permissions:
   contents: read

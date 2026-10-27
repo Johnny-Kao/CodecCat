@@ -254,3 +254,41 @@ The multi-distribution script now fails when any *non-BOM* forced L1 choice disa
 5. Run full pipeline integration (L1 evidence → L2 candidates → optional L3 or explicit abstention → output/serialization) on both candidate profiles; execute annual reproduction with immutable manifests.
 6. Only then issue an owner-ready review package. `main`, R21, release tags and PyPI remain untouched.
 
+
+## 2026-10-27 — End-to-end decoding, first frozen ICU external source, x86 resources and integrated NO-GO
+
+This section is a completed engineering/measurement tranche, **not** evidence that the product or original surpass-chardet research goal has finished.
+
+### Byte-to-text semantics implemented
+
+New `src/codeccat/vnext_decoding.py` wraps the actual trainable L1/L2 model with a strictly decoded text result and an explicit `bom_policy="preserve"|"strip"` (default preserve). A codec label is deliberately **not** conflated with a BOM output policy. The decoder preserves U+FEFF for literal byte decoding; stripping removes only one initial U+FEFF when actual recognized signature bytes exist. Unsupported BOM families and invalid full-input trailing bytes abstain instead of silently substituting a label or replacement text. Legacy `vnext_pipeline.py`, R21, main, releases and PyPI remain untouched. [Contract CI #40527016965](https://github.com/Johnny-Kao/CodecCat/actions/runs/40527016965) originally passed; targeted extended tests add late-trailer and unsupported-family regression cases. This is a **complete-byte-array** decoder; it is not a streaming decoder.
+
+### External confirmation — pre-registered before seeing results
+
+Protocol: [VNEXT_ICU_CONFIRMATION_PROTOCOL.md](VNEXT_ICU_CONFIRMATION_PROTOCOL.md), committed **before** first scoring. Source `unicode-org/icu` at immutable SHA `ad110a2381f1b75bfb875fb0b672b7c38dce4e4b`, `icu4c/source/test/testdata/csdetest.xml` (Unicode License v3, per-case copyright noted). Source consisted of 33 original case IDs with 199 declared encoding cases, of which 197 were supported/accepted. Pinned chardet training source remained unchanged, no overlap with accepted input texts was reported. Correlated codec variants per source case; this ICU-authored suite is **not** an unbiased prevalence estimate.
+
+[First execution #40527681034](https://github.com/Johnny-Kao/CodecCat/actions/runs/40527681034), text-equivalence out of **197**:
+- **stable23 187**, exact labels **182**
+- **experimental13 184**, exact labels **178**
+- **chardet 7.6.0 194**, exact labels **176**
+- **charset-normalizer 3.4.4 191**, exact labels **176**
+
+Case-level macro decoded-text rates: stable23 **0.94848**, experimental13 **0.93232**, chardet7 **0.98283**, charset-normalizer **0.96970**.
+
+**Outcome: clear NO-GO for experimental13 promotion.** It loses to stable23 on genuinely new source despite improvements on repeatedly examined previous fixtures. It also loses to chardet 7 in decoded-text correctness, even though exact codec-label counts are not ordered identically. Do not cherry-pick the exact-label number or tune on ICU after examining outcomes. These ICU cases have now become *known* and cannot act as a future new-source blind holdout.
+
+### Loaded-model resource observation (free Ubuntu x86-64)
+
+[Resource action #40528180869](https://github.com/Johnny-Kao/CodecCat/actions/runs/40528180869) built portable 2026 candidates in one process and loaded/inferred each in separate subprocesses (synthetic input sizes 64/512/4096 bytes, 120 repeats each).
+- stable23 model incremental RSS **42,796 KiB**, 4096B p50/p95 **2.3377/2.4110 ms**
+- experimental13 incremental RSS **84,556 KiB**, 4096B p50/p95 **2.6198/2.6914 ms**
+
+The trial approximately doubles loaded-model memory and slows that long-input case. RSS differences include Python allocator/process effects; timings are one runner's observations and not cross-machine promises. ARM64/native M5 **not tested**. No paid runner.
+
+### Integrated end-to-end acceptance gate
+
+Added `experiments/logic_first/vnext_release_decision.py` and `.github/workflows/vnext-integrated-acceptance.yml`. One invocation reruns vNext regressions, verified training checkout and portable model manifests, previously recorded ICU source scoring, independent inference resource runs, and emits `research-results/vnext-final-e2e/verdict.json` with **GO or NO_GO**. A green GitHub Actions workflow proves the validator ran; it **does not** mean `status=GO`. [First execution #40529042252](https://github.com/Johnny-Kao/CodecCat/actions/runs/40529042252): **CI success, product status NO_GO**. A followup fixed an impossible future-year requirement: the 2026 annual recipe can be accepted as reproducible now; actual 2027 new source intake is an annual operational obligation, not a gate requiring time travel.
+
+`experiments/logic_first/vnext_annual_retrain.py` now verifies `git -C training rev-parse HEAD` matches the SHA recorded in model manifests. [Annual verification #40528545158](https://github.com/Johnny-Kao/CodecCat/actions/runs/40528545158) passed.
+
+**Remaining actual blockers:** independent L3 language-coherence evidence (not arbitrary weights), new-source cross-family robustness, failure/abstention policy with explicit risk-coverage, native ARM64 validation if targeting ARM64, and an objective resource budget. The central goal of robust generalization beyond chardet 7 has **not been met**. Do not relabel project as finished because these test/workflow milestones pass.

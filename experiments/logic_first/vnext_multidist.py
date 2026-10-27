@@ -130,6 +130,10 @@ def run(a):
         report["fastpath_audit"][name]={
             "forced":len(forced),"wrong_decoded_text":len(incorrect),
             "wrong_exact_label":sum(not r["metrics"][name]["exact"] for r in forced),
+            "wrong_with_bom_hint":sum(r["shortcuts"][name]["bom_hint"] is not None for r in incorrect),
+            "wrong_without_bom_hint":sum(r["shortcuts"][name]["bom_hint"] is None for r in incorrect),
+            "wrong_label_pairs":collections.Counter(
+                (r["label"],r["metrics"][name]["pred"]) for r in incorrect).most_common(12),
             "by_family":dict(collections.Counter(r["family"] for r in forced)),
             "wrong_cases":[{"file":r["file"],"source":r["source"],
                             "truth":r["label"],"pred":r["metrics"][name]["pred"],

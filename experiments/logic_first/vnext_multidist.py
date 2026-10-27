@@ -132,6 +132,12 @@ def run(a):
             "wrong_exact_label":sum(not r["metrics"][name]["exact"] for r in forced),
             "wrong_with_bom_hint":sum(r["shortcuts"][name]["bom_hint"] is not None for r in incorrect),
             "wrong_without_bom_hint":sum(r["shortcuts"][name]["bom_hint"] is None for r in incorrect),
+            "wrong_without_bom_cases":[{
+                "source":r["source"],"file":r["file"],"truth":r["label"],
+                "pred":r["metrics"][name]["pred"],
+                "length":len(targets[r["sha"]]["data"]),
+                "first32_hex":targets[r["sha"]]["data"][:32].hex()}
+                for r in incorrect if r["shortcuts"][name]["bom_hint"] is None][:10],
             "wrong_label_pairs":collections.Counter(
                 (r["label"],r["metrics"][name]["pred"]) for r in incorrect).most_common(12),
             "by_family":dict(collections.Counter(r["family"] for r in forced)),

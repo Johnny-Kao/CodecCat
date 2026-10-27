@@ -194,6 +194,11 @@ def run(a):
     (output/"selection.json").write_text(json.dumps({k:[x["sample_id"] for x in v] for k,v in
        (("balanced_source_family",balanced),("pooled_random",natural))},indent=2))
     print("MULTIDIST_BEGIN");print(json.dumps(report,indent=2));print("MULTIDIST_END")
+    # A decisive non-BOM L1 shortcut with incorrect decoded text is not a
+    # harmless statistical miss: it bypasses L2 and must block promotion.
+    if any(audit["wrong_without_bom_hint"] for audit in report["fastpath_audit"].values()):
+        raise AssertionError("L1 non-BOM false certainty detected; inspect fastpath_audit before promotion")
+
 if __name__=="__main__":
     p=argparse.ArgumentParser()
     p.add_argument("--train",required=True);p.add_argument("--uchardet",required=True)

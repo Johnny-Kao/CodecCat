@@ -3,7 +3,7 @@
 The held-out grouped fold experiment must run independently before any release
 decision; this step packages candidates plus precise lineage for review.
 """
-import argparse,codecs,hashlib,json,platform,sys
+import argparse,codecs,hashlib,json,platform,subprocess,sys
 from collections import Counter
 from datetime import datetime,timezone
 from pathlib import Path
@@ -21,6 +21,14 @@ def manifest_rows(rows):
     return h.hexdigest()
 def main(a):
     if not (2026<=a.year<=2100):raise ValueError("year outside supported window")
+    # The manifest must describe the bytes ACTUALLY checked out, not an
+    # unverified caller-provided commit string.
+    resolved=subprocess.run(
+        ["git","-C",str(Path(a.training)),"rev-parse","HEAD"],
+        capture_output=True,text=True,check=True,
+    ).stdout.strip().lower()
+    if resolved != a.training_commit.lower():
+        raise ValueError("training source commit does not match checked-out HEAD")
     rows=corpus(Path(a.training))
     if len(rows)<100:raise ValueError("too few labeled samples to train")
     groups=sorted({r[2] for r in rows})

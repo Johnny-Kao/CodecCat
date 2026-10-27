@@ -1,0 +1,46 @@
+name: vNext L1 to L2 integration regression
+on:
+  push:
+    branches: [staging/initial-package]
+    paths: [".github/workflows/vnext-l1-l2-integration.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  integrate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      PYTHONHASHSEED: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: training
+      - uses: actions/checkout@v4
+        with:
+          repository: TypesettingTools/uchardet
+          ref: 6789ebf11be838019c6b0ed979ab87e6dac5e1f8
+          path: uchardet
+      - uses: actions/checkout@v4
+        with:
+          repository: amrali-eg/UnicodeTestSuite
+          ref: 80684bd405505b069cfec4e07493c8713a26f41a
+          path: unicode-suite-src
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0 pytest==8.4.2
+      - run: PYTHONPATH=src python -m pytest -q tests/test_vnext_strong_l2.py tests/test_vnext_gate.py tests/test_vnext_bom.py
+      - run: python unicode-suite-src/GenerateCorpus.py generate
+      - run: PYTHONPATH=src python experiments/logic_first/vnext_l1_l2_integration.py --train training --uchardet uchardet --unicode-suite unicode-suite-src/UnicodeTestSuite
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vnext-l1-l2-integration
+          path: research-results/vnext-l1-l2-integration/
+          retention-days: 30

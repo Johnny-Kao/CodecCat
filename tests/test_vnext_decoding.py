@@ -86,3 +86,15 @@ def test_unknown_bom_family_abstains_without_substituting_encoding():
     assert not result.accepted
     assert result.encoding is None
     assert result.text is None
+
+def test_plain_ascii_encoding_underdetermined_but_text_preserved():
+    m=TrainableDetector.fit([
+        (("Plain language Japanese 日本語 " * 25).encode("utf-8"),"utf-8","j"),
+        (("日本語のテキスト" * 25).encode("shift_jis"),"shift_jis","s"),
+    ],feature_profile="experimental13")
+    raw=b"Ordinary ASCII text: 123 and punctuation."
+    result=decode(m,raw,bom_policy="preserve")
+    assert result.accepted
+    assert result.text==raw.decode("ascii")
+    assert result.ambiguous
+    assert result.reason=="textually_ambiguous_ascii"

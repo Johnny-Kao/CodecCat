@@ -66,7 +66,22 @@ class TrainableDetector:
         clf.fit(features,labels)
         return cls(vectorizer=vec,classifier=clf,fingerprint=fingerprint.hexdigest())
 
-    def rank(self,data:bytes,*,final:bool=True) -> Ranked:
+    def analyze_structure(self, data: bytes, *, final: bool = True):
+        """L1-only evidence for all supported classes; no model scoring.
+
+        Analyze the actual inference prefix. A truncated 4096-byte prefix
+        cannot prove that a codec is invalid merely due to an incomplete
+        final character. The gate retains aliases as separate trained labels.
+        """
+        if not isinstance(data, bytes):
+            raise TypeError("expected bytes")
+        prefix = data[:4096]
+        return evaluate(
+            prefix, tuple(str(name) for name in self.classifier.classes_),
+            final=final and len(data) <= 4096,
+        )
+
+    def rank(self,data:bytes,*,final:bool=True,structural_first:bool=False) -> Ranked:
         if not isinstance(data,bytes):raise TypeError("expected bytes")
         # BOM evidence is stable and cheap: avoid trained scoring when decisive.
         signature=inspect_bom(data, final=final)
@@ -123,6 +138,15 @@ class TrainableDetector:
                             pass
                         else:
                             return Ranked(suggested,(suggested,),(1.0,),None,False)
+        # Opt-in integrated L1 -> L2 path. A codec is filtered ONLY on
+        # strict decoding impossibility, never on family plausibility.
+        # Baseline remains unchanged until latency and paired accuracy gates.
+        eligible = None
+        if structural_first:
+            evidence = self.analyze_structure(data, final=final)
+            eligible = set(evidence.possible)
+            if not eligible:
+                return Ranked(None, tuple(), tuple(), signature.encoding, True)
         x=self.vectorizer.transform([data[:4096].decode("latin1")])
         # Native sparse linear projection avoids sklearn's prediction-layer
         # overhead, while using EXACTLY the learned coefficients/intercept.
@@ -144,11 +168,15 @@ class TrainableDetector:
         prefix=data[:4096]
         for idx in order:
             label=str(classes[int(idx)])
-            try:
-                dec=codecs.getincrementaldecoder(label)("strict")
-                dec.decode(prefix,final=final and len(data)<=4096)
-            except (UnicodeError,LookupError):
-                continue
+            if eligible is not None:
+                if label not in eligible:
+                    continue
+            else:
+                try:
+                    dec=codecs.getincrementaldecoder(label)("strict")
+                    dec.decode(prefix,final=final and len(data)<=4096)
+                except (UnicodeError,LookupError):
+                    continue
             validated.append(int(idx))
             if len(validated)>=3:
                 break

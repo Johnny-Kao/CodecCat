@@ -281,3 +281,19 @@ def test_ascii_heavy_utf16_still_has_unique_structural_evidence():
     result = model.rank(raw)
     assert result.encoding == "utf-16-le"
     assert result.scores == (1.0,)
+
+def test_utf16_supplementary_surrogates_prevent_wrong_endian_fastpath():
+    # UTF-16LE surrogate pairs: D800 DE80, D801 DE81, repeated.
+    # Interpreted as UTF-16BE, the same bytes remain strict-valid,
+    # but NUL parity would incorrectly force BE without this guard.
+    raw = bytes.fromhex("00d880de00d881de") * 10
+    assert any(ord(c) > 0xFFFF for c in raw.decode("utf-16-le"))
+    raw.decode("utf-16-be", "strict")
+    model = TrainableDetector.fit(training_data() + [
+        (("English in UTF-16 little endian " * 15).encode("utf-16-le"),
+         "utf-16-le", "u16le"),
+        (("English in UTF-16 big endian " * 15).encode("utf-16-be"),
+         "utf-16-be", "u16be"),
+    ])
+    result = model.rank(raw)
+    assert not (result.encoding == "utf-16-be" and result.scores == (1.0,))

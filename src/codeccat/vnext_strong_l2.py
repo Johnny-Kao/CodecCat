@@ -137,18 +137,31 @@ class TrainableDetector:
                         except (UnicodeError,LookupError):
                             pass
                         else:
-                            # Byte-position parity is not exclusive to UTF-16:
-                            # BOM-less UTF-32 astral code points can have the
-                            # same alternating-NUL pattern. If the same bytes
-                            # are also a valid UTF-32 stream, DO NOT force a
-                            # UTF-16 conclusion; let L2 handle ambiguity.
-                            other = "utf-32-be" if even_zeros>odd_zeros else "utf-32-le"
+                            # A legal UTF-16 surrogate pair is positive
+                            # structural evidence for the opposite endian.
+                            # Do not force a conflicting endian on NUL parity
+                            # alone when it decodes supplementary characters.
+                            opposite=("utf-16-le" if suggested=="utf-16-be"
+                                      else "utf-16-be")
                             try:
-                                dec32=codecs.getincrementaldecoder(other)("strict")
-                                dec32.decode(prefix,final=final and len(data)<=4096)
+                                alt=codecs.getincrementaldecoder(opposite)("strict")
+                                alternative_text=alt.decode(prefix,final=final and len(data)<=4096)
+                                opposite_astral=any(ord(ch)>0xffff for ch in alternative_text)
                             except (UnicodeError,LookupError):
-                                return Ranked(suggested,(suggested,),(1.0,),None,False)
-                            # Both encodings remain structurally plausible.
+                                opposite_astral=False
+                            if not opposite_astral:
+                                # BOM-less UTF-32 astral values can exhibit
+                                # the same alternating-NUL parity as UTF-16.
+                                # A valid UTF-32 interpretation makes this
+                                # structurally ambiguous, not a forced match.
+                                other=("utf-32-be" if even_zeros>odd_zeros
+                                       else "utf-32-le")
+                                try:
+                                    dec32=codecs.getincrementaldecoder(other)("strict")
+                                    dec32.decode(prefix,final=final and len(data)<=4096)
+                                except (UnicodeError,LookupError):
+                                    return Ranked(suggested,(suggested,),(1.0,),None,False)
+                            # Structural evidence is ambiguous: defer to L2.
         # Opt-in integrated L1 -> L2 path. A codec is filtered ONLY on
         # strict decoding impossibility, never on family plausibility.
         # Baseline remains unchanged until latency and paired accuracy gates.

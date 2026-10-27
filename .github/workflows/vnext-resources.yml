@@ -1,0 +1,47 @@
+name: vNext loaded-model resource profile
+on:
+  push:
+    branches: [staging/initial-package]
+    paths: [".github/workflows/vnext-resources.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  profile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      PYTHONHASHSEED: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: training
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0
+      - name: Generate pinned models, finish training process
+        run: PYTHONPATH=src python experiments/logic_first/vnext_annual_retrain.py --year 2026 --training training --training-commit b0c0d206913ba118ffea2f7d306883e7a4a76db7
+      - name: Inference-only stable23 process
+        run: >-
+          PYTHONPATH=src python experiments/logic_first/vnext_inference_resources.py
+          --model research-results/vnext-annual-models/codeccat-2026-stable23.zip
+          --manifest research-results/vnext-annual-models/manifest.json
+          --profile stable23
+      - name: Inference-only experimental13 process
+        run: >-
+          PYTHONPATH=src python experiments/logic_first/vnext_inference_resources.py
+          --model research-results/vnext-annual-models/codeccat-2026-experimental13.zip
+          --manifest research-results/vnext-annual-models/manifest.json
+          --profile experimental13
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vnext-loaded-model-resources
+          path: research-results/vnext-resources/
+          retention-days: 30

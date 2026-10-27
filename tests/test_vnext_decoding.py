@@ -81,7 +81,7 @@ def test_unknown_bom_family_abstains_without_substituting_encoding():
     m=TrainableDetector.fit([
         (b"UTF-8 paragraph"*30,"utf-8","a"),
         (("日本語とテキスト"*30).encode("shift_jis"),"shift_jis","b"),
-    ])
+    ], feature_profile="experimental13")
     result=decode(m,"Not supported UTF-32".encode("utf-32"))
     assert not result.accepted
     assert result.encoding is None

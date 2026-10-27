@@ -1,0 +1,40 @@
+name: vNext L1 structural evidence audit
+on:
+  push:
+    branches: [staging/initial-package]
+    paths: [".github/workflows/vnext-l1-audit.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: training
+      - uses: actions/checkout@v4
+        with:
+          repository: TypesettingTools/uchardet
+          ref: 6789ebf11be838019c6b0ed979ab87e6dac5e1f8
+          path: uchardet
+      - uses: actions/checkout@v4
+        with:
+          repository: amrali-eg/UnicodeTestSuite
+          ref: 80684bd405505b069cfec4e07493c8713a26f41a
+          path: unicode-suite-src
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python unicode-suite-src/GenerateCorpus.py generate
+      - run: PYTHONPATH=src python experiments/logic_first/vnext_l1_audit.py --train training --uchardet uchardet --unicode-suite unicode-suite-src/UnicodeTestSuite
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vnext-l1-audit
+          path: research-results/vnext-l1-audit/
+          retention-days: 30

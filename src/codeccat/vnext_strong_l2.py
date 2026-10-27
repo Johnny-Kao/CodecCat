@@ -137,7 +137,18 @@ class TrainableDetector:
                         except (UnicodeError,LookupError):
                             pass
                         else:
-                            return Ranked(suggested,(suggested,),(1.0,),None,False)
+                            # Byte-position parity is not exclusive to UTF-16:
+                            # BOM-less UTF-32 astral code points can have the
+                            # same alternating-NUL pattern. If the same bytes
+                            # are also a valid UTF-32 stream, DO NOT force a
+                            # UTF-16 conclusion; let L2 handle ambiguity.
+                            other = "utf-32-be" if even_zeros>odd_zeros else "utf-32-le"
+                            try:
+                                dec32=codecs.getincrementaldecoder(other)("strict")
+                                dec32.decode(prefix,final=final and len(data)<=4096)
+                            except (UnicodeError,LookupError):
+                                return Ranked(suggested,(suggested,),(1.0,),None,False)
+                            # Both encodings remain structurally plausible.
         # Opt-in integrated L1 -> L2 path. A codec is filtered ONLY on
         # strict decoding impossibility, never on family plausibility.
         # Baseline remains unchanged until latency and paired accuracy gates.

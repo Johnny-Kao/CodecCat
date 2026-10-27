@@ -2,7 +2,9 @@ name: vNext annual candidate retrain (no promotion)
 on:
   push:
     branches: [staging/initial-package]
-    paths: ['.github/workflows/vnext-annual-retrain.yml']
+    paths:
+      - '.github/workflows/vnext-annual-retrain.yml'
+      - 'experiments/logic_first/vnext_annual_retrain.py'
   workflow_dispatch:
     inputs:
       training_year:

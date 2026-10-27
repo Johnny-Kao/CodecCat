@@ -235,10 +235,10 @@ def test_opt_in_structure_first_keeps_model_ranking_and_truth():
 def test_structure_first_preserves_partial_multibyte_and_ambiguous_inputs():
     model = TrainableDetector.fit(training_data(), feature_profile="experimental13")
     prefixes = [
-        (b"\\xe3\\x81", False),
+        (b"\xe3\x81", False),
         ((("日本語" * 700).encode("utf-8"))[:4096], False),
         (b"ASCII input is genuinely ambiguous", True),
-        ("日本語の文章" .encode("shift_jis"), True),
+        ("日本語の文章".encode("shift_jis"), True),
     ]
     for raw, final in prefixes:
         evidence = model.analyze_structure(raw, final=final)
@@ -250,7 +250,7 @@ def test_structure_first_preserves_partial_multibyte_and_ambiguous_inputs():
 
 def test_structural_evidence_excludes_proven_impossible_without_forcing_a_family():
     model = TrainableDetector.fit(training_data())
-    evidence = model.analyze_structure(b"\\xff\\xfeInvalid UTF-8 payload")
+    evidence = model.analyze_structure(b"\xff\xfeInvalid UTF-8 payload")
     assert "utf-8" in evidence.impossible
     assert "shift_jis" in evidence.possible or "shift_jis" in evidence.impossible
     # A strict-decoder gate is an impossibility test, not a unique label oracle.

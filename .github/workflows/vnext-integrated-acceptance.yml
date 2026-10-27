@@ -2,7 +2,12 @@ name: vNext integrated acceptance GO-NO-GO
 on:
   push:
     branches: [staging/initial-package]
-    paths: [".github/workflows/vnext-integrated-acceptance.yml"]
+    paths:
+      - ".github/workflows/vnext-integrated-acceptance.yml"
+      - "experiments/logic_first/vnext_release_decision.py"
+      - "src/codeccat/vnext_decoding.py"
+      - "tests/test_vnext_decoding.py"
+      - "experiments/logic_first/vnext_annual_retrain.py"
   workflow_dispatch:
 permissions:
   contents: read

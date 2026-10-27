@@ -219,3 +219,38 @@ Implemented `experiments/logic_first/vnext_l1_audit.py` plus pinned Ubuntu-only 
 Across 1,071 seen-source external fixtures, **0 incorrect ground-truth exclusions**, **0 uniquely provable correct codecs**, **0 unique-but-wrong codecs**, median candidate count **57/88**, median exclusions **31/88**, min/max remaining **43/85**. Family medians of remaining: East Asian 56 (n=124), single-byte 60 (n=104), Unicode 57 (n=836), other 57 (n=7).
 
 **Interpretation:** strict decoder viability safely narrows many candidates on these pre-inspected fixtures but cannot uniquely select the intended codec, because many single-byte codecs accept almost arbitrary bytes. This establishes a measured upper bound for *this specific strict-decoder-only approach*, not a mathematical upper bound on all deterministic byte-structure logic. The audit currently measures raw strict-decoder eligibility and does not assess the additional BOM/escape/UTF-16/32 structural shortcuts in `TrainableDetector.rank`; a full L1 contract comparison is still required. Do not pre-exclude codecs based on plausibility alone. Next: explicit structural evidence with per-candidate reason codes, safe elimination vs ambiguous preservation, randomized partial/complete byte input testing and a fixed-L2 experiment. These known sources remain development diagnostics, not untouched blind confirmation.
+
+## 2026-10-27 — Architecture integration and decisive-L1 false-certainty audit
+
+**Project completion remains BLOCKED.** CI PASS is a prerequisite for accepting a particular engineering change, **not** project acceptance. Owner signoff requires end-to-end accuracy, unseen-source performance, robustness, resources, packaging and year-over-year procedure evidence.
+
+### L1 → L2 integration is exercised but not promoted
+
+Implemented `TrainableDetector.analyze_structure(data,final)`: a pure structural analysis over all trained encoding labels, using the existing strict incremental decoder gate. Added opt-in `rank(..., structural_first=True)` that carries this L1 possible-candidate set into *unchanged* L2 score ordering. Existing default `rank` behavior remains unchanged **except** the two causal L1 ambiguity corrections below.
+
+[Paired integration CI #40521413510](https://github.com/Johnny-Kao/CodecCat/actions/runs/40521413510): 71 nonoverlapping known-source fixtures for each of stable23 and experimental13, **0 true labels excluded and 0 prediction/candidate-set differences**. Structure-first is not yet the default because p50 latency increased approximately **+20% stable23 / +24% experimental13** on that run; the later [integrated regression #40522679026](https://github.com/Johnny-Kao/CodecCat/actions/runs/40522679026) and [#40524138966](https://github.com/Johnny-Kao/CodecCat/actions/runs/40524138966) also passed. The key reason: full strict decoder filtering and lazy score-ordered validity checking produce the same top-k list when their validity predicate agrees, but full filtering executes many extra decoders. Without stronger *safe structural information*, forcing that extra work into the default path has no demonstrated quality benefit.
+
+### Corrected two demonstrable deterministic shortcut hazards without parameter tuning
+
+Decisive UTF-16 BOM-less parity cannot distinguish certain UTF-32 astral sequences. If the same data strict-decodes as the corresponding UTF-32 endian, the shortcut now abstains and passes to the fixed L2. An independent test includes repeated U+1F680 encoded without BOM in both UTF-32 endiannesses; ASCII-heavy true UTF-16 remains a positive control.
+
+A real UnicodeTestSuite UTF-16LE supplement-plane fixture contained valid surrogate pairs but old NUL parity incorrectly forced UTF-16BE. If the *other UTF-16 endian* decodes legal supplementary characters, the parity shortcut now abstains. Dedicated regression tests cover this and the original ASCII-positive case. This conservative check does not assert that all astral data must be UTF-16; it only prevents unsupported certainty.
+
+[Fastpath root-cause baseline #40522044882](https://github.com/Johnny-Kao/CodecCat/actions/runs/40522044882): of 192 premature L1 decisions, 158 disagreed with literal gold-decoded text, predominantly BOM-label semantic disagreements, with genuine no-BOM UTF32/UTF16 cases. [Post-first-guard #40523165301](https://github.com/Johnny-Kao/CodecCat/actions/runs/40523165301): 185 forced, 151 mismatches, **150 BOM-associated and one no-BOM UTF-16 endian overlap**. [Post-both-guards #40524271075](https://github.com/Johnny-Kao/CodecCat/actions/runs/40524271075): **184 forced, 150 mismatches all with BOM evidence, 0 no-BOM forced wrong-decoded-text cases**. The 150 BOM cases are **not** all evidence of wrong byte-family detection: explicit-endian codec decoding preserves U+FEFF while a generic BOM decoder strips the signature, affecting *literal text equivalence*. This semantic conflict must be explicitly resolved before release rather than silently normalizing results.
+
+Post-guard *reused development diagnostics*, same sample selections:
+- Balanced source×family: experimental13 **138/227 same decoded text**; chardet 7.6 **147/227**.
+- Synthetic Unicode-suite dominated pooled random: experimental13 **161/350**, chardet 7.6 **161/350**.
+These selections overlap and have been repeatedly inspected: **no new blind validation** and no claim of general competitor parity. Model fit/parameters are unchanged.
+
+The multi-distribution script now fails when any *non-BOM* forced L1 choice disagrees with source-labeled strict decoded text; automatic CI on runtime changes helps prevent recurrence. This is a narrowly scoped known-source regression gate and does **not** certify that every future input is safe.
+
+### Remaining required acceptance work
+
+1. Define a coherent BOM semantic contract and report **both** codec-label accuracy and literal/BOM-handled decoding without conflation.
+2. Implement a gated, separately validated L3 decoded-language mechanism **only if** it resolves demonstrated ambiguities without family/source regressions; the learned L2 remains frozen during this causal test.
+3. Obtain and freeze a sufficiently broad **new untouched licensed source** before observing its results; use it for the true final benchmark and negative controls.
+4. Establish inference-only CPU/RAM, worst-case input and available x86/ARM cross-platform acceptance criteria. Universal pre-filter remains **opt-in** pending meaningful speed/quality benefit.
+5. Run full pipeline integration (L1 evidence → L2 candidates → optional L3 or explicit abstention → output/serialization) on both candidate profiles; execute annual reproduction with immutable manifests.
+6. Only then issue an owner-ready review package. `main`, R21, release tags and PyPI remain untouched.
+

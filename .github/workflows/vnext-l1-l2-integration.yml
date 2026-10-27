@@ -2,7 +2,16 @@ name: vNext L1 to L2 integration regression
 on:
   push:
     branches: [staging/initial-package]
-    paths: [".github/workflows/vnext-l1-l2-integration.yml"]
+    paths:
+      - ".github/workflows/vnext-l1-l2-integration.yml"
+      - "src/codeccat/vnext_gate.py"
+      - "src/codeccat/vnext_strong_l2.py"
+      - "src/codeccat/vnext_bom.py"
+      - "src/codeccat/vnext_escape.py"
+      - "src/codeccat/vnext_unicode_structure.py"
+      - "tests/test_vnext_strong_l2.py"
+      - "tests/test_vnext_gate.py"
+      - "experiments/logic_first/vnext_l1_l2_integration.py"
   workflow_dispatch:
 permissions:
   contents: read

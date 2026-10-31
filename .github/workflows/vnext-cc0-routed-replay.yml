@@ -1,0 +1,37 @@
+name: Selective Latin decoder CC0 consumed-source regression replay
+on:
+  push:
+    branches: [research/accuracy-data-gate-v2]
+    paths:
+      - ".github/workflows/vnext-cc0-routed-replay.yml"
+      - "experiments/logic_first/vnext_cc0_routed_replay.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regression-replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: fixtures
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0 chardet==7.7.0 charset-normalizer==3.5.2
+      - name: Regression-check with known, already-consumed CC0 source
+        run: PYTHONPATH=src python experiments/logic_first/vnext_cc0_routed_replay.py --fixtures fixtures
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: selective-latin-consumed-cc0-replay
+          path: research-results/cc0-routed-replay/
+          retention-days: 30

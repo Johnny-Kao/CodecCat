@@ -7,6 +7,5 @@ dist/
 build/
 *.egg-info/
 research-results/
-src/codeccat/models/
 .env
 .env.*

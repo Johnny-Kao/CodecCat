@@ -14,6 +14,7 @@ import time
 from pathlib import Path
 
 from codeccat.vnext_strong_l2 import TrainableDetector
+from codeccat.vnext_l3_language import LanguageCoherence
 from codeccat.vnext_decoding import decode
 
 
@@ -43,6 +44,20 @@ def run(a):
     before_rss = linux_rss_kib()
     model = TrainableDetector.load_portable(path)
     after_rss = linux_rss_kib()
+    language = None
+    language_bytes_hash = None
+    language_before_rss = language_after_rss = None
+    if "language_l3" in manifest:
+        language_entry = manifest["language_l3"]
+        candidate = path.with_name(language_entry["archive"])
+        language_bytes_hash = hashlib.sha256(candidate.read_bytes()).hexdigest()
+        if language_bytes_hash != language_entry["sha256"]:
+            raise ValueError("L3 archive does not match annual manifest")
+        language_before_rss = linux_rss_kib()
+        language = LanguageCoherence.load(candidate)
+        language_after_rss = linux_rss_kib()
+        if language.fingerprint != language_entry["fingerprint"]:
+            raise ValueError("L3 training fingerprint does not match manifest")
     if model.fingerprint != entry["fingerprint"]:
         raise ValueError("model training fingerprint does not match manifest")
     samples = {
@@ -70,6 +85,23 @@ def run(a):
             "predicted_encoding": result.encoding,
             "decoding_accepted": result.accepted,
         }
+        if language is not None:
+            # Same input, model, and warmed process as the baseline, but
+            # alternate calls to avoid treating cold-cache effects as L3 cost.
+            paired_baseline = []
+            paired_language = []
+            for _ in range(a.iterations):
+                start = time.perf_counter_ns()
+                decode(model, data, bom_policy="preserve")
+                paired_baseline.append(time.perf_counter_ns() - start)
+                start = time.perf_counter_ns()
+                result_l3 = decode(model, data, bom_policy="preserve", language_model=language)
+                paired_language.append(time.perf_counter_ns() - start)
+            rows[key]["paired_baseline_p50_ms"] = round(percentile(paired_baseline, .50) / 1e6, 4)
+            rows[key]["paired_language_p50_ms"] = round(percentile(paired_language, .50) / 1e6, 4)
+            rows[key]["paired_language_p95_ms"] = round(percentile(paired_language, .95) / 1e6, 4)
+            rows[key]["language_called"] = result_l3.l3_called
+            rows[key]["language_changed"] = result_l3.l3_changed
     report = {
         "profile": profile,
         "source_archive_sha256": entry["sha256"],
@@ -80,6 +112,11 @@ def run(a):
         "process_rss_before_load_kib": before_rss,
         "process_rss_after_load_kib": after_rss,
         "incremental_loaded_rss_kib": None if before_rss is None or after_rss is None else after_rss - before_rss,
+        "language_l3_archive_sha256": language_bytes_hash,
+        "language_l3_incremental_loaded_rss_kib": (
+            None if language_before_rss is None or language_after_rss is None
+            else language_after_rss - language_before_rss
+        ),
         "peak_process_rss_kib": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
         "note": "Ubuntu runner observations, samples synthetic, Python startup and imports contribute to baseline RSS; single runner cannot establish cross-architecture robustness.",
     }

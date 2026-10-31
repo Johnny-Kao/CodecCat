@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Iterable
 
 SCHEMA = "vnext-l3-unicode-trigram-v1"
-_SPACE = re.compile(r"\\s+")
+_SPACE = re.compile(r"\s+")
 
 
 def _normalized(text: str) -> str:
@@ -75,7 +75,7 @@ class LanguageCoherence:
                 continue
             counts.update(_trigrams(text))
             fingerprint.update(hashlib.sha256(raw).digest())
-            fingerprint.update(codec.encode() + b"\\x00" + group.encode() + b"\\x00")
+            fingerprint.update(codec.encode() + b"\x00" + group.encode() + b"\x00")
             found += 1
         if not found or not counts:
             raise ValueError("no decodable training text")

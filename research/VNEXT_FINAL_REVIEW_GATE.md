@@ -300,3 +300,31 @@ The strict decoded-text output layer now marks printable seven-bit ASCII samples
 [Latest contract CI #40530718264](https://github.com/Johnny-Kao/CodecCat/actions/runs/40530718264) **SUCCESS**. [Latest integrated evidence replay #40530718384](https://github.com/Johnny-Kao/CodecCat/actions/runs/40530718384) **CI SUCCESS, machine-readable `status=NO_GO`**, with five open release blockers: stable23 still below chardet 7 on first frozen ICU confirmation source; experimental13 worsens this independently sourced quality; learned L3 validity evidence is missing; native ARM64 verification is missing; deployment resource budget is not accepted. The annual 2026 recipe, BOM-decoding contract and immutable archive lineage pass and are no longer falsely counted as open blockers. Any further use of ICU data is a **replay/regression**, not a new untouched-source holdout.
 
 No default model promotion, release or `main`/R21 change. This remains an explicitly unfinished research target.
+
+
+## 2026-11-01 engineering execution checkpoint — toward a complete vNext
+
+The immediate objective is a **working, independently validated release candidate**, not production of more NO-GO reports. These changes remain on staging; neither `main` nor published artifacts have changed.
+
+### L3 constructed, integrated opt-in, measured on held-out development groups
+
+- Added `src/codeccat/vnext_l3_language.py`: independently fitted Unicode trigram coherence, with bounded vocabulary, non-pickle JSON bundle, and a conservative top-two L2 margin/learned-evidence gate. It cannot override decisive singleton L1 results; identical decoded texts remain ambiguous.
+- `decode(..., language_model=...)` now wires the optional L3 selection into the actual strict-decoding endpoint. Omission preserves the existing stable default; contract tests assert both behaviors.
+- Three frozen source-group held-out folds using chardet/test-data, **n=3,086**: stable23 residual baseline **2,620 exact-label / 2,828 same-text**, with optional L3 **2,630 exact-label / 2,838 same-text**. L3 called 164 times, changed 16 outcomes, **10 corrected wrong texts, 0 damaged correct texts**. Positive on all 3 development folds. [CI #41224257177](https://github.com/Johnny-Kao/CodecCat/actions/runs/41224257177). This is a development result, not a fresh external confirmation, and does not establish a production improvement rate.
+- Annual candidate training now saves `codeccat-2026-language-l3.json` with manifest SHA-256 and data fingerprint, full load/save round-trip. Bundle **376,415 bytes**, 30,000 learned Unicode trigrams. [Annual CI #41224547345](https://github.com/Johnny-Kao/CodecCat/actions/runs/41224547345).
+- Full strict decoder/unit contract [CI #41224414859](https://github.com/Johnny-Kao/CodecCat/actions/runs/41224414859) and replayed integrated checks [#41224598778](https://github.com/Johnny-Kao/CodecCat/actions/runs/41224598778) succeeded. A successful workflow is evidence of engineering correctness, not proof of final product acceptance.
+
+### Native ARM64 and CPU/RAM evidence
+
+- New native `ubuntu-24.04-arm` job builds and reloads annual candidates on ARM64 and runs the vNext contract suite. [Latest ARM64 CI #41224606987](https://github.com/Johnny-Kao/CodecCat/actions/runs/41224606987) passed; native architecture checked (`aarch64`).
+- The **optional L3's additional loaded RSS** was ~1,924 KiB on Ubuntu x86-64 and ~2,948 KiB on Ubuntu ARM64 in these runs. Stable23 base additional loaded RSS was ~42,732 KiB (x86) and 41,636 KiB (ARM). These are single-run process measurements, not capacity guarantees.
+- Paired synthetic L3-on calls had little overhead **when the L3 gate did not invoke text scoring**; all five current resource probes reported `language_called=false`. Therefore **the true activation-path p50/p95 and budget approval remain unverified**. Do not mistake these measurements for a bound on L3's worst-case cost.
+
+### Remaining engineering priorities, ordered for release impact
+
+1. Obtain one genuinely new, source-disjoint, licensed, pre-frozen confirmation dataset. Do not reuse ICU as new blind evidence or select thresholds using the prior ICU/UDHR diagnostics.
+2. Close the persistent cross-source wrong-text gap versus the current chardet comparator with generalizable trainable evidence, not fixture-specific rules. Current L3's +10 development corrections alone are not enough.
+3. Measure activated-path L3 latency and p95/RSS on realistic distributions, determine an explicit production resource budget, and verify serializable bundle/runtime compatibility without untrusted pickle.
+4. Turn all accepted pieces into one versioned, user-installable, fully reproducible detector with a maintained training manifest and annual refresh SOP, then run untouched acceptance and owner sign-off. Do not release merely because CI passes.
+
+**Outcome of this checkpoint:** real architecture integration, positive paired L3 result, reproducible L3 archive, and native ARM64 tests — not final release sign-off.

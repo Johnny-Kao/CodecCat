@@ -99,7 +99,16 @@ class TrainableDetector:
             # A BOM is decisive endian evidence. Never substitute the
             # opposite-endian codec merely because it shares the UTF family:
             # strict decoding can succeed while silently corrupting text.
-            supported=generic if generic else exact
+            # A UTF-8 BOM is compatible with both utf-8-sig and utf-8;
+            # decoding with utf-8 preserves the BOM as U+FEFF for the
+            # public bom_policy layer to handle. UTF-16/32 must NOT fall
+            # back to the opposite byte order.
+            utf8_fallback = [
+                str(name) for name in self.classifier.classes_
+                if signature.encoding == "utf-8-sig"
+                and str(name).replace("_", "-") == "utf-8"
+            ]
+            supported = generic if generic else (exact if exact else utf8_fallback)
             if not supported:
                 return Ranked(None,tuple(),tuple(),signature.encoding,True)
             if len(supported)==1:

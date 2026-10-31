@@ -117,7 +117,10 @@ jobs:
           with zipfile.ZipFile(whls[0]) as z:
               for x in ("codeccat/models/stable23.zip", "codeccat/models/language-l3.json", "codeccat/models/manifest.json"):
                   assert x in z.namelist(),x
-          print("RELEASE_ASSETS_VERIFIED",whls[0])
+          import shutil
+          shutil.copyfile(whls[0], root / whls[0].name)
+          shutil.copyfile(manifests[0], root / "model-manifest.json")
+          print("RELEASE_ASSETS_VERIFIED", whls[0])
           PY
           cd release-assets
           sha256sum *.whl > SHA256SUMS
@@ -129,9 +132,9 @@ jobs:
         run: |
           if gh release view "$RELEASE_TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
             echo "Release already exists; updating assets"
-            gh release upload "$RELEASE_TAG" release-assets/*.whl release-assets/SHA256SUMS --clobber --repo "$GH_REPO"
+            gh release upload "$RELEASE_TAG" release-assets/*.whl release-assets/SHA256SUMS release-assets/model-manifest.json --clobber --repo "$GH_REPO"
           else
-            gh release create "$RELEASE_TAG" release-assets/*.whl release-assets/SHA256SUMS \
+            gh release create "$RELEASE_TAG" release-assets/*.whl release-assets/SHA256SUMS release-assets/model-manifest.json \
               --repo "$GH_REPO" --verify-tag --prerelease \
               --title "CodecCat $RELEASE_TAG (Alpha)" \
               --notes "Experimental alpha release with a model-bearing installable wheel.

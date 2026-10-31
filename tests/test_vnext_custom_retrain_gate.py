@@ -134,6 +134,15 @@ def test_incumbent_paired_comparison_never_publishes(tmp_path):
     assert comparison["families_regressing_in_correct_text"] == []
 
 
+
+
+def make_second_training_example_latin1(root, rows):
+    # Keep the original two-samples-per-label contract after relabeling ja1.
+    rows[1]["encoding"] = "iso-8859-1"
+    (root / "t" / "ja2.bin").write_bytes(
+        ("Été délicieux, français associé et préparation. " * 16).encode("iso-8859-1")
+    )
+
 def test_mislabeled_utf8_singlebyte_is_rejected_before_fit(tmp_path):
     root, manifest, rows = case(tmp_path)
     suspect = "Café résumé société étudiée fiancé révélé. " * 30
@@ -150,6 +159,7 @@ def test_explicit_review_of_suspicious_label_is_visible_in_ledger(tmp_path):
     (root / "t" / "ja1.bin").write_bytes(suspect.encode("utf-8"))
     rows[0]["encoding"] = "iso-8859-1"
     rows[0]["charset_provenance_reviewed"] = True
+    make_second_training_example_latin1(root, rows)
     write_manifest(manifest, rows)
     _, ledger = load_manifest(root, manifest)
     flags = ledger["suspected_charset_mismatch_reviewed"]
@@ -164,6 +174,7 @@ def test_genuine_latin1_is_not_rejected_by_utf8_suspicion(tmp_path):
     original = "Café résumé société étudiée fiancé révélé. " * 30
     (root / "t" / "ja1.bin").write_bytes(original.encode("iso-8859-1"))
     rows[0]["encoding"] = "iso-8859-1"
+    make_second_training_example_latin1(root, rows)
     write_manifest(manifest, rows)
     _, ledger = load_manifest(root, manifest)
     assert ledger["suspected_charset_mismatch_reviewed"] == []

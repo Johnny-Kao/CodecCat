@@ -33,6 +33,10 @@ def safe_utf8_evidence(raw: bytes, *, min_codepoints: int = MIN_NONASCII_CODEPOI
     prefix=raw[:4096]
     try:
         text=prefix.decode("utf-8","strict")
+        # The selected codec is applied to the whole object by decode().
+        # A valid prefix is not proof that the unsampled suffix can decode.
+        if len(raw)>len(prefix):
+            raw.decode("utf-8","strict")
     except UnicodeDecodeError:
         return False
     if sum(ord(c)>127 for c in text)<min_codepoints:

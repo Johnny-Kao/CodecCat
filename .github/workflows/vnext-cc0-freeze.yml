@@ -1,0 +1,27 @@
+name: Freeze independent CC0 confirmation source (no model scores)
+on:
+  push:
+    branches: [research/accuracy-data-gate-v2]
+    paths:
+      - ".github/workflows/vnext-cc0-freeze.yml"
+      - "experiments/logic_first/vnext_cc0_freeze.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  freeze:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Freeze source bytes, selections and checksums without fitting or scoring
+        run: python experiments/logic_first/vnext_cc0_freeze.py
+      - name: Preserve immutable intended evaluation source
+        uses: actions/upload-artifact@v4
+        with:
+          name: pre-registered-tatoeba-cc0-source
+          path: research-results/cc0-frozen-source
+          retention-days: 90

@@ -9,3 +9,5 @@ build/
 research-results/
 .env
 .env.*
+# Generated model weights must never be committed as source files
+src/codeccat/models/

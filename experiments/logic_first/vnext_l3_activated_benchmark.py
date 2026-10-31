@@ -32,12 +32,13 @@ def run(a):
     triggered=[]
     eligible_total=0
     for data,label,group,sha in dev:
-        r=model.rank(data,final=len(data)<4096)
-        candidate=lm.rerank(r,data,final=len(data)<4096)
-        if candidate.called:
+        # Match the COMPLETE-object semantics of decode(): the 4096-byte
+        # input is a complete object here, not a streaming prefix.
+        actual = decode(model, data, language_model=lm)
+        if actual.l3_called:
             eligible_total += 1
             if len(triggered) < a.cases:
-                triggered.append((data,label,group,sha,candidate.changed))
+                triggered.append((data,label,group,sha,actual.l3_changed))
     if len(triggered)<min(a.cases,8):
         raise RuntimeError(f"too few L3-activated samples: {len(triggered)}")
     rows_out=[]

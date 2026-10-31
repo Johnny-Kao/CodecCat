@@ -28,7 +28,7 @@ LEGACY_MIN_WINDOWS=4
 
 def git_sha(folder):
     return subprocess.check_output(["git","-C",str(folder),"rev-parse","HEAD"],
-                                   check=True,capture_output=True,text=True).stdout.strip()
+                                   text=True).strip()
 
 
 def select_catalogs(label,root,locations):

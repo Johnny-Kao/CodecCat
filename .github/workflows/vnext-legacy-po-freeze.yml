@@ -1,0 +1,38 @@
+name: Freeze independent legacy gettext and Lynx raw PO evidence
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  freeze-legacy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: ThomasDickey/lynx-snapshots
+          ref: 7f670781d769903d5a32a4b9eb68175f2e687a26
+          path: external-lynx
+          sparse-checkout: |
+            po
+          sparse-checkout-cone-mode: true
+      - uses: actions/checkout@v4
+        with:
+          repository: gnu-mirror-unofficial/gettext
+          ref: 1bc095c8f78b4ff07b48535033e504c126624f3c
+          path: external-gettext
+          sparse-checkout: |
+            gettext-runtime/po
+            gettext-tools/po
+          sparse-checkout-cone-mode: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Record source hashes and legacy-codec byte windows before detector comparisons
+        run: python experiments/logic_first/vnext_legacy_po_freeze.py --lynx external-lynx --gettext external-gettext
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frozen-legacy-po-external-source
+          path: research-results/legacy-po-freeze
+          retention-days: 90

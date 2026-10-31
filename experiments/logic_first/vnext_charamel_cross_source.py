@@ -54,6 +54,8 @@ def load_fixtures(root, supported, original):
             counts["unsupported_encoding"] += 1
             continue
         full = path.read_bytes()
+        if full.startswith(b"version https://git-lfs.github.com/spec/v1"):
+            raise RuntimeError("Charamel fixture is an unresolved Git LFS pointer: " + str(path))
         if not full:
             counts["empty"] += 1
             continue

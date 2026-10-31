@@ -22,6 +22,9 @@ vnext = ["scikit-learn>=1.4,<2"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/codeccat"]
+# Build-time trained models are generated only in Actions; allow them into
+# the wheel even when ignored by Git. A source-only wheel can omit them.
+artifacts = ["src/codeccat/models/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -68,3 +68,56 @@ This is a concrete direction for maintainable product differentiation: trainable
 - [Pinned original-byte one-shot comparison](../experiments/logic_first/vnext_legacy_po_one_shot.py)
 - [Existing L3 trainability ablation](../experiments/logic_first/vnext_legacy_l3_ablation.py)
 - [Related previous real-byte evidence](REAL_BYTE_ACCURACY_EVIDENCE_2026-11-01.md)
+
+## Additional never-before-used Gawk / Bash source: one-shot confirmation
+
+Frozen original Gawk/Bash PO bytes **before any model evaluation** in [#41241122649](https://github.com/Johnny-Kao/CodecCat/actions/runs/41241122649):
+
+- Sources: `gnu-mirror-unofficial/gawk@455c99c010eafca5729081954d23059e3cbca571`; `gnu-mirror-unofficial/bash@9439ce094c9aa7557a9d53ac7b412a23aa66e36b`.
+- Source digest `7e11e0d76121103b6e30ba23f3f64e0416f15b65214efc76fc7b50edf098300e`.
+- 79 original-byte windows: 31 non-UTF8 (19 ISO-8859-1, 4 ISO-8859-15, 4 ISO-8859-2, 4 ISO-8859-8) + 48 UTF8; no exact source-training text duplicates found.
+
+Frozen-candidate one-shot scores in [#41241223413](https://github.com/Johnny-Kao/CodecCat/actions/runs/41241223413):
+
+| Model | Correct decoded text / 79 | L3 activations | Prediction changes |
+|---|---:|---:|---:|
+| stable23 L2 | 72 | 0 | 0 |
+| stable23 + unchanged L3 | **72** | 5 | **0** |
+| selective Latin + unchanged L3 | 72 | 5 | 0 |
+| UTF8 evidence + unchanged L3 | 72 | 5 | 0 |
+| chardet 7.7.0 | **75** | n/a | n/a |
+| charset-normalizer 3.5.2 | 67 | n/a | n/a |
+
+**Outcome:** The previous development-corpus L3 +1 improvement did **not** replicate on untouched Gawk/Bash; L3 remains OFF by default. No automatic publication, no general accuracy superiority claim.
+
+## Ground-truth discovery: a strongly suspicious stale charset declaration
+
+Before blaming all model errors, verify the correctness of the source's claimed encoding. Some single-byte codecs (especially ISO-8859-1) can decode *any* bytes strictly, so `decode(..., "strict")` succeeding does not establish the historical encoding label.
+
+A source-only (no model predictions) audit [#41241463665](https://github.com/Johnny-Kao/CodecCat/actions/runs/41241463665) detected a **strongly suspicious metadata mismatch** in `gnu-mirror-unofficial/gawk/po/it.po`:
+
+- Source declares `ISO-8859-1` but **all four** selected translation-byte windows decode strictly as UTF8;
+- All four UTF8 decodings contain non-ASCII text;
+- Decoding the exact bytes using the declared ISO-8859-1 label yields **38** common `Ã[continuation-byte]`/similar mojibake-pair patterns across the sampled windows.
+- The other seven legacy-declared Gawk/Bash catalogs in the frozen selection did not show this signal.
+
+This is **high confidence evidence of a possible stale/mismatched encoding declaration**, not definitive proof and not permission to relabel. In the original frozen holdout, all four Gawk Italian windows count as incorrect Unicode for stable23 *and* chardet because the declared ISO-8859-1 text is the reference; both predict UTF8. The original **72/79** and **75/79** scores are preserved unchanged. A separate future sensitivity analysis may distinguish audited vs ambiguous labels, but must **never silently drop inconvenient benchmark cases or claim newly blind results**.
+
+### Implemented product-level remediation in custom retraining
+
+- `vnext_custom_retrain_gate.py` now screens custom manifest entries where a declared single-byte encoding strictly decodes, but original bytes also have strong UTF8 evidence and produce repeated UTF8-as-Latin mojibake sequences under the claimed label.
+- **Default: fail closed before fitting.** Users may explicitly mark an individual source entry `"charset_provenance_reviewed": true` *only if they independently verified the source*. Such accepted warnings are recorded with source path, byte hash, declared codec and evidence counts in `source_ledger.suspected_charset_mismatch_reviewed` and are explicitly tagged **self-attested**, not independently validated.
+- Genuine Latin-1 and ordinary ASCII controls remain valid; user-supplied provenance string alone does not disable the check.
+- [GitHub Actions #41241798209](https://github.com/Johnny-Kao/CodecCat/actions/runs/41241798209) **12/12 tests passed**, including file path, licensing metadata, train-validation overlap, portable model and incumbent comparisons.
+- [Pinned original training-data audit #41241894839](https://github.com/Johnny-Kao/CodecCat/actions/runs/41241894839): **0 of 3,086** existing corpus examples triggered this *conservative specific* detection. This is not a guarantee of all source labels being correct; the filter intentionally has limited recall.
+
+**Release decision remains NO-GO:** preserve `main`, existing Alpha and PyPI. The new label-integrity gate improves custom trainability quality and maintainability, not demonstrated automatic inference accuracy. Only GitHub Actions was used for testing.
+
+## Added exact code
+
+- [Gawk/Bash preregistration](../experiments/logic_first/vnext_new_gnu_source_freeze.py)
+- [Gawk/Bash untouched-source one-shot L3 comparison](../experiments/logic_first/vnext_gnu_unseen_l3_confirm.py)
+- [Source-only encoding declaration audit](../experiments/logic_first/vnext_native_po_charset_audit.py)
+- [Custom-retrain label checks](../experiments/logic_first/vnext_custom_retrain_gate.py)
+- [Training manifest regression tests](../tests/test_vnext_custom_retrain_gate.py)
+- [Original training corpus quality audit](../experiments/logic_first/vnext_training_label_integrity.py)

@@ -44,7 +44,12 @@ def select(blob, lang):
         fields = line.split("\t")
         if len(fields) < 2:
             continue
-        sid, sentence = fields[0], fields[1]
+        # Tatoeba CC0 per-language export is id, lang, text, updated.
+        # Some older exports omit the explicit lang column.
+        if len(fields) >= 3 and fields[1] == lang:
+            sid, sentence = fields[0], fields[2]
+        else:
+            sid, sentence = fields[0], fields[1]
         if not sid.isdecimal() or not (48 <= len(sentence) <= 350):
             continue
         if "\x00" in sentence or "\ufffd" in sentence:

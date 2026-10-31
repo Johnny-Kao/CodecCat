@@ -98,3 +98,31 @@ def test_plain_ascii_encoding_underdetermined_but_text_preserved():
     assert result.text==raw.decode("ascii")
     assert result.ambiguous
     assert result.reason=="textually_ambiguous_ascii"
+
+
+def test_opt_in_language_l3_can_change_final_strict_decode_without_changing_default():
+    from codeccat.vnext_l3_language import LanguageCoherence
+    from codeccat.vnext_strong_l2 import Ranked
+
+    raw = ("café résumé pâtisserie " * 15).encode("utf-8")
+    language = LanguageCoherence.fit([
+        (("The café has a résumé and pâtisserie. " * 30).encode("utf-8"), "utf-8", "fr"),
+        (("A naïve façade and jalapeño in the café. " * 30).encode("utf-8"), "utf-8", "fr2"),
+        (("Ordinary English language sample. " * 30).encode("latin1"), "latin1", "en"),
+    ])
+
+    class PairedModel:
+        class classifier:
+            classes_ = ("latin1", "utf-8")
+
+        def rank(self, data, *, final=True, structural_first=False):
+            return Ranked("latin1", ("latin1", "utf-8"), (0.50, 0.45), None, False)
+
+    baseline = decode(PairedModel(), raw)
+    combined = decode(PairedModel(), raw, language_model=language)
+    assert baseline.encoding == "latin1"
+    assert not baseline.l3_called
+    assert combined.encoding == "utf-8"
+    assert combined.text == raw.decode("utf-8")
+    assert combined.candidates[0] == combined.encoding
+    assert combined.l3_called and combined.l3_changed

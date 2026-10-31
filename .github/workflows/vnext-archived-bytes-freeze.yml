@@ -1,0 +1,31 @@
+name: Freeze independent uchardet original-byte fixture manifest
+on:
+  push:
+    branches: [research/accuracy-data-gate-v2]
+    paths:
+      - ".github/workflows/vnext-archived-bytes-freeze.yml"
+      - "experiments/logic_first/vnext_archived_bytes_freeze.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  freeze:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: BYVoid/uchardet
+          ref: 4e685757780cb3c652fc6c9ec759f62888969ec9
+          path: external
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Freeze actual raw bytes and filename codec claims before any scoring
+        run: python experiments/logic_first/vnext_archived_bytes_freeze.py --fixtures external
+      - uses: actions/upload-artifact@v4
+        with:
+          name: independent-uchardet-frozen-manifest
+          path: research-results/independent-archived-bytes-freeze/
+          retention-days: 60

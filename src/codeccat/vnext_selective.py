@@ -58,7 +58,7 @@ class SelectiveLatinDetector:
         a = original.encoding
         if not _family_eligible(a):
             return original
-        if inspect_bom(data, final=final).encoding is not None or original.bom_hint:
+        if inspect_bom(data, final=final).signature is not None or original.bom_hint:
             return original
         alternative = self.specialist.rank(data, final=final, structural_first=structural_first)
         b = alternative.encoding

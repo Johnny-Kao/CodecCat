@@ -1,5 +1,10 @@
 name: Freeze independent legacy gettext and Lynx raw PO evidence
 on:
+  push:
+    branches: [research/accuracy-data-gate-v2]
+    paths:
+      - ".github/workflows/vnext-legacy-po-freeze.yml"
+      - "experiments/logic_first/vnext_legacy_po_freeze.py"
   workflow_dispatch:
 permissions:
   contents: read

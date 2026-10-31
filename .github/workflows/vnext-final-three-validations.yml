@@ -4,7 +4,7 @@ on:
     branches: [staging/initial-package]
     paths:
       - ".github/workflows/vnext-final-three-validations.yml"
-      - "experiments/logic_first/vnext_charamel_cross_source.py"
+      - "experiments/logic_first/vnext_ecd_cross_source.py"
       - "experiments/logic_first/vnext_l3_activated_benchmark.py"
       - "experiments/logic_first/vnext_wheel_smoke.py"
       - "pyproject.toml"
@@ -28,10 +28,9 @@ jobs:
           path: training
       - uses: actions/checkout@v4
         with:
-          repository: chomechome/charamel
-          ref: f5d664f19b8be70c2361f4037a4f065959e050bd
-          path: charamel-fixtures
-          lfs: true
+          repository: DereckLee/ecd
+          ref: 88cba1536857bcb25e0da00784e12ae171755d0d
+          path: ecd-fixtures
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -39,18 +38,17 @@ jobs:
       - name: Verify pinned external repository heads
         run: |
           test "$(git -C training rev-parse HEAD)" = b0c0d206913ba118ffea2f7d306883e7a4a76db7
-          test "$(git -C charamel-fixtures rev-parse HEAD)" = f5d664f19b8be70c2361f4037a4f065959e050bd
+          test "$(git -C ecd-fixtures rev-parse HEAD)" = 88cba1536857bcb25e0da00784e12ae171755d0d
       - name: Source-overlap screening and paired L2/L3/chardet/charset-normalizer
         run: >-
-          PYTHONPATH=src python experiments/logic_first/vnext_charamel_cross_source.py
-          --training training --holdout charamel-fixtures
-          --train-commit b0c0d206913ba118ffea2f7d306883e7a4a76db7
-          --holdout-commit f5d664f19b8be70c2361f4037a4f065959e050bd
+          PYTHONPATH=src python experiments/logic_first/vnext_ecd_cross_source.py
+          --training training --fixtures ecd-fixtures
+          --commit 88cba1536857bcb25e0da00784e12ae171755d0d
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: vnext-cross-source-evidence
-          path: research-results/vnext-charamel-cross-source/
+          name: vnext-ecd-cross-source-evidence
+          path: research-results/vnext-ecd-external/
           retention-days: 30
   activated-l3:
     strategy:

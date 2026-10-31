@@ -1,0 +1,49 @@
+name: vNext pinned non-LFS external encoding evaluation
+on:
+  push:
+    branches: [staging/initial-package]
+    paths:
+      - ".github/workflows/vnext-ecd-external.yml"
+      - "experiments/logic_first/vnext_ecd_cross_source.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ecd-external:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      PYTHONHASHSEED: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: training
+      - uses: actions/checkout@v4
+        with:
+          repository: DereckLee/ecd
+          ref: 88cba1536857bcb25e0da00784e12ae171755d0d
+          path: ecd-fixtures
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 chardet==7.6.0 charset-normalizer==3.4.4
+      - name: Assert pinned independent test source
+        run: |
+          test "$(git -C training rev-parse HEAD)" = b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          test "$(git -C ecd-fixtures rev-parse HEAD)" = 88cba1536857bcb25e0da00784e12ae171755d0d
+      - name: Source-disjoint L2 versus L3 and external detectors
+        run: >-
+          PYTHONPATH=src python experiments/logic_first/vnext_ecd_cross_source.py
+          --training training --fixtures ecd-fixtures
+          --commit 88cba1536857bcb25e0da00784e12ae171755d0d
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vnext-ecd-source-disjoint-evidence
+          path: research-results/vnext-ecd-external/
+          retention-days: 30

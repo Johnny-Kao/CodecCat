@@ -34,3 +34,26 @@ Current verdict: **NO PROMOTION**. Maintain Alpha `v0.1.0a1` and frozen default.
 **Product differentiator:** a repeatable user-controlled training and updating protocol, with immutable data/version manifests, source-disjoint validation, independently scored candidate-vs-incumbent comparisons and explicit rollback. Making `fit()` callable alone does not finish this product.
 
 New candidate acceptance requires independently sourced, **real naturally encoded file bytes** with reliable ground-truth provenance, larger representative coverage, accepted per-family regressions, and current competitor comparison. Synthetic CC0 reencoding supplies useful independent language text but is **not** representative of naturally deployed file encoding frequencies.
+
+## CC0 ambiguity-aware training result (completed)
+
+[Actions #41234071867](https://github.com/Johnny-Kao/CodecCat/actions/runs/41234071867) **SUCCESS**; this is the candidate scoring run, not just a passing harness.
+
+Each document-isolated fold received **1,200** new Tatoeba CC0-derived, strict-roundtrip, within-language distinguishable labeled training examples (480 English, 240 French, 480 Russian), with the previously frozen 560 external-confirmation sentence IDs excluded.
+
+| Model | Correct decoded text / 3,086 | Exact encoding labels / 3,086 |
+|---|---:|---:|
+| Original residual | **2,809** | **2,621** |
+| + CC0 source training | **2,808** | **2,607** |
+
+Paired text deltas: **55 corrected / 56 harmed = net -1**. By encoding family, net decoded-text changes: `cjk 0`, `iso8859 +4`, `windows +9`, `unicode +4`, **`other -18`**. Adding external training data with the current shared 88-class classifier shifted the boundary and regressed other encodings, despite more diverse text and stronger per-example label-identifiability filters.
+
+**Decision: REJECT this CC0 source-enriched candidate.** Do not bundle, promote, release, or tune on the previously consumed CC0 confirmation set. No CPU/speed/RAM optimization.
+
+### Updated solution framing
+
+The bottleneck is now concrete: **global model updates couple otherwise unrelated encoding families.** Both EBCDIC contrast and broad CC0-source augmentation demonstrate gains in some classes offset by losses in others. More data or simple class balancing alone is not a complete solution.
+
+The next experimental change must **isolate the classifier decision region or use a separate residual specialist** for only the uncertain Latin/Windows cases; the existing L1 and baseline stable23 outcomes for unrelated classes must remain untouched by design. Evaluate invocation/helps/harms on document-disjoint development rows first, then confirm on a *new* independent source. The previously inspected CC0 560 are consumed and cannot be presented as fresh blind evidence.
+
+**Current best candidate remains the narrowly defined Latin-only contrastive training strategy:** it improves development text 2,811→2,838 on the same run and has a small +2/560 on new CC0 source, but is **not accepted** for production. No existing test justifies an overall competitive-superiority claim against chardet 7.7.0.

@@ -28,7 +28,7 @@ def sha_bytes(data):
 
 def fit_signature(model):
     h = hashlib.sha256()
-    vocabulary = sorted(model.vectorizer.vocabulary_.items())
+    vocabulary = sorted((str(k), int(v)) for k, v in model.vectorizer.vocabulary_.items())
     h.update(json.dumps(vocabulary, sort_keys=True).encode())
     h.update(model.vectorizer.idf_.tobytes())
     h.update(json.dumps([str(x) for x in model.classifier.classes_]).encode())

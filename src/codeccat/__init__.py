@@ -8,9 +8,13 @@ from __future__ import annotations
 __all__ = [
     "DetectionResult", "Detector", "LinearModel", "RuntimeBundle",
     "RuntimeStack", "load_bundle", "save_bundle",
+    "CodecCat", "detect", "decode",
 ]
 
 def __getattr__(name):
+    if name in ("CodecCat", "detect", "decode"):
+        from . import usable
+        return getattr(usable, name)
     if name in ("DetectionResult", "Detector"):
         from . import api
         return getattr(api, name)

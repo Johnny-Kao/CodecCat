@@ -8,6 +8,7 @@ on:
       - "experiments/logic_first/**"
       - "tests/test_vnext_*.py"
       - "pyproject.toml"
+      - ".gitignore"
   pull_request:
     branches: [main]
     paths:
@@ -16,6 +17,7 @@ on:
       - "experiments/logic_first/**"
       - "tests/test_vnext_*.py"
       - "pyproject.toml"
+      - ".gitignore"
   workflow_dispatch:
 permissions:
   contents: read

@@ -1,0 +1,50 @@
+name: Original source PO charset metadata integrity audit (research)
+on:
+  push:
+    branches: [research/accuracy-data-gate-v2]
+    paths:
+      - ".github/workflows/vnext-native-po-charset-audit.yml"
+      - "experiments/logic_first/vnext_native_po_charset_audit.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  label-integrity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: gnu-mirror-unofficial/gawk
+          ref: 455c99c010eafca5729081954d23059e3cbca571
+          path: gawk
+          sparse-checkout: |
+            po
+          sparse-checkout-cone-mode: true
+      - uses: actions/checkout@v4
+        with:
+          repository: gnu-mirror-unofficial/bash
+          ref: 9439ce094c9aa7557a9d53ac7b412a23aa66e36b
+          path: bash
+          sparse-checkout: |
+            po
+          sparse-checkout-cone-mode: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: preregistered-gawk-bash-real-byte-source
+          run-id: 41241122649
+          github-token: ${{ github.token }}
+          path: freeze
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate metadata plausibility without any model or retroactive sample exclusion
+        run: python experiments/logic_first/vnext_native_po_charset_audit.py --gawk gawk --bash bash --manifest freeze/manifest.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: preregistered-raw-byte-label-integrity-evidence
+          path: research-results/native-po-label-audit/
+          retention-days: 60

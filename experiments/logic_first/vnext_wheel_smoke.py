@@ -20,7 +20,7 @@ def main():
     root=Path(codeccat.__file__).resolve()
     assert "site-packages" in str(root), root
     version=importlib.metadata.version("codeccat")
-    assert version=="0.0.0",version
+    assert version=="0.1.0a1",version
     deps=importlib.metadata.requires("codeccat") or []
     assert any("scikit-learn" in x and "vnext" in x for x in deps),deps
     samples=[

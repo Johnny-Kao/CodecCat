@@ -1,0 +1,62 @@
+name: Stable23 learned model deterministic replay (research)
+on:
+  push:
+    branches: [research/training-strategy-audit]
+    paths:
+      - ".github/workflows/vnext-fit-determinism-replay.yml"
+      - "experiments/logic_first/vnext_fit_determinism_replay.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      PYTHONHASHSEED: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: fixtures
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0
+      - run: test "$(git -C fixtures rev-parse HEAD)" = "b0c0d206913ba118ffea2f7d306883e7a4a76db7"
+      - name: Refit fold zero in fresh processes with different previous models
+        run: |
+          PYTHONPATH=src python experiments/logic_first/vnext_fit_determinism_replay.py --fixtures fixtures --fold 0 --fit-order residual-first
+          PYTHONPATH=src python experiments/logic_first/vnext_fit_determinism_replay.py --fixtures fixtures --fold 0 --fit-order full-first
+          PYTHONPATH=src python experiments/logic_first/vnext_fit_determinism_replay.py --fixtures fixtures --fold 0 --fit-order clean-first
+      - name: Refit fold two in fresh processes with different previous models
+        run: |
+          PYTHONPATH=src python experiments/logic_first/vnext_fit_determinism_replay.py --fixtures fixtures --fold 2 --fit-order residual-first
+          PYTHONPATH=src python experiments/logic_first/vnext_fit_determinism_replay.py --fixtures fixtures --fold 2 --fit-order full-first
+      - name: Compare learned weights and predictions, not just input hashes
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          folder = Path("research-results/determinism-replay")
+          keys = ("training_rows_sha", "model_input_fingerprint", "learned_numeric_state_sha", "predictions_sha")
+          for fold, recipes in ((0, ("residual-first", "full-first", "clean-first")),
+                                (2, ("residual-first", "full-first"))):
+              data = [json.loads((folder / f"fold{fold}-{r}.json").read_text()) for r in recipes]
+              differences = {key: [d[key] for d in data] for key in keys
+                             if len({d[key] for d in data}) != 1}
+              print("MODEL_REPLAY_CHECK", fold, json.dumps(differences), flush=True)
+              assert not differences, "fit-order non-determinism detected"
+          print("MODEL_REPLAY_ORDER_INVARIANT_PASS")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: stable23-learned-state-determinism-evidence
+          path: research-results/determinism-replay
+          retention-days: 30

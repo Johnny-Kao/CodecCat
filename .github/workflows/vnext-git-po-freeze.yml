@@ -1,0 +1,33 @@
+name: Freeze unseen Git translation catalogs for external validation
+on:
+  push:
+    branches: [research/accuracy-data-gate-v2]
+    paths:
+      - ".github/workflows/vnext-git-po-freeze.yml"
+      - "experiments/logic_first/vnext_git_catalog_freeze.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  freeze-new-corpus:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: git/git
+          ref: 50fe5cc63f9cd6e89b87a2c9ccf96a444f4cfdb7
+          path: external-git
+          sparse-checkout: |
+            po
+          sparse-checkout-cone-mode: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python experiments/logic_first/vnext_git_catalog_freeze.py --source external-git
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frozen-unseen-git-po-catalog-byte-windows
+          path: research-results/git-po-freeze/
+          retention-days: 90

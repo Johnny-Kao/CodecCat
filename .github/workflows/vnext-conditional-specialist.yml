@@ -1,0 +1,34 @@
+name: Conditional Latin specialist routing screen (research)
+on:
+  push:
+    branches: [research/accuracy-data-gate-v2]
+    paths:
+      - ".github/workflows/vnext-conditional-specialist.yml"
+      - "experiments/logic_first/vnext_conditional_specialist_screen.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  paired-screen:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: content-disjoint-contrastive-validation
+          run-id: 41233450603
+          github-token: ${{ github.token }}
+          path: frozen-paired
+      - name: Verify artifact SHA and quantify conditional-only changes
+        run: python experiments/logic_first/vnext_conditional_specialist_screen.py --paired frozen-paired/paired.jsonl
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: conditional-latin-specialist-development-screen
+          path: research-results/conditional-specialist
+          retention-days: 30

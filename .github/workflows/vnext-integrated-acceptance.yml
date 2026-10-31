@@ -8,6 +8,9 @@ on:
       - "src/codeccat/vnext_decoding.py"
       - "tests/test_vnext_decoding.py"
       - "experiments/logic_first/vnext_annual_retrain.py"
+      - "experiments/logic_first/vnext_inference_resources.py"
+      - "src/codeccat/vnext_l3_language.py"
+      - "tests/test_vnext_l3_language.py"
   workflow_dispatch:
 permissions:
   contents: read

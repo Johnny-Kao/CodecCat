@@ -6,6 +6,7 @@ on:
     paths:
       - ".github/workflows/vnext-training-strategy-audit.yml"
       - "experiments/logic_first/vnext_training_strategy_audit.py"
+      - "src/codeccat/vnext_strong_l2.py"
   workflow_dispatch:
 permissions:
   contents: read

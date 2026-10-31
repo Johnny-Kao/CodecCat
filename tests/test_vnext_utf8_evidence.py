@@ -73,3 +73,10 @@ def test_invalid_config_fails_closed():
 def test_positive_threshold_is_explicit():
     assert safe_utf8_evidence(ARMENIAN,min_codepoints=16)
     assert not safe_utf8_evidence(ARMENIAN,min_codepoints=10000)
+
+
+def test_valid_prefix_invalid_suffix_cannot_override_entire_document():
+    data=ARMENIAN*(1+4096//len(ARMENIAN))+b"\xff"
+    assert len(data)>4096
+    assert not safe_utf8_evidence(data)
+    assert Utf8EvidenceDetector(Stub("tis-620")).rank(data,final=True).encoding=="tis-620"

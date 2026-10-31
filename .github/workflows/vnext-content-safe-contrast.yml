@@ -1,0 +1,42 @@
+name: Source-document-disjoint contrastive accuracy candidate
+on:
+  push:
+    branches: [research/accuracy-data-gate-v2]
+    paths:
+      - ".github/workflows/vnext-content-safe-contrast.yml"
+      - "experiments/logic_first/vnext_content_safe_contrast.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  accuracy-gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      PYTHONHASHSEED: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: fixtures
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Pin training dependencies
+        run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0
+      - name: Confirm source commit
+        run: test "$(git -C fixtures rev-parse HEAD)" = "b0c0d206913ba118ffea2f7d306883e7a4a76db7"
+      - name: Train two models per document-disjoint fold
+        run: PYTHONPATH=src python experiments/logic_first/vnext_content_safe_contrast.py --fixtures fixtures --per-direction 24
+      - name: Retain full paired results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: content-disjoint-contrastive-validation
+          path: research-results/content-safe-contrast/
+          retention-days: 30

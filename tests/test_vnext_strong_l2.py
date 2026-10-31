@@ -297,3 +297,43 @@ def test_utf16_supplementary_surrogates_prevent_wrong_endian_fastpath():
     ])
     result = model.rank(raw)
     assert not (result.encoding == "utf-16-be" and result.scores == (1.0,))
+
+@pytest.mark.parametrize("actual,opposite", [
+    ("utf-16-le", "utf-16-be"),
+    ("utf-16-be", "utf-16-le"),
+    ("utf-32-le", "utf-32-be"),
+    ("utf-32-be", "utf-32-le"),
+])
+def test_bom_never_selects_opposite_endian_even_when_it_is_only_unicode_class(actual, opposite):
+    from codeccat.vnext_decoding import decode
+    text = "Hello, BOM"
+    raw = text.encode(actual)
+    signature = {
+        "utf-16-le": b"\\xff\\xfe",
+        "utf-16-be": b"\\xfe\\xff",
+        "utf-32-le": b"\\xff\\xfe\\x00\\x00",
+        "utf-32-be": b"\\x00\\x00\\xfe\\xff",
+    }[actual]
+    # The model can only speak the *wrong* endian or UTF-8. It must
+    # abstain, not accept accidentally valid mojibake.
+    bad = TrainableDetector.fit([
+        ((text * 20).encode(opposite), opposite, "wrong"),
+        ((text * 20).encode("utf-8"), "utf-8", "control"),
+    ])
+    ranked = bad.rank(signature + raw)
+    assert ranked.encoding is None
+    assert ranked.ambiguous
+    result = decode(bad, signature + raw, bom_policy="strip")
+    assert not result.accepted
+    assert result.encoding is None
+    assert result.text is None
+    assert result.bom_encoding == actual
+    # A matching model still handles the very same BOM correctly.
+    good = TrainableDetector.fit([
+        ((text * 20).encode(actual), actual, "correct"),
+        ((text * 20).encode("utf-8"), "utf-8", "control"),
+    ])
+    decoded = decode(good, signature + raw, bom_policy="strip")
+    assert decoded.accepted
+    assert decoded.encoding == actual
+    assert decoded.text == text

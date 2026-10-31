@@ -31,6 +31,7 @@ jobs:
           repository: chomechome/charamel
           ref: f5d664f19b8be70c2361f4037a4f065959e050bd
           path: charamel-fixtures
+          lfs: true
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"

@@ -1,7 +1,7 @@
 name: Custom retrain intake and validation contracts (research)
 on:
   push:
-    branches: [research/training-strategy-audit]
+    branches: [research/accuracy-data-gate-v2]
     paths:
       - ".github/workflows/vnext-custom-retrain-contracts.yml"
       - "experiments/logic_first/vnext_custom_retrain_gate.py"

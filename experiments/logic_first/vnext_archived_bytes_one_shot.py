@@ -68,8 +68,8 @@ def cases_from_manifest(root, manifest, training):
         # Some sources legitimately share identical decoded text across
         # multiple codec labels: same decoded text is the primary goal.
         rows.add((item["path"],item["lang"],codec,raw,reference))
-    if len(rows)<35:
-        raise RuntimeError(f"too few independent labeled bytes: {len(rows)}")
+    if len(rows)<12:
+        raise RuntimeError(f"too few decontaminated samples even for smoke diagnostics: {len(rows)}")
     return sorted(rows,key=lambda x:x[0]), dict(excluded), data["fingerprint"]
 
 
@@ -152,6 +152,9 @@ def main(args):
         "source_freeze_run":"https://github.com/Johnny-Kao/CodecCat/actions/runs/41237703300",
         "source_limits":"archived codec-labelled test files, originally authored encoding not proven; test-only",
         "n_tested":len(cases_out),"excluded":excluded,
+        "sufficient_for_product_acceptance":False,
+        "decision":"DIAGNOSTIC_ONLY_DO_NOT_PROMOTE",
+        "why_no_promotion":"Only 16 original-byte test files remain after removing cross-corpus duplicate decoded text. This is below the preregistered 35-file quality minimum.",
         "models":{
             "training_revision":EXPECTED_TRAIN_REV,
             "n_baseline_training":len(residual),
@@ -174,7 +177,8 @@ def main(args):
     (out/"cases.jsonl").write_text("\n".join(json.dumps(x,sort_keys=True)
                                          for x in cases_out)+"\n")
     print("INDEPENDENT_RAW_EVALUATION_BEGIN",flush=True)
-    print(json.dumps({"n":result["n_tested"],"excluded":excluded,"results":result["results"]},
+    print(json.dumps({"n":result["n_tested"],"excluded":excluded,
+                      "decision":result["decision"],"results":result["results"]},
                      indent=2,sort_keys=True),flush=True)
     print("INDEPENDENT_RAW_EVALUATION_END",flush=True)
 

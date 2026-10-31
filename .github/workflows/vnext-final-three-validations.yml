@@ -1,0 +1,106 @@
+name: vNext three remaining release validations
+on:
+  push:
+    branches: [staging/initial-package]
+    paths:
+      - ".github/workflows/vnext-final-three-validations.yml"
+      - "experiments/logic_first/vnext_charamel_cross_source.py"
+      - "experiments/logic_first/vnext_l3_activated_benchmark.py"
+      - "experiments/logic_first/vnext_wheel_smoke.py"
+      - "pyproject.toml"
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  OPENBLAS_NUM_THREADS: "1"
+  OMP_NUM_THREADS: "1"
+  PYTHONHASHSEED: "0"
+jobs:
+  cross-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: training
+      - uses: actions/checkout@v4
+        with:
+          repository: chomechome/charamel
+          ref: f5d664f19b8be70c2361f4037a4f065959e050bd
+          path: charamel-fixtures
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0 chardet==7.6.0 charset-normalizer==3.4.4
+      - name: Verify pinned external repository heads
+        run: |
+          test "$(git -C training rev-parse HEAD)" = b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          test "$(git -C charamel-fixtures rev-parse HEAD)" = f5d664f19b8be70c2361f4037a4f065959e050bd
+      - name: Source-overlap screening and paired L2/L3/chardet/charset-normalizer
+        run: >-
+          PYTHONPATH=src python experiments/logic_first/vnext_charamel_cross_source.py
+          --training training --holdout charamel-fixtures
+          --train-commit b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          --holdout-commit f5d664f19b8be70c2361f4037a4f065959e050bd
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vnext-cross-source-evidence
+          path: research-results/vnext-charamel-cross-source/
+          retention-days: 30
+  activated-l3:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: training
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0
+      - name: Measure actual L3-activated latency on held-out fold
+        run: PYTHONPATH=src python experiments/logic_first/vnext_l3_activated_benchmark.py --training training --cases 12 --iterations 60
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vnext-l3-activated-${{ matrix.runner }}
+          path: research-results/vnext-l3-activated/
+          retention-days: 30
+  clean-wheel:
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.12"]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Build installable release-candidate wheel
+        run: |
+          python -m pip install build
+          python -m build --wheel
+      - name: Install built wheel in a clean virtualenv with its vNext optional extra
+        run: |
+          python -m venv .clean-release-env
+          .clean-release-env/bin/python -m pip install "$(ls dist/codeccat-*.whl)[vnext]"
+          .clean-release-env/bin/python experiments/logic_first/vnext_wheel_smoke.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vnext-installable-wheel-py${{ matrix.python }}
+          path: dist/*.whl
+          retention-days: 14

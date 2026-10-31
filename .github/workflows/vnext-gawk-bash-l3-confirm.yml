@@ -1,0 +1,61 @@
+name: Unseen Gawk Bash native encoding one-shot L3 confirmation
+on:
+  push:
+    branches: [research/accuracy-data-gate-v2]
+    paths:
+      - ".github/workflows/vnext-gawk-bash-l3-confirm.yml"
+      - "experiments/logic_first/vnext_gnu_unseen_l3_confirm.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  fixed-candidate-confirmation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 80
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      PYTHONHASHSEED: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: gnu-mirror-unofficial/gawk
+          ref: 455c99c010eafca5729081954d23059e3cbca571
+          path: gawk
+          sparse-checkout: |
+            po
+          sparse-checkout-cone-mode: true
+      - uses: actions/checkout@v4
+        with:
+          repository: gnu-mirror-unofficial/bash
+          ref: 9439ce094c9aa7557a9d53ac7b412a23aa66e36b
+          path: bash
+          sparse-checkout: |
+            po
+          sparse-checkout-cone-mode: true
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: training
+      - uses: actions/download-artifact@v4
+        with:
+          name: preregistered-gawk-bash-real-byte-source
+          run-id: 41241122649
+          github-token: ${{ github.token }}
+          path: frozen
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0 chardet==7.7.0 charset-normalizer==3.5.2
+      - name: Confirm existing L3 unchanged on genuinely unseen original-byte source
+        run: PYTHONPATH=src python experiments/logic_first/vnext_gnu_unseen_l3_confirm.py --gawk gawk --bash bash --training training --manifest frozen/manifest.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gawk-bash-independent-l3-confirmation
+          path: research-results/gawk-bash-one-shot/
+          retention-days: 90

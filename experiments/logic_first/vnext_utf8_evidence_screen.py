@@ -24,7 +24,9 @@ from vnext_vim_catalog_one_shot import get_frozen,verify_commit,VIM_REV,TRAIN_RE
 THRESHOLDS=(8,16,32,64,128)
 
 
-def unicode_candidate(raw):
+def unicode_candidate(raw, *, final=True):
+    if not final:
+        return None,0
     if len(raw)<64 or inspect_bom(raw,final=True).signature:
         return None,0
     try: text=raw.decode("utf-8","strict")
@@ -86,7 +88,7 @@ def run(args):
             original=strict_text(raw,ranked.encoding)
             rescued=verified.rank(raw,final=len(raw)<4096)
             rescued_text=strict_text(raw,rescued.encoding)
-            predicted,nonascii=unicode_candidate(raw)
+            predicted,nonascii=unicode_candidate(raw,final=len(raw)<4096)
             evaluations.append({
                 "truth_label":label,"baseline_label":str(ranked.encoding),
                 "base_correct":original==truth and original is not None,

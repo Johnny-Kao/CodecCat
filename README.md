@@ -2,19 +2,21 @@
 
 **CodecCat** is a Python package for character-encoding detection and strict text decoding. It provides a simple Python API and a command-line tool.
 
-**Status:** installable **0.1.0a1 preview**. The code lives on `main`; an official PyPI release has **not** been published. Research experiments remain on `staging/initial-package`.
+**Status:** [v0.1.0a1 Alpha Pre-release](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0a1) is available with a trained default model. Code is on `main`; PyPI publication has **not** been configured. Research experiments remain on `staging/initial-package`.
 
-## Install the usable preview
+## Install the Alpha
 
-The [usable alpha build](https://github.com/Johnny-Kao/CodecCat/actions/workflows/alpha-usable-wheel.yml) produces a wheel containing a fitted default detection model. Open a **successful** run, download the `codeccat-usable-alpha-wheel-and-model-provenance` artifact, extract it, and install the wheel:
+Install the wheel directly from the [GitHub Release](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0a1):
 
 ```bash
-python -m pip install ./codeccat-0.1.0a1-py3-none-any.whl
+python -m pip install "https://github.com/Johnny-Kao/CodecCat/releases/download/v0.1.0a1/codeccat-0.1.0a1-py3-none-any.whl"
 ```
 
-**Important:** `pip install .` from the source repository installs the API and CLI, **but not the trained default model**. To use `CodecCat()` without training, install the model-bearing wheel from the workflow above. Alternatively, load your own portable model with `CodecCat.from_files(...)`.
+Alternatively, download the wheel from Releases and install the local file. The Release also provides `SHA256SUMS` and a model-provenance manifest. The [build workflow](https://github.com/Johnny-Kao/CodecCat/actions/workflows/alpha-usable-wheel.yml) verifies the wheel and its clean installation on GitHub Actions.
 
-Requires Python 3.10 or later. The model-bearing alpha is intended for evaluation, not production deployment.
+**Important:** `pip install codeccat` does not work yet because this project has not been published to PyPI. Likewise, `pip install .` from source installs the code without the trained default model; use the model-bearing Release wheel or load a custom model with `CodecCat.from_files(...)`.
+
+Requires Python 3.10 or later. This is an experimental pre-release, not a production deployment claim.
 
 ## Python
 
@@ -59,7 +61,7 @@ CodecCat combines structural byte checks (L1), a compact trained byte n-gram mod
 
 Cross-source accuracy is still under evaluation. A small independent repository benchmark gave CodecCat stable23 **25/34** correctly decoded texts versus **23/34** for chardet 7.6, whereas a separate ICU source previously favored chardet. Neither result supports a claim of general superiority. Native x86-64 and ARM64 inference and a clean installed wheel have been exercised in GitHub Actions.
 
-The alpha's training corpus is pinned to `chardet/test-data`. That repository notes that individual source texts retain their publishers' copyrights; provenance and any constraints on downstream redistribution of the fitted model need review before an official public model release. The workflow artifact is a **preview**, not an approval to redistribute it or claim production suitability.
+The alpha's training corpus is pinned to `chardet/test-data`. That repository notes that individual source texts retain their publishers' copyrights; provenance and any constraints on downstream redistribution of the fitted model need review before an official public model release. The GitHub Release is an **experimental Alpha** with a bundled fitted model, not a claim of production suitability or blanket permission to redistribute the underlying training texts. Model provenance should be reviewed before wider PyPI or stable-release distribution.
 
 ## Development
 

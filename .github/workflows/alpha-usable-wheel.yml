@@ -1,0 +1,69 @@
+name: CodecCat usable alpha wheel (model + API + CLI)
+on:
+  push:
+    branches: [staging/initial-package]
+    paths:
+      - ".github/workflows/alpha-usable-wheel.yml"
+      - "src/codeccat/usable.py"
+      - "src/codeccat/cli.py"
+      - "src/codeccat/__main__.py"
+      - "src/codeccat/__init__.py"
+      - "src/codeccat/vnext_decoding.py"
+      - "src/codeccat/vnext_strong_l2.py"
+      - "experiments/logic_first/build_installable_candidate.py"
+      - "experiments/logic_first/alpha_installed_smoke.py"
+      - "pyproject.toml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-and-run:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      PYTHONHASHSEED: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: training
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install build-time tools
+        run: python -m pip install build==1.3.0 hatchling numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0
+      - name: Build pinned fitted alpha model
+        run: >-
+          PYTHONPATH=src python experiments/logic_first/build_installable_candidate.py
+          --corpus training --training-commit b0c0d206913ba118ffea2f7d306883e7a4a76db7
+      - name: Build installable wheel that CONTAINS fitted model
+        run: |
+          python -m build --wheel --no-isolation
+          python - <<'PY'
+          from glob import glob
+          import zipfile
+          paths=glob("dist/codeccat-*.whl")
+          assert len(paths)==1,paths
+          with zipfile.ZipFile(paths[0]) as z:
+              for name in ("codeccat/models/stable23.zip","codeccat/models/language-l3.json","codeccat/models/manifest.json"):
+                  assert name in z.namelist(),f"wheel missing {name}"
+          print("ALPHA_MODEL_BUNDLED_PASS")
+          PY
+      - name: Clean installation, actual user API/CLI test
+        run: |
+          python -m venv .alpha-env
+          .alpha-env/bin/python -m pip install dist/codeccat-*.whl
+          .alpha-env/bin/python experiments/logic_first/alpha_installed_smoke.py
+          .alpha-env/bin/codeccat --help
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: codeccat-usable-alpha-wheel-and-model-provenance
+          path: |
+            dist/*.whl
+            src/codeccat/models/manifest.json
+          retention-days: 30

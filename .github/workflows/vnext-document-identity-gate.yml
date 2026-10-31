@@ -1,0 +1,38 @@
+name: Document identity and codec ambiguity gate (research)
+on:
+  push:
+    branches: [research/training-strategy-audit]
+    paths:
+      - ".github/workflows/vnext-document-identity-gate.yml"
+      - "experiments/logic_first/vnext_document_identity_audit.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  document-integrity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: fixtures
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1
+      - name: Verify training data commit
+        run: test "$(git -C fixtures rev-parse HEAD)" = "b0c0d206913ba118ffea2f7d306883e7a4a76db7"
+      - name: Audit provenance overlap and codec identifiability
+        run: PYTHONPATH=src python experiments/logic_first/vnext_document_identity_audit.py --fixtures fixtures
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: codec-document-identity-ambiguity-report
+          path: research-results/document-identity-audit
+          retention-days: 30

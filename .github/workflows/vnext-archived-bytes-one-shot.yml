@@ -1,0 +1,51 @@
+name: Frozen historical raw-byte encoding external holdout
+on:
+  push:
+    branches: [research/accuracy-data-gate-v2]
+    paths:
+      - ".github/workflows/vnext-archived-bytes-one-shot.yml"
+      - "experiments/logic_first/vnext_archived_bytes_one_shot.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  independent-raw-holdout:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      PYTHONHASHSEED: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: training
+      - uses: actions/checkout@v4
+        with:
+          repository: BYVoid/uchardet
+          ref: 4e685757780cb3c652fc6c9ec759f62888969ec9
+          path: raw-test-data
+      - uses: actions/download-artifact@v4
+        with:
+          name: independent-uchardet-frozen-manifest
+          run-id: 41237703300
+          github-token: ${{ github.token }}
+          path: frozen-source
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pinned stable23 and competitor dependencies
+        run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0 chardet==7.7.0 charset-normalizer==3.5.2
+      - name: Score only source-frozen codec-labeled bytes
+        run: PYTHONPATH=src python experiments/logic_first/vnext_archived_bytes_one_shot.py --training training --fixtures raw-test-data --manifest frozen-source/frozen_manifest.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: original-byte-independent-holdout-evidence
+          path: research-results/uchardet-one-shot/
+          retention-days: 90

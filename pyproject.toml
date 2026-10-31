@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "codeccat"
+version = "0.1.0a1"
+description = "Model-backed character-encoding detection and strict decoding"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Johnny Kao" }]
+dependencies = ["numpy>=2.0", "scikit-learn>=1.4,<2"]
+
+[project.scripts]
+codeccat = "codeccat.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "build>=1.2"]
+train = ["scikit-learn>=1.4,<2"]
+vnext = ["scikit-learn>=1.4,<2"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/codeccat"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

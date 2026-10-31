@@ -1,0 +1,25 @@
+name: Conditional Latin specialist code contracts
+on:
+  push:
+    branches: [research/accuracy-data-gate-v2]
+    paths:
+      - ".github/workflows/vnext-selective-contracts.yml"
+      - "src/codeccat/vnext_selective.py"
+      - "tests/test_vnext_selective.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  selective-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0 pytest==8.4.2
+      - run: PYTHONPATH=src python -m pytest -q tests/test_vnext_selective.py

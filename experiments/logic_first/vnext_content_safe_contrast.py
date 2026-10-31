@@ -14,6 +14,7 @@ from pathlib import Path
 import sys
 
 from codeccat.vnext_strong_l2 import TrainableDetector
+from codeccat.vnext_selective import SelectiveLatinDetector
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from vnext_actual_adapter import corpus
@@ -167,7 +168,7 @@ def batch_eval(models, held):
 
 def summarize(cases):
     ret = {"n": len(cases)}
-    for name in ("baseline", "contrastive", "latin_only"):
+    for name in ("baseline", "contrastive", "latin_only", "routed"):
         items = [case["predictions"][name] for case in cases]
         ret[name] = {
             "correct_decoded_text": sum(x["text"] for x in items),
@@ -176,7 +177,7 @@ def summarize(cases):
             "truth_in_top3": sum(x["truth_in_top3"] for x in items),
         }
     ret["paired"] = {}
-    for candidate in ("contrastive", "latin_only"):
+    for candidate in ("contrastive", "latin_only", "routed"):
         ret["paired"][candidate] = {}
         for metric in ("text", "label"):
             helped = sum(c["predictions"][candidate][metric] and
@@ -193,6 +194,7 @@ def summarize(cases):
             "baseline_correct_text": sum(c["predictions"]["baseline"]["text"] for c in group),
             "contrastive_correct_text": sum(c["predictions"]["contrastive"]["text"] for c in group),
             "latin_only_correct_text": sum(c["predictions"]["latin_only"]["text"] for c in group),
+            "routed_correct_text": sum(c["predictions"]["routed"]["text"] for c in group),
         }
     ret["by_label"] = {}
     for label in sorted(set(c["truth"] for c in cases)):
@@ -229,6 +231,7 @@ def run(args):
             "contrastive": TrainableDetector.fit(baseline_train + augment, feature_profile="stable23"),
             "latin_only": TrainableDetector.fit(baseline_train + latin_augment, feature_profile="stable23"),
         }
+        models["routed"] = SelectiveLatinDetector(models["baseline"], models["latin_only"])
         cases = batch_eval(models, held)
         summary = summarize(cases)
         all_cases.extend(cases)

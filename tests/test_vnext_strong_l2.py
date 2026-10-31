@@ -308,12 +308,12 @@ def test_bom_never_selects_opposite_endian_even_when_it_is_only_unicode_class(ac
     from codeccat.vnext_decoding import decode
     text = "Hello, BOM"
     raw = text.encode(actual)
-    signature = {
-        "utf-16-le": b"\\xff\\xfe",
-        "utf-16-be": b"\\xfe\\xff",
-        "utf-32-le": b"\\xff\\xfe\\x00\\x00",
-        "utf-32-be": b"\\x00\\x00\\xfe\\xff",
-    }[actual]
+    signature = bytes.fromhex({
+        "utf-16-le": "ff fe",
+        "utf-16-be": "fe ff",
+        "utf-32-le": "ff fe 00 00",
+        "utf-32-be": "00 00 fe ff",
+    }[actual])
     # The model can only speak the *wrong* endian or UTF-8. It must
     # abstain, not accept accidentally valid mojibake.
     bad = TrainableDetector.fit([

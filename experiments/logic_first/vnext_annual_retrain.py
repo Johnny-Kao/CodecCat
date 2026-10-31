@@ -9,6 +9,7 @@ from datetime import datetime,timezone
 from pathlib import Path
 import numpy,sklearn
 from codeccat.vnext_strong_l2 import TrainableDetector
+from codeccat.vnext_l3_language import LanguageCoherence
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from vnext_actual_adapter import corpus
 
@@ -61,6 +62,23 @@ def main(a):
             "class_count":len(model.classifier.classes_),"bytes":(dest/name).stat().st_size,
             "ngram_range":list(model.vectorizer.ngram_range)}
         print("ANNUAL_PROFILE_READY",profile,flush=True)
+    # A separately fitted Unicode language model is packaged as an OPTIONAL
+    # candidate; it does not change the stable default or release authority.
+    l3 = LanguageCoherence.fit(items)
+    l3_name = f"codeccat-{a.year}-language-l3.json"
+    l3.save(dest/l3_name)
+    if LanguageCoherence.load(dest/l3_name) != l3:
+        raise RuntimeError("L3 portable round-trip mismatch")
+    report["language_l3"] = {
+        "archive": l3_name,
+        "sha256": hashlib.sha256((dest/l3_name).read_bytes()).hexdigest(),
+        "fingerprint": l3.fingerprint,
+        "feature_count": len(l3.grams),
+        "bytes": (dest/l3_name).stat().st_size,
+        "default_enabled": False,
+        "status": "experimental, requires source-independent net benefit",
+    }
+    print("ANNUAL_LANGUAGE_L3_CANDIDATE_READY", flush=True)
     (dest/"manifest.json").write_text(json.dumps(report,indent=2,sort_keys=True)+"\n")
     print("ANNUAL_MANIFEST_BEGIN");print(json.dumps(report,indent=2));print("ANNUAL_MANIFEST_END")
 if __name__=="__main__":

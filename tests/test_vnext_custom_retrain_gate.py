@@ -117,3 +117,18 @@ def test_invalid_labeled_encoding_is_rejected(tmp_path):
     write_manifest(manifest, rows)
     with pytest.raises(ValueError, match="invalid labeled byte stream"):
         load_manifest(root, manifest)
+
+
+def test_incumbent_paired_comparison_never_publishes(tmp_path):
+    root, manifest, _ = case(tmp_path)
+    first = tmp_path / "first"
+    run(SimpleNamespace(root=str(root), manifest=str(manifest), out=str(first),
+                        policy="full", incumbent=None))
+    second = tmp_path / "second"
+    run(SimpleNamespace(root=str(root), manifest=str(manifest), out=str(second),
+                        policy="full", incumbent=str(first / "candidate.ccnext")))
+    report = json.loads((second / "report.json").read_text())
+    assert report["promotion_allowed"] is False
+    comparison = report["paired_with_incumbent"]["difference"]
+    assert comparison["paired_decoded_text"] == {"helps": 0, "harms": 0, "net": 0}
+    assert comparison["families_regressing_in_correct_text"] == []

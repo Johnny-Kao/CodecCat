@@ -2,6 +2,7 @@ name: CodecCat usable alpha wheel (model + API + CLI)
 on:
   push:
     branches: [main, release/alpha-main]
+    tags: ["v*"]
     paths:
       - ".github/workflows/alpha-usable-wheel.yml"
       - "src/**"
@@ -9,6 +10,7 @@ on:
       - "tests/test_vnext_*.py"
       - "pyproject.toml"
       - ".gitignore"
+      - "README.md"
   pull_request:
     branches: [main]
     paths:
@@ -74,3 +76,69 @@ jobs:
             dist/*.whl
             src/codeccat/models/manifest.json
           retention-days: 30
+
+  github-pre-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build-and-run
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify release tag matches package version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python - <<'PY'
+          import os, tomllib
+          with open("pyproject.toml","rb") as f:
+              version=tomllib.load(f)["project"]["version"]
+          assert os.environ["RELEASE_TAG"]=="v"+version, "tag/version mismatch"
+          assert "a" in version or "b" in version or "rc" in version, "alpha job only"
+          print("RELEASE_VERSION_MATCH",version)
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          name: codeccat-usable-alpha-wheel-and-model-provenance
+          path: release-assets
+      - name: Check release assets and checksums
+        run: |
+          python - <<'PY'
+          import json, pathlib, zipfile
+          root=pathlib.Path("release-assets")
+          whls=list(root.rglob("codeccat-*.whl"))
+          manifests=list(root.rglob("manifest.json"))
+          assert len(whls)==1 and len(manifests)==1, (whls,manifests)
+          manifest=json.loads(manifests[0].read_text())
+          assert manifest["schema"]=="codeccat-alpha-bundled-model-v1"
+          with zipfile.ZipFile(whls[0]) as z:
+              for x in ("codeccat/models/stable23.zip", "codeccat/models/language-l3.json", "codeccat/models/manifest.json"):
+                  assert x in z.namelist(),x
+          print("RELEASE_ASSETS_VERIFIED",whls[0])
+          PY
+          cd release-assets
+          sha256sum *.whl > SHA256SUMS
+      - name: Publish annotated GitHub alpha pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$RELEASE_TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
+            echo "Release already exists; updating assets"
+            gh release upload "$RELEASE_TAG" release-assets/*.whl release-assets/SHA256SUMS --clobber --repo "$GH_REPO"
+          else
+            gh release create "$RELEASE_TAG" release-assets/*.whl release-assets/SHA256SUMS \
+              --repo "$GH_REPO" --verify-tag --prerelease \
+              --title "CodecCat $RELEASE_TAG (Alpha)" \
+              --notes "Experimental alpha release with a model-bearing installable wheel.
+
+          Includes: default stable23 inference model, opt-in L3, Python API and CLI.
+
+          Verified: source unit tests, clean wheel installation, real Python/CLI decoding, UTF BOM regression tests.
+
+          Not a production release. Accuracy varies by source; trained-model redistribution provenance is still under review. No PyPI distribution is implied."
+          fi

@@ -1,0 +1,51 @@
+name: vNext native ARM64 verification
+on:
+  push:
+    branches: [staging/initial-package]
+    paths:
+      - ".github/workflows/vnext-arm64-validation.yml"
+      - "src/codeccat/vnext_l3_language.py"
+      - "src/codeccat/vnext_decoding.py"
+      - "tests/test_vnext_l3_language.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  arm64:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      PYTHONHASHSEED: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: training
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify native ARM64 CPU
+        run: python -c "import platform; assert platform.machine().lower() in ('aarch64','arm64'), platform.machine()"
+      - run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0 pytest==8.4.2
+      - name: All vNext unit and end-to-end contracts
+        run: PYTHONPATH=src python -m pytest -q tests/test_vnext_*.py
+      - name: Frozen candidate fit and numeric archive on native ARM64
+        run: PYTHONPATH=src python experiments/logic_first/vnext_annual_retrain.py --year 2026 --training training --training-commit b0c0d206913ba118ffea2f7d306883e7a4a76db7
+      - name: Native ARM64 loaded-model resources and decode
+        run: >-
+          PYTHONPATH=src python experiments/logic_first/vnext_inference_resources.py
+          --model research-results/vnext-annual-models/codeccat-2026-stable23.zip
+          --manifest research-results/vnext-annual-models/manifest.json
+          --profile stable23
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vnext-native-arm64-evidence
+          path: |
+            research-results/vnext-annual-models/manifest.json
+            research-results/vnext-resources/stable23.json
+          retention-days: 14

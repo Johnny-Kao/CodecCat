@@ -317,8 +317,10 @@ def test_bom_never_selects_opposite_endian_even_when_it_is_only_unicode_class(ac
     # The model can only speak the *wrong* endian or UTF-8. It must
     # abstain, not accept accidentally valid mojibake.
     bad = TrainableDetector.fit([
-        ((text * 20).encode(opposite), opposite, "wrong"),
-        ((text * 20).encode("utf-8"), "utf-8", "control"),
+        ((text * 20).encode(opposite), opposite, "wrong-1"),
+        ((text * 21).encode(opposite), opposite, "wrong-2"),
+        ((text * 20).encode("utf-8"), "utf-8", "control-1"),
+        ((text * 21).encode("utf-8"), "utf-8", "control-2"),
     ])
     ranked = bad.rank(signature + raw)
     assert ranked.encoding is None
@@ -330,8 +332,10 @@ def test_bom_never_selects_opposite_endian_even_when_it_is_only_unicode_class(ac
     assert result.bom_encoding == actual
     # A matching model still handles the very same BOM correctly.
     good = TrainableDetector.fit([
-        ((text * 20).encode(actual), actual, "correct"),
-        ((text * 20).encode("utf-8"), "utf-8", "control"),
+        ((text * 20).encode(actual), actual, "correct-1"),
+        ((text * 21).encode(actual), actual, "correct-2"),
+        ((text * 20).encode("utf-8"), "utf-8", "control-1"),
+        ((text * 21).encode("utf-8"), "utf-8", "control-2"),
     ])
     decoded = decode(good, signature + raw, bom_policy="strip")
     assert decoded.accepted

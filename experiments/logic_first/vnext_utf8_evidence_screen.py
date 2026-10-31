@@ -12,6 +12,7 @@ import argparse,collections,json,pathlib,sys,unicodedata
 from codeccat.vnext_strong_l2 import TrainableDetector
 from codeccat.vnext_bom import inspect_bom
 from codeccat.vnext_decoding import decode
+from codeccat.vnext_utf8_evidence import Utf8EvidenceDetector
 
 sys.path.insert(0,str(pathlib.Path(__file__).resolve().parent))
 from vnext_actual_adapter import corpus
@@ -77,37 +78,51 @@ def run(args):
         test=[(b,y,g,digest) for (b,y,g,_,digest),f in zip(rows,assignment) if f==fold]
         residual,_=residual_subset(train)
         model=TrainableDetector.fit(residual)
+        verified=Utf8EvidenceDetector(model,min_codepoints=16)
         evaluations=[]
         for raw,label,group,digest in test:
             truth=strict_text(raw,label)
             ranked=model.rank(raw,final=len(raw)<4096)
             original=strict_text(raw,ranked.encoding)
+            rescued=verified.rank(raw,final=len(raw)<4096)
+            rescued_text=strict_text(raw,rescued.encoding)
             predicted,nonascii=unicode_candidate(raw)
             evaluations.append({
                 "truth_label":label,"baseline_label":str(ranked.encoding),
                 "base_correct":original==truth and original is not None,
+                "actual_rescue_correct":rescued_text==truth and rescued_text is not None,
+                "actual_rescue_encoding":str(rescued.encoding),
                 "utf8_valid":predicted is not None,
                 "utf8_correct":predicted==truth and predicted is not None,
                 "non_ascii_codepoints":nonascii,
             })
-        r=report(evaluations);folds.append({"fold":fold,**r})
+        r=report(evaluations)
+        r["actual_rescue_correct"]=sum(x["actual_rescue_correct"] for x in evaluations)
+        assert r["actual_rescue_correct"]-r["base_text_correct"]==r["16"]["net"], "actual adapter differs from structural risk screen"
+        folds.append({"fold":fold,**r})
         print("UTF8_EVIDENCE_FOLD",fold,json.dumps({k:r[k] for k in map(str,THRESHOLDS)}),flush=True)
     complete=[(raw,y,g) for raw,y,g,fold,digest in rows]
     focused,_=residual_subset(complete)
     trained=TrainableDetector.fit(focused)
+    verified=Utf8EvidenceDetector(trained,min_codepoints=16)
     vim_cases=source_cases(args)
     vim_evaluations=[]
     for item in vim_cases:
         raw=item["raw"];answer=decode(trained,raw,bom_policy="preserve")
+        actual=decode(verified,raw,bom_policy="preserve")
         proposed,nonascii=unicode_candidate(raw)
         vim_evaluations.append({
             "file":item["file"],"truth_label":item["codec"],
             "baseline_label":answer.encoding,"base_correct":answer.text==item["text"],
+            "actual_rescue_correct":actual.text==item["text"],
+            "actual_rescue_encoding":actual.encoding,
             "utf8_valid":proposed is not None,
             "utf8_correct":proposed==item["text"] and proposed is not None,
             "non_ascii_codepoints":nonascii,
         })
     vim=report(vim_evaluations)
+    vim["actual_rescue_correct"]=sum(x["actual_rescue_correct"] for x in vim_evaluations)
+    assert vim["actual_rescue_correct"]-vim["base_text_correct"]==vim["16"]["net"], "actual adapter disagrees on Vim source"
     agg={"n":sum(f["n"] for f in folds)}
     for k in THRESHOLDS:
         agg[str(k)]={x:sum(f[str(k)][x] for f in folds)

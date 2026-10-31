@@ -341,3 +341,16 @@ def test_bom_never_selects_opposite_endian_even_when_it_is_only_unicode_class(ac
     assert decoded.accepted
     assert decoded.encoding == actual
     assert decoded.text == text
+
+def test_utf8_bom_with_only_utf8_class_remains_usable():
+    from codeccat.vnext_decoding import decode
+    model = TrainableDetector.fit(training_data())
+    assert "utf-8-sig" not in model.classifier.classes_
+    raw = bytes.fromhex("ef bb bf") + "Hello Unicode".encode("utf-8")
+    ranked = model.rank(raw)
+    assert ranked.encoding == "utf-8"
+    assert ranked.bom_hint == "utf-8-sig"
+    stripped = decode(model, raw, bom_policy="strip")
+    retained = decode(model, raw, bom_policy="preserve")
+    assert stripped.accepted and stripped.text == "Hello Unicode"
+    assert retained.accepted and retained.text == "\ufeffHello Unicode"

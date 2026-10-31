@@ -45,6 +45,41 @@ def truth_text(data: bytes, label: str) -> str:
     return text
 
 
+
+def suspicious_singlebyte_utf8(data: bytes, declared_codec: str) -> dict | None:
+    """Identify a *possible* stale single-byte label using raw-byte evidence.
+
+    A single-byte legacy codec can decode many invalidly tagged files without
+    error. Only flag strong evidence of UTF-8-as-Latin mojibake; this does NOT
+    prove the original historical codec and never relabels the training text.
+    """
+    if not isinstance(data, bytes):
+        raise TypeError("expected bytes")
+    if not (declared_codec.startswith("iso8859-") or
+            declared_codec.startswith("cp12") or
+            declared_codec in ("latin-1", "latin_1")):
+        return None
+    if len(data) < 64:
+        return None
+    try:
+        candidate = data.decode("utf-8", "strict")
+        declared = data.decode(declared_codec, "strict")
+    except (UnicodeError, LookupError):
+        return None
+    non_ascii = sum(ord(c) > 127 for c in candidate)
+    artifact_pairs = sum(
+        a in ("\u00c2", "\u00c3") and 128 <= ord(b) <= 191
+        for a, b in zip(declared, declared[1:])
+    )
+    if non_ascii < 4 or artifact_pairs < 3:
+        return None
+    return {
+        "utf8_non_ascii": non_ascii,
+        "mojibake_pairs_under_declared_codec": artifact_pairs,
+        "reason": "possible_utf8_data_with_stale_singlebyte_encoding_label",
+    }
+
+
 def _resolved_data_file(root: Path, name: str) -> Path:
     if not name or Path(name).is_absolute() or "\\" in name:
         raise ValueError("manifest path must be a relative POSIX data path")
@@ -64,6 +99,7 @@ def load_manifest(root: Path, manifest: Path, *, max_bytes: int = 1 << 20) -> tu
     records: list[Sample] = []
     seen_bytes: dict[str, str] = {}
     used_path = set()
+    reviewed_suspect_labels = []
     for i, line in enumerate(manifest.read_text(encoding="utf-8").splitlines(), start=1):
         if not line.strip():
             continue
@@ -93,6 +129,19 @@ def load_manifest(root: Path, manifest: Path, *, max_bytes: int = 1 << 20) -> tu
         except (LookupError, UnicodeError, ValueError) as e:
             raise ValueError(f"manifest line {i}: invalid labeled byte stream") from e
         digest = sha256(data).hexdigest()
+        suspicion = suspicious_singlebyte_utf8(data, label)
+        if suspicion is not None:
+            if row.get("charset_provenance_reviewed") is not True:
+                raise ValueError(
+                    f"manifest line {i}: possible UTF-8 data with stale single-byte encoding label "
+                    f"({label}); review original source and set charset_provenance_reviewed=true "
+                    "ONLY with independent provenance evidence"
+                )
+            reviewed_suspect_labels.append({
+                "path": row["path"], "sha256": digest, "declared_label": label,
+                **suspicion,
+                "verification": "SELF_ATTESTED_NOT_INDEPENDENTLY_VERIFIED",
+            })
         if digest in seen_bytes:
             raise ValueError(f"manifest line {i}: repeated identical raw bytes")
         seen_bytes[digest] = label
@@ -123,6 +172,8 @@ def load_manifest(root: Path, manifest: Path, *, max_bytes: int = 1 << 20) -> tu
         "validation_classes": dict(sorted(Counter(r.label for r in records if r.split == "validation").items())),
         "origin_counts": {f"{source} :: {rights}": n for (source, rights), n in sorted(Counter((r.origin, r.rights) for r in records).items())},
         "rights": "SELF-ATTESTED: owner must verify provenance, ownership and permission to train/distribute",
+        "suspected_charset_mismatch_reviewed": reviewed_suspect_labels,
+        "suspected_charset_review_rule": "default reject unless each flagged manifest row has explicit charset_provenance_reviewed=true",
     }
     return records, ledger
 

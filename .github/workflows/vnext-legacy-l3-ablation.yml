@@ -1,0 +1,62 @@
+name: Existing trainable L3 on native legacy files (development ablation)
+on:
+  push:
+    branches: [research/accuracy-data-gate-v2]
+    paths:
+      - ".github/workflows/vnext-legacy-l3-ablation.yml"
+      - "experiments/logic_first/vnext_legacy_l3_ablation.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  l3-no-rule-sprawl:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      PYTHONHASHSEED: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: ThomasDickey/lynx-snapshots
+          ref: 7f670781d769903d5a32a4b9eb68175f2e687a26
+          path: external-lynx
+          sparse-checkout: |
+            po
+          sparse-checkout-cone-mode: true
+      - uses: actions/checkout@v4
+        with:
+          repository: gnu-mirror-unofficial/gettext
+          ref: 1bc095c8f78b4ff07b48535033e504c126624f3c
+          path: external-gettext
+          sparse-checkout: |
+            gettext-runtime/po
+            gettext-tools/po
+          sparse-checkout-cone-mode: true
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: training
+      - uses: actions/download-artifact@v4
+        with:
+          name: frozen-legacy-po-external-source
+          run-id: 41240397820
+          github-token: ${{ github.token }}
+          path: external-manifest
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0
+      - name: Evaluate previously existing L3 without altering its thresholds
+        run: PYTHONPATH=src python experiments/logic_first/vnext_legacy_l3_ablation.py --lynx external-lynx --gettext external-gettext --training training --manifest external-manifest/source_manifest.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: l3-native-legacy-development-evidence
+          path: research-results/legacy-l3-ablation/
+          retention-days: 60

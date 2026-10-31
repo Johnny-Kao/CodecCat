@@ -1,0 +1,28 @@
+name: Custom retrain intake and validation contracts (research)
+on:
+  push:
+    branches: [research/training-strategy-audit]
+    paths:
+      - ".github/workflows/vnext-custom-retrain-contracts.yml"
+      - "experiments/logic_first/vnext_custom_retrain_gate.py"
+      - "tests/test_vnext_custom_retrain_gate.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  retraining-quality-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      PYTHONHASHSEED: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0 pytest==8.4.2
+      - name: Prove retraining gate and prohibited data conditions
+        run: PYTHONPATH=src python -m pytest -q tests/test_vnext_custom_retrain_gate.py

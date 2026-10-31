@@ -132,3 +132,47 @@ def test_incumbent_paired_comparison_never_publishes(tmp_path):
     comparison = report["paired_with_incumbent"]["difference"]
     assert comparison["paired_decoded_text"] == {"helps": 0, "harms": 0, "net": 0}
     assert comparison["families_regressing_in_correct_text"] == []
+
+
+def test_mislabeled_utf8_singlebyte_is_rejected_before_fit(tmp_path):
+    root, manifest, rows = case(tmp_path)
+    suspect = "Café résumé société étudiée fiancé révélé. " * 30
+    (root / "t" / "ja1.bin").write_bytes(suspect.encode("utf-8"))
+    rows[0]["encoding"] = "iso-8859-1"
+    write_manifest(manifest, rows)
+    with pytest.raises(ValueError, match="possible UTF-8 data with stale"):
+        load_manifest(root, manifest)
+
+
+def test_explicit_review_of_suspicious_label_is_visible_in_ledger(tmp_path):
+    root, manifest, rows = case(tmp_path)
+    suspect = "Café résumé société étudiée fiancé révélé. " * 30
+    (root / "t" / "ja1.bin").write_bytes(suspect.encode("utf-8"))
+    rows[0]["encoding"] = "iso-8859-1"
+    rows[0]["charset_provenance_reviewed"] = True
+    write_manifest(manifest, rows)
+    _, ledger = load_manifest(root, manifest)
+    flags = ledger["suspected_charset_mismatch_reviewed"]
+    assert len(flags) == 1
+    assert flags[0]["declared_label"] == "iso8859-1"
+    assert flags[0]["mojibake_pairs_under_declared_codec"] >= 3
+    assert flags[0]["verification"].startswith("SELF_ATTESTED")
+
+
+def test_genuine_latin1_is_not_rejected_by_utf8_suspicion(tmp_path):
+    root, manifest, rows = case(tmp_path)
+    original = "Café résumé société étudiée fiancé révélé. " * 30
+    (root / "t" / "ja1.bin").write_bytes(original.encode("iso-8859-1"))
+    rows[0]["encoding"] = "iso-8859-1"
+    write_manifest(manifest, rows)
+    _, ledger = load_manifest(root, manifest)
+    assert ledger["suspected_charset_mismatch_reviewed"] == []
+
+
+def test_ascii_by_itself_is_not_mislabeled_evidence(tmp_path):
+    root, manifest, rows = case(tmp_path)
+    (root / "t" / "ja1.bin").write_bytes(b"Ordinary source code comments and ASCII text. " * 10)
+    rows[0]["encoding"] = "iso-8859-1"
+    write_manifest(manifest, rows)
+    _, ledger = load_manifest(root, manifest)
+    assert not ledger["suspected_charset_mismatch_reviewed"]

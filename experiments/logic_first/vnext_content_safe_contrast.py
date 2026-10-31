@@ -96,7 +96,7 @@ def component_folds(rows):
     }
 
 
-def contrastive_augmentation(training, per_direction=24):
+def contrastive_augmentation(training, per_direction=24, *, exclude_ebcdic=False):
     """Reencode training-only observed Unicode text into *different* codec bytes.
 
     Only trusted source labels and strictly encodeable target classes are used.
@@ -106,6 +106,8 @@ def contrastive_augmentation(training, per_direction=24):
     allowed = {y for raw, y, group in training}
     directed = set()
     for a, b in PAIRS:
+        if exclude_ebcdic and {a, b} == {"cp037", "cp500"}:
+            continue
         if a in allowed and b in allowed:
             directed.add((a, b))
             directed.add((b, a))
@@ -165,7 +167,7 @@ def batch_eval(models, held):
 
 def summarize(cases):
     ret = {"n": len(cases)}
-    for name in ("baseline", "contrastive"):
+    for name in ("baseline", "contrastive", "latin_only"):
         items = [case["predictions"][name] for case in cases]
         ret[name] = {
             "correct_decoded_text": sum(x["text"] for x in items),
@@ -174,13 +176,15 @@ def summarize(cases):
             "truth_in_top3": sum(x["truth_in_top3"] for x in items),
         }
     ret["paired"] = {}
-    for metric in ("text", "label"):
-        helped = sum(c["predictions"]["contrastive"][metric] and
-                     not c["predictions"]["baseline"][metric] for c in cases)
-        harmed = sum(c["predictions"]["baseline"][metric] and
-                     not c["predictions"]["contrastive"][metric] for c in cases)
-        ret["paired"][metric] = {"helped": helped, "harmed": harmed,
-                                  "net": helped - harmed}
+    for candidate in ("contrastive", "latin_only"):
+        ret["paired"][candidate] = {}
+        for metric in ("text", "label"):
+            helped = sum(c["predictions"][candidate][metric] and
+                         not c["predictions"]["baseline"][metric] for c in cases)
+            harmed = sum(c["predictions"]["baseline"][metric] and
+                         not c["predictions"][candidate][metric] for c in cases)
+            ret["paired"][candidate][metric] = {"helped": helped, "harmed": harmed,
+                                                "net": helped - harmed}
     ret["by_family"] = {}
     for fam in sorted(set(c["family"] for c in cases)):
         group = [c for c in cases if c["family"] == fam]
@@ -188,6 +192,7 @@ def summarize(cases):
             "n": len(group),
             "baseline_correct_text": sum(c["predictions"]["baseline"]["text"] for c in group),
             "contrastive_correct_text": sum(c["predictions"]["contrastive"]["text"] for c in group),
+            "latin_only_correct_text": sum(c["predictions"]["latin_only"]["text"] for c in group),
         }
     ret["by_label"] = {}
     for label in sorted(set(c["truth"] for c in cases)):
@@ -213,12 +218,16 @@ def run(args):
         baseline_train, dropped = residual_subset(train)
         augment, augment_report = contrastive_augmentation(
             baseline_train, per_direction=args.per_direction)
-        assert {group for _, _, group in augment}.issubset({group for _, _, group in baseline_train})
+        latin_augment, latin_report = contrastive_augmentation(
+            baseline_train, per_direction=args.per_direction, exclude_ebcdic=True)
+        assert {group for _, _, group in augment + latin_augment}.issubset(
+            {group for _, _, group in baseline_train})
         held_texts = {text_id(raw, label) for raw, label, _, _ in held}
-        assert {text_id(raw, label) for raw, label, _ in augment}.isdisjoint(held_texts)
+        assert {text_id(raw, label) for raw, label, _ in augment + latin_augment}.isdisjoint(held_texts)
         models = {
             "baseline": TrainableDetector.fit(baseline_train, feature_profile="stable23"),
             "contrastive": TrainableDetector.fit(baseline_train + augment, feature_profile="stable23"),
+            "latin_only": TrainableDetector.fit(baseline_train + latin_augment, feature_profile="stable23"),
         }
         cases = batch_eval(models, held)
         summary = summarize(cases)
@@ -227,8 +236,10 @@ def run(args):
             "fold": fold, "training_raw": len(train),
             "training_baseline": len(baseline_train),
             "training_candidate": len(baseline_train) + len(augment),
+            "training_latin_only": len(baseline_train) + len(latin_augment),
             "residual_drop_by_label": dropped,
             "synthetic_training": augment_report,
+            "latin_only_training": latin_report,
             "heldout": summary,
             "heldout_labels_not_trained": sorted(
                 {y for _, y, _, _ in held} - {y for _, y, _ in baseline_train}),
@@ -256,7 +267,7 @@ def run(args):
         "\n".join(json.dumps(case, sort_keys=True) for case in all_cases) + "\n")
     print("CONTENT_SAFE_CONTRAST_RESULT_BEGIN", flush=True)
     print(json.dumps({"split": split_report, "aggregate": result["aggregate"],
-                      "folds": [{k: f[k] for k in ("fold","training_baseline","training_candidate","synthetic_training","heldout_labels_not_trained")}
+                      "folds": [{k: f[k] for k in ("fold","training_baseline","training_candidate","training_latin_only","synthetic_training","latin_only_training","heldout_labels_not_trained")}
                                 for f in folds]}, indent=2, sort_keys=True), flush=True)
     print("CONTENT_SAFE_CONTRAST_RESULT_END", flush=True)
 

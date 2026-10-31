@@ -1,0 +1,34 @@
+name: Freeze real Vim translation catalog source-byte windows
+on:
+  push:
+    branches: [research/accuracy-data-gate-v2]
+    paths:
+      - ".github/workflows/vnext-vim-po-freeze.yml"
+      - "experiments/logic_first/vnext_vim_catalog_freeze.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-freeze:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: vim/vim
+          ref: cbe1cf017d9027c8e34599333ef69d7e20e1bf8d
+          path: real-source
+          sparse-checkout: |
+            src/po
+          sparse-checkout-cone-mode: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Freeze exact catalog bytes and deterministic charset-hidden snippets
+        run: python experiments/logic_first/vnext_vim_catalog_freeze.py --root real-source
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frozen-real-vim-catalog-windows
+          path: research-results/vim-po-freeze/
+          retention-days: 90

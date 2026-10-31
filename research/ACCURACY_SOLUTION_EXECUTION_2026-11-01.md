@@ -57,3 +57,22 @@ The bottleneck is now concrete: **global model updates couple otherwise unrelate
 The next experimental change must **isolate the classifier decision region or use a separate residual specialist** for only the uncertain Latin/Windows cases; the existing L1 and baseline stable23 outcomes for unrelated classes must remain untouched by design. Evaluate invocation/helps/harms on document-disjoint development rows first, then confirm on a *new* independent source. The previously inspected CC0 560 are consumed and cannot be presented as fresh blind evidence.
 
 **Current best candidate remains the narrowly defined Latin-only contrastive training strategy:** it improves development text 2,811→2,838 on the same run and has a small +2/560 on new CC0 source, but is **not accepted** for production. No existing test justifies an overall competitive-superiority claim against chardet 7.7.0.
+
+## Implemented accuracy-preserving solution: Conditional Latin Specialist
+
+An actual, independently re-trainable inference wrapper is now implemented in [`src/codeccat/vnext_selective.py`](../src/codeccat/vnext_selective.py), backed by **two separately trainable portable stable23 models**. It accepts a specialist answer only when *both* model winners are Latin/Windows-family codecs, the alternative strictly decodes into different Unicode text, and the input contains no BOM signature. Otherwise the original model's decision is returned unchanged. No fixture-specific content rules or fabricated confidence values are introduced. The wrapper can be supplied to the existing full-string `decode()` endpoint and delegates the baseline's `classifier` for ASCII ambiguity metadata.
+
+- **8 focused contracts passed:** [Actions #41234456581](https://github.com/Johnny-Kao/CodecCat/actions/runs/41234456581), covering UTF-8, EBCDIC, BOM, Latin strict decode, text-equivalent labels and invalid codecs.
+- **True end-to-end grouped validation (same run):** [#41234467934](https://github.com/Johnny-Kao/CodecCat/actions/runs/41234467934), 3,086 byte-identical, source/document-disjoint development examples:
+  - Baseline: **2,809/3,086** correct decoded texts.
+  - Latin-only full second model: **2,839/3,086**, but **57 helps / 27 harms** (net +30).
+  - **SelectiveLatinDetector:** **2,822/3,086**, with only **18 helps / 5 harms** (net +13). The router deliberately leaves non-Latin baseline decisions intact. ISO-8859 group improves **348→359** correct texts; Windows CP125x **199→201**.
+  - These counts may vary by a few examples across separately executed runner hosts; paired decisions within the same run are the comparable evidence.
+- **Previously consumed external CC0 source replay, NOT a new blind confirmation:** [Actions #41234697662](https://github.com/Johnny-Kao/CodecCat/actions/runs/41234697662), 560 frozen examples:
+  - Original baseline **524**, unconditionally substituted Latin model **526** (**8 helps / 6 harms**).
+  - **Selective routing 526**, with **2 helps / 0 harms** and **0 non-Latin baseline-label changes**. EBCDIC `cp037` and `cp500` remain **40/40 each** on these synthetic English CC0 examples.
+  - The replay uses a previously inspected source and must not be represented as external independent confirmation of the wrapper.
+
+**Technical conclusion:** the previous cross-family coupling is addressable without throwing away the incumbent: selective routing significantly reduces the number of harmful interventions compared with unconditional replacement, while preserving a modest net quality gain. The actual implementation and tests now exist and pass in GitHub Actions.
+
+**Release decision remains NOT READY.** No new untouched, naturally encoded real-byte source has yet confirmed the routed candidate. The source remains a research branch and `main`, `v0.1.0a1` and PyPI are unchanged. For next product promotion, freeze a separate **real-byte** blind source, score with current `chardet 7.7.0` and `charset-normalizer 3.5.2`, and reject any unacceptable family regression. CPU/RAM/speed remain deferred until accuracy gates close.

@@ -96,9 +96,10 @@ class TrainableDetector:
                      if family in ("utf-16","utf-32") and str(name).replace("_","-")==family]
             exact=[str(name) for name in self.classifier.classes_
                    if str(name).replace("_","-")==signature.encoding]
-            supported=generic if generic else (exact if exact else [
-                str(name) for name in self.classifier.classes_
-                if str(name).replace("_","-").startswith(family)])
+            # A BOM is decisive endian evidence. Never substitute the
+            # opposite-endian codec merely because it shares the UTF family:
+            # strict decoding can succeed while silently corrupting text.
+            supported=generic if generic else exact
             if not supported:
                 return Ranked(None,tuple(),tuple(),signature.encoding,True)
             if len(supported)==1:

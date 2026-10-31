@@ -1,0 +1,41 @@
+name: vNext optional L3 source-grouped development
+on:
+  push:
+    branches: [staging/initial-package]
+    paths:
+      - "src/codeccat/vnext_l3_language.py"
+      - "tests/test_vnext_l3_language.py"
+      - "experiments/logic_first/vnext_l3_coherence_dev.py"
+      - ".github/workflows/vnext-l3-coherence-dev.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  grouped-dev:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      PYTHONHASHSEED: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: training
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 pytest==8.4.2
+      - name: L3 independent contracts
+        run: PYTHONPATH=src python -m pytest -q tests/test_vnext_l3_language.py tests/test_vnext_strong_l2.py
+      - name: Train only within each development fold and measure net benefit
+        run: PYTHONPATH=src python experiments/logic_first/vnext_l3_coherence_dev.py --fixtures training
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vnext-optional-l3-grouped-traces
+          path: research-results/vnext-l3-coherence/
+          retention-days: 30

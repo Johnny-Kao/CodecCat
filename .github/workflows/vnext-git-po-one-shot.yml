@@ -1,0 +1,53 @@
+name: One-shot unseen Git translation original-byte accuracy confirmation
+on:
+  push:
+    branches: [research/accuracy-data-gate-v2]
+    paths:
+      - ".github/workflows/vnext-git-po-one-shot.yml"
+      - "experiments/logic_first/vnext_git_catalog_one_shot.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  independent-confirmation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      PYTHONHASHSEED: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: git/git
+          ref: 50fe5cc63f9cd6e89b87a2c9ccf96a444f4cfdb7
+          path: source-git
+          sparse-checkout: |
+            po
+          sparse-checkout-cone-mode: true
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: training
+      - uses: actions/download-artifact@v4
+        with:
+          name: frozen-unseen-git-po-catalog-byte-windows
+          run-id: 41239218591
+          github-token: ${{ github.token }}
+          path: frozen-manifest
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0 chardet==7.7.0 charset-normalizer==3.5.2
+      - name: One-shot quality benchmark with frozen actual Git translation bytes
+        run: PYTHONPATH=src python experiments/logic_first/vnext_git_catalog_one_shot.py --source source-git --training training --manifest frozen-manifest/source_manifest.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: one-shot-original-git-po-quality-evidence
+          path: research-results/git-po-confirmation/
+          retention-days: 90

@@ -6,6 +6,9 @@ on:
       - ".github/workflows/vnext-arm64-validation.yml"
       - "src/codeccat/vnext_l3_language.py"
       - "src/codeccat/vnext_decoding.py"
+      - "experiments/logic_first/vnext_annual_retrain.py"
+      - "experiments/logic_first/vnext_inference_resources.py"
+      - "tests/test_vnext_decoding.py"
       - "tests/test_vnext_l3_language.py"
   workflow_dispatch:
 permissions:

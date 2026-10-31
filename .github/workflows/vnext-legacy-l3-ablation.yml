@@ -51,7 +51,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0
+      - run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0 chardet==7.7.0 charset-normalizer==3.5.2
       - name: Evaluate previously existing L3 without altering its thresholds
         run: PYTHONPATH=src python experiments/logic_first/vnext_legacy_l3_ablation.py --lynx external-lynx --gettext external-gettext --training training --manifest external-manifest/source_manifest.json
       - uses: actions/upload-artifact@v4

@@ -37,7 +37,33 @@ def _authenticate(token,secret,action,digest,generation):
         raise PermissionError("invalid approval signature")
     return payload
 
-def transition(root,*,action,digest,token,secret):
+def sign_certification(secret, *, digest, confirmation_sha256, candidate_sha256, reviewer):
+    """Trusted reviewer signs immutable evidence bytes; tests may use a fixture issuer."""
+    if len(secret)<32 or not reviewer or any(re.fullmatch(r"[a-f0-9]{64}",x) is None for x in (digest,confirmation_sha256,candidate_sha256)):
+        raise ValueError("invalid certification request")
+    payload={"schema":"codeccat-certification-v1","digest":digest,
+             "confirmation_sha256":confirmation_sha256,
+             "candidate_sha256":candidate_sha256,"reviewer":reviewer}
+    return {"payload":payload,"signature":hmac.new(secret,_canonical(payload),hashlib.sha256).hexdigest()}
+
+def _verify_certification(root,digest,secret):
+    file=Path(root)/"candidates"/(digest+".certification.json")
+    try:
+        certificate=json.loads(file.read_text())
+        payload=certificate["payload"]
+        if payload.get("schema")!="codeccat-certification-v1" or payload.get("digest")!=digest or not payload.get("reviewer"):
+            raise PermissionError("certification mismatch")
+        if payload.get("candidate_sha256")!=hashlib.sha256((Path(root)/"candidates"/(digest+".json")).read_bytes()).hexdigest():
+            raise PermissionError("candidate evidence changed")
+        if payload.get("confirmation_sha256")!=hashlib.sha256((Path(root)/"candidates"/(digest+".confirmation.json")).read_bytes()).hexdigest():
+            raise PermissionError("confirmation evidence changed")
+        expected=hmac.new(secret,_canonical(payload),hashlib.sha256).hexdigest()
+        if not isinstance(certificate.get("signature"),str) or not hmac.compare_digest(expected,certificate["signature"]):
+            raise PermissionError("certification signature invalid")
+    except (OSError,ValueError,TypeError,KeyError,AttributeError) as exc:
+        raise PermissionError("missing or invalid signed certification") from exc
+
+def transition(root,*,action,digest,token,secret,reviewer_secret=None):
     """Local filesystem CAS + exclusive advisory lock, with replay protection."""
     if action not in ("activate","rollback") or re.fullmatch(r"[a-f0-9]{64}",digest) is None:
         raise ValueError("invalid transition request")
@@ -58,6 +84,10 @@ def transition(root,*,action,digest,token,secret):
                     and confirmation.get("independence_certified") is True
                     and confirmation.get("provenance_reviewed") is True):
                 raise PermissionError("candidate not certified")
+        if action=="activate":
+            if reviewer_secret is None or len(reviewer_secret)<32:
+                raise PermissionError("trusted independent reviewer secret required")
+            _verify_certification(root,digest,reviewer_secret)
         _verify_model(root,digest)
         if state["active"] is not None:_verify_model(root,state["active"])
         if digest==state["active"]:raise ValueError("already active")

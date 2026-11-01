@@ -29,7 +29,7 @@ for sha in sorted(keys):
     if not cc["correct"] and not ch["correct"]:paired["both_wrong"]+=1
     if cc["correct"] and ch["correct"]:paired["both_right"]+=1
 summary=[{"truth":k,**dict(v),"net_chardet_advantage":v["ch_only"]-v["cc_only"]} for k,v in family.items()]
-summary.sort(key=lambda x:(-x["net_chardet_advantage"],-x["ch_only"],x["truth"]))
+summary.sort(key=lambda x:(-x["net_chardet_advantage"],-x.get("ch_only",0),x["truth"]))
 print("ERROR_ATTRIBUTION_START")
 print(json.dumps({"total":len(keys),"paired":dict(paired),"top_families":summary[:30],
                   "negative_families":[x for x in summary if x["net_chardet_advantage"]<0][:15],

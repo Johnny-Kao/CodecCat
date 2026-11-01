@@ -3,7 +3,7 @@
 Research-only. An HMAC attests a trusted issuer holding the secret, not a real
 human identity. Production must inject approval via a trusted external channel.
 """
-import hashlib,hmac,json,os,time
+import hashlib,hmac,json,re
 from contextlib import contextmanager
 from pathlib import Path
 from .model_lifecycle import _canonical,_atomic_json,_load_state,_verify_model,SCHEMA
@@ -18,7 +18,7 @@ def _lock(root):
         finally:fcntl.flock(f,fcntl.LOCK_UN)
 
 def approval_token(secret,*,action,digest,expected_generation,actor):
-    if action not in ("activate","rollback") or len(secret)<32 or not actor:
+    if action not in ("activate","rollback") or len(secret)<32 or not actor or re.fullmatch(r"[a-f0-9]{64}",digest) is None or type(expected_generation) is not int or expected_generation<0:
         raise ValueError("invalid approval request")
     payload={"schema":"codeccat-approval-v1","action":action,"digest":digest,
              "expected_generation":expected_generation,"actor":actor}
@@ -30,7 +30,7 @@ def _authenticate(token,secret,action,digest,generation):
     payload=token.get("payload")
     if not isinstance(payload,dict) or payload.get("action")!=action or payload.get("digest")!=digest or payload.get("expected_generation")!=generation:
         raise PermissionError("approval not valid for this transition")
-    if not payload.get("actor") or payload.get("schema")!="codeccat-approval-v1":
+    if set(payload)!={"schema","action","digest","expected_generation","actor"} or not payload.get("actor") or payload.get("schema")!="codeccat-approval-v1":
         raise PermissionError("invalid approval issuer")
     expected=hmac.new(secret,_canonical(payload),hashlib.sha256).hexdigest()
     if not isinstance(token.get("signature"),str) or not hmac.compare_digest(expected,token["signature"]):
@@ -39,6 +39,8 @@ def _authenticate(token,secret,action,digest,generation):
 
 def transition(root,*,action,digest,token,secret):
     """Local filesystem CAS + exclusive advisory lock, with replay protection."""
+    if action not in ("activate","rollback") or re.fullmatch(r"[a-f0-9]{64}",digest) is None:
+        raise ValueError("invalid transition request")
     root=Path(root)
     with _lock(root):
         state=_load_state(root)

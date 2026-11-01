@@ -23,6 +23,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install corpus adapter dependencies
+        run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0
       - name: Verify corpus revision
         run: test "$(git -C training rev-parse HEAD)" = "b0c0d206913ba118ffea2f7d306883e7a4a76db7"
       - name: Run attribution audit

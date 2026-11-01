@@ -70,6 +70,12 @@ def stage(root,model,*,train_rows,heldout_rows,provenance,incumbent=None,
           "gate":{"accepted":decision.accepted,"reasons":list(decision.reason),"report":decision.report},
           "validation_status":"development-only","promotable":False}
         root.joinpath("candidates").mkdir(parents=True,exist_ok=True)
+        for old_record in (root/"candidates").glob("*.json"):
+            if old_record.name.endswith(".confirmation.json"):continue
+            previous=json.loads(old_record.read_text())
+            if previous.get("training_fingerprint")==model.fingerprint:
+                if previous.get("model_sha256")!=digest or previous!=record:
+                    raise ValueError("same training fingerprint already evaluated; cannot replace evidence")
         candidate_record=root/"candidates"/(digest+".json")
         if candidate_record.exists():
             previous=json.loads(candidate_record.read_text())

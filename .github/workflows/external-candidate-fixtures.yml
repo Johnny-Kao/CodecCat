@@ -19,12 +19,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: BYVoid/uchardet
+          ref: 4e685757780cb3c652fc6c9ec759f62888969ec9
           path: external/uchardet
           persist-credentials: false
       - name: Fetch charset-normalizer pinned candidate files
         uses: actions/checkout@v4
         with:
           repository: jawah/charset_normalizer
+          ref: 7d74fe4a8341ae27a8f42c759793301dbd304e10
           path: external/charset_normalizer
           persist-credentials: false
       - uses: actions/setup-python@v5

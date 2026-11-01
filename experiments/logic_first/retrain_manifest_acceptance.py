@@ -1,5 +1,5 @@
 """End-to-end retrain manifest test; generated documents are fixture derivatives, never independent evidence."""
-import json,sys,tempfile
+import json,sys,tempfile,codecs
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/"src"))
 sys.path.insert(0,str(Path(__file__).resolve().parent))
@@ -11,6 +11,8 @@ def main():
  rows=corpus(Path("training"))
  bygroup={}
  for raw,label,group,fold,digest in rows:
+  try: raw.decode(label,errors='strict')
+  except UnicodeError: continue  # 4096-byte development prefixes can end mid-character
   bygroup.setdefault(group,[]).append((raw,label,fold,digest))
  groups={split:[] for split in ("train","validation","confirmation")}
  for group,entries in sorted(bygroup.items()):

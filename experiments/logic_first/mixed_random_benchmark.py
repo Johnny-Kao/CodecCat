@@ -28,7 +28,7 @@ def build():
  selected=[]
  for key,b in sorted(buckets.items()):
   rng.shuffle(b)
-  selected+=b[:min(len(b),max(3,round(len(b)*.35)))] if key[0]=="chardet" else b
+  selected+=b
  rng.shuffle(selected)
  return rows,selected
 def evaluate(engine,rows,selected):
@@ -68,7 +68,7 @@ def main():
  rows,selected=build()
  root=Path("research-results/mixed-random-benchmark");root.mkdir(parents=True,exist_ok=True)
  manifest=[{"sha":r["sha"],"source":r["source"],"truth":r["label"],"fold":r["fold"],"group":r["group"]} for r in selected]
- (root/"manifest.json").write_text(json.dumps({"seed":SEED,"selected":manifest},indent=2))
+ (root/"manifest.json").write_text(json.dumps({"seed":SEED,"selection":"all unique valid fixture bytes; random order only","selected":manifest},indent=2))
  for engine in ("codeccat","chardet","charset-normalizer"):
   # Separate OS processes for isolated RSS, imports, model training.
   import subprocess

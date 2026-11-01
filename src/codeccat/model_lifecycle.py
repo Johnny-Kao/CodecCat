@@ -6,7 +6,7 @@ No network, GitHub release, or PyPI operations.
 from __future__ import annotations
 from hashlib import sha256
 from pathlib import Path
-import json,os,tempfile,shutil
+import json,os,tempfile,re
 from .model_candidate_gate import validate_candidate
 
 SCHEMA="codeccat-lifecycle-v1"
@@ -29,7 +29,7 @@ def _load_state(root):
         raise ValueError("invalid active state")
     return data
 def _verify_model(root,digest):
-    if not isinstance(digest,str) or len(digest)!=64:raise ValueError("invalid model digest")
+    if not isinstance(digest,str) or re.fullmatch(r"[a-f0-9]{64}",digest) is None:raise ValueError("invalid model digest")
     file=Path(root)/"models"/(digest+".zip")
     if not file.is_file() or _sha(file)!=digest:raise ValueError("model missing or tampered")
     return file
@@ -82,11 +82,39 @@ def stage(root,model,*,train_rows,heldout_rows,provenance,incumbent=None,
                 finally:
                     if os.path.exists(tempname):os.unlink(tempname)
         return record
+def certify_confirmation(root,digest,incumbent,confirmation_rows,*,provenance_reviewed=False,min_samples=20):
+    """Diagnostic confirmation, NOT automatic independent certification."""
+    root=Path(root)
+    record=json.loads((root/"candidates"/(digest+".json")).read_text())
+    if record.get("model_sha256")!=digest or not record["gate"]["accepted"]:
+        raise PermissionError("candidate failed validation")
+    from .vnext_strong_l2 import TrainableDetector
+    candidate=TrainableDetector.load_portable(_verify_model(root,digest))
+    if candidate.fingerprint!=record["training_fingerprint"]:
+        raise ValueError("training fingerprint mismatch")
+    rows=list(confirmation_rows)
+    if not rows:raise ValueError("empty confirmation")
+    decision=validate_candidate(incumbent,candidate,rows,min_samples=min_samples)
+    status={"schema":SCHEMA,"digest":digest,"gate_accepted":decision.accepted,
+      "reasons":list(decision.reason),"provenance_reviewed":bool(provenance_reviewed),
+      "evidence":decision.report,"independence_certified":False}
+    _atomic_json(root/"candidates"/(digest+".confirmation.json"),status)
+    return status
+
 def activate(root,digest,*,approved=False):
     """Explicit human approval required; development-only candidate cannot activate."""
     if not approved:raise PermissionError("explicit approval required")
     root=Path(root);record=json.loads((root/"candidates"/(digest+".json")).read_text())
-    if not record["gate"]["accepted"] or not record["promotable"]:
+    if record.get("model_sha256")!=digest or not record["gate"]["accepted"]:
+        raise PermissionError("candidate not validated")
+    confirmation_file=root/"candidates"/(digest+".confirmation.json")
+    if not confirmation_file.exists():raise PermissionError("missing confirmation evidence")
+    confirmation=json.loads(confirmation_file.read_text())
+    if confirmation.get("digest")!=digest or not confirmation.get("gate_accepted"):
+        raise PermissionError("confirmation not passed")
+    if not confirmation.get("independence_certified") or not confirmation.get("provenance_reviewed"):
+        raise PermissionError("independent source and provenance review required")
+    if not record.get("promotable"):
         raise PermissionError("candidate not independently promotion-approved")
     _verify_model(root,digest)
     current=snapshot(root)

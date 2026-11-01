@@ -92,3 +92,22 @@ def rollback_model(root: str | Path, *, expected_generation: int) -> dict:
         }
         _atomic_json(root / "active.json", updated)
         return updated
+
+
+def restore_default(root: str | Path, bundled_model: str | Path, *, expected_generation: int) -> dict:
+    """Explicitly return to the bundled default without deleting user models."""
+    default=Path(bundled_model)
+    if not default.is_file():
+        raise FileNotFoundError("bundled default model unavailable")
+    root=Path(root)
+    with _exclusive(root):
+        state=_load_state(root)
+        if state["generation"] != expected_generation:
+            raise ValueError("stale model generation")
+        if state["active"] is None:
+            raise ValueError("bundled default is already selected")
+        _verify_model(root,state["active"])
+        updated={"schema":SCHEMA,"active":None,"previous":state["active"],
+                 "generation":state["generation"]+1}
+        _atomic_json(root/"active.json",updated)
+        return updated

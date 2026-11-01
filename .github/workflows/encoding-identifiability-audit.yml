@@ -1,0 +1,36 @@
+name: Encoding identifiability audit (development)
+on:
+  push:
+    branches:
+      - research/encoding-identifiability-audit
+    paths:
+      - ".github/workflows/encoding-identifiability-audit.yml"
+      - "experiments/logic_first/encoding_identifiability_audit.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  identifiability:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: training
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify corpus revision
+        run: test "$(git -C training rev-parse HEAD)" = "b0c0d206913ba118ffea2f7d306883e7a4a76db7"
+      - name: Run attribution audit
+        run: PYTHONPATH=src python experiments/logic_first/encoding_identifiability_audit.py --fixtures training
+      - name: Save trace and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: encoding-identifiability-development-audit
+          path: research-results/encoding-identifiability/
+          retention-days: 30

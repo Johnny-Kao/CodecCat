@@ -6,6 +6,8 @@ from vnext_actual_adapter import corpus
 from vnext_residual_study import residual_subset
 from codeccat.vnext_strong_l2 import TrainableDetector
 import chardet
+from charset_normalizer import from_bytes
+import charset_normalizer
 
 def decode(b,encoding):
  if not encoding:return None
@@ -29,15 +31,17 @@ def main():
    if expected is None:continue
    t=time.perf_counter_ns();pred=model.rank(b,final=len(b)<4096).encoding;a=time.perf_counter_ns()-t
    t=time.perf_counter_ns();guess=chardet.detect(b)["encoding"];t2=time.perf_counter_ns()-t
-   ca=decode(b,pred)==expected;cb=decode(b,guess)==expected
+   t=time.perf_counter_ns();best=from_bytes(b).best();cn=best.encoding if best is not None else None;cn_ns=time.perf_counter_ns()-t
+   ca=decode(b,pred)==expected;cb=decode(b,guess)==expected;ccn=decode(b,cn)==expected
    cases.append({"fold":fold,"group":g,"sha256":s,"truth":y,"bytes":len(b),
-     "codeccat":pred,"chardet":guess,"cc_correct":ca,"ch_correct":cb,
-     "cc_ns":a,"ch_ns":t2})
+     "codeccat":pred,"chardet":guess,"charset_normalizer":cn,"cc_correct":ca,"ch_correct":cb,"cn_correct":ccn,
+     "cc_ns":a,"ch_ns":t2,"cn_ns":cn_ns})
   print("FOLD_COMPLETED",fold,len(hold),flush=True)
  def metrics(items):
   n=len(items)
   return {"n":n,"codeccat_correct":sum(x["cc_correct"] for x in items),
    "chardet_correct":sum(x["ch_correct"] for x in items),
+   "charset_normalizer_correct":sum(x["cn_correct"] for x in items),
    "both_correct":sum(x["cc_correct"] and x["ch_correct"] for x in items),
    "codec_only":sum(x["cc_correct"] and not x["ch_correct"] for x in items),
    "chardet_only":sum(x["ch_correct"] and not x["cc_correct"] for x in items)}
@@ -46,11 +50,12 @@ def main():
  report={"schema":"codeccat-group-heldout-paired-v1","seed":20261101,
   "training_corpus":"chardet/test-data @ b0c0d206913ba118ffea2f7d306883e7a4a76db7",
   "model":"residual stable23 retrained separately on other two folds",
-  "chardet_version":chardet.__version__,"overall":metrics(cases),
+  "chardet_version":chardet.__version__,"charset_normalizer_version":charset_normalizer.__version__,"overall":metrics(cases),
   "by_fold":{str(i):metrics([r for r in cases if r["fold"]==i]) for i in range(3)},
   "by_encoding":{k:metrics(v) for k,v in sorted(families.items())},
   "median_latency_ns":{"codeccat":statistics.median(x["cc_ns"] for x in cases),
-   "chardet":statistics.median(x["ch_ns"] for x in cases)},
+   "chardet":statistics.median(x["ch_ns"] for x in cases),
+   "charset_normalizer":statistics.median(x["cn_ns"] for x in cases)},
   "important_limits":["Not a blind independent-source test; chardet owns the fixture repository.",
   "Randomized evaluation order, not new random independent documents.",
   "Prefix corpus may end inside multibyte sequence: nonfinal decoding is used for 4096-byte chunks.",

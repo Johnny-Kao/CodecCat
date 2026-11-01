@@ -1,0 +1,40 @@
+name: Selective L3 external and lifecycle preflight
+on:
+  push:
+    branches: [research/encoding-identifiability-audit]
+    paths:
+      - "experiments/logic_first/l3_promotion_preflight.py"
+      - ".github/workflows/l3-promotion-preflight.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: training
+      - uses: actions/checkout@v4
+        with:
+          repository: BYVoid/uchardet
+          ref: 4e685757780cb3c652fc6c9ec759f62888969ec9
+          path: external/uchardet
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0
+      - run: PYTHONPATH=src python experiments/logic_first/l3_promotion_preflight.py --training training --external external/uchardet
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: selective-l3-preflight
+          path: research-results/l3-promotion-preflight/
+          retention-days: 30

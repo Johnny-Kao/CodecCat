@@ -1,0 +1,40 @@
+name: External candidate fixture audit
+on:
+  push:
+    branches:
+      - research/encoding-identifiability-audit
+    paths:
+      - ".github/workflows/external-candidate-fixtures.yml"
+      - "experiments/logic_first/external_candidate_fixtures.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch uchardet pinned candidate files
+        uses: actions/checkout@v4
+        with:
+          repository: BYVoid/uchardet
+          path: external/uchardet
+          persist-credentials: false
+      - name: Fetch charset-normalizer pinned candidate files
+        uses: actions/checkout@v4
+        with:
+          repository: jawah/charset_normalizer
+          path: external/charset_normalizer
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Scan original bytes and provenance status
+        run: python experiments/logic_first/external_candidate_fixtures.py --root external
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: external-candidate-fixture-metadata
+          path: research-results/external-candidates/
+          retention-days: 30

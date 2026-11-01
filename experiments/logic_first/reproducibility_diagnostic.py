@@ -43,6 +43,8 @@ def main():
  "chardet_only":len(mismatch),"exact_fingerprints":[hashlib.sha256(json.dumps(t,sort_keys=True).encode()).hexdigest() for t in trials]}
  (out/"reproducibility.json").write_text(json.dumps(report,indent=2))
  print("REPRO_DIAGNOSTIC",json.dumps({"counts":report["counts"],"changed_count":report["changed_count"],"top_confusions":report["top_confusions"][:20]}),flush=True)
+ if changes or len(set(report["exact_fingerprints"])) != 1:
+  raise AssertionError("model predictions vary across Python hash seeds")
 if __name__=="__main__":
  if len(sys.argv)>1:worker()
  else:main()

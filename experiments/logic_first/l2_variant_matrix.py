@@ -66,7 +66,7 @@ def main():
  rows=corpus(Path("training"))
  train_shas={sha for b,y,g,k,sha in rows}
  external=[]
- from charset_origin_benchmark import labels
+ from mixed_random_benchmark import LABELS as labels
  for name,y in labels.items():
   b=(Path("external/charset_normalizer/data")/name).read_bytes()
   import hashlib

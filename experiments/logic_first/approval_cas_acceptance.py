@@ -2,7 +2,7 @@
 import json,os,sys,tempfile
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/"src"))
-from codeccat.approval_registry import approval_token,transition
+from codeccat.approval_registry import approval_token,transition,sign_certification
 from codeccat.model_lifecycle import _atomic_json,snapshot,SCHEMA
 from hashlib import sha256
 
@@ -23,10 +23,16 @@ def main():
      "digest":digest,"gate_accepted":True,"independence_certified":True,"provenance_reviewed":True})
    return digest
   a=fixture(b"synthetic A");b=fixture(b"synthetic B")
+  for digest in (a,b):
+   import hashlib
+   evidence=root/"candidates"/(digest+".json")
+   confirmation=root/"candidates"/(digest+".confirmation.json")
+   signed=sign_certification(secret,digest=digest,candidate_sha256=hashlib.sha256(evidence.read_bytes()).hexdigest(),confirmation_sha256=hashlib.sha256(confirmation.read_bytes()).hexdigest(),reviewer="isolated-test-reviewer")
+   _atomic_json(root/"candidates"/(digest+".certification.json"),signed)
   token_a=approval_token(secret,action="activate",digest=a,expected_generation=0,actor="synthetic-approver")
-  reject(lambda:transition(root,action="activate",digest=a,token=token_a,secret=b"different secret"*4),PermissionError)
+  reject(lambda:transition(root,action="activate",digest=a,token=token_a,secret=b"different secret"*4,reviewer_secret=secret),PermissionError)
   assert snapshot(root)["generation"]==0
-  transition(root,action="activate",digest=a,token=token_a,secret=secret)
+  transition(root,action="activate",digest=a,token=token_a,secret=secret,reviewer_secret=secret)
   reject(lambda:transition(root,action="activate",digest=a,token=token_a,secret=secret),PermissionError)
   token_b=approval_token(secret,action="activate",digest=b,expected_generation=1,actor="synthetic-approver")
   reject(lambda:transition(root,action="activate",digest=a,token=token_b,secret=secret),PermissionError)

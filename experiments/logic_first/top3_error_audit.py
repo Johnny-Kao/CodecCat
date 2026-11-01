@@ -28,7 +28,7 @@ def main():
  errors=[r for r in result if not r["correct"]]
  margins=sorted(r["score_margin"] for r in errors if r["score_margin"] is not None)
  byrank=collections.Counter(r["truth_rank"] if r["truth_rank"] is not None else "absent" for r in errors)
- summary={"n":len(result),"errors":len(errors),"error_truth_rank_distribution":dict(byrank),
+ summary={"n":len(result),"errors":len(errors),"error_truth_rank_distribution":{str(k):v for k,v in byrank.items()},
   "error_margin_p50":margins[len(margins)//2] if margins else None,
   "error_margin_p90":margins[int(.9*(len(margins)-1))] if margins else None,
   "recoverable_top3":sum(r["truth_rank"] is not None for r in errors),

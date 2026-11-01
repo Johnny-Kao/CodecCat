@@ -3,7 +3,7 @@ import json,os,sys,tempfile,multiprocessing as mp
 from pathlib import Path
 from hashlib import sha256
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/"src"))
-from codeccat.approval_registry import approval_token,transition
+from codeccat.approval_registry import approval_token,transition,sign_certification
 from codeccat.model_lifecycle import _atomic_json,snapshot
 
 SECRET=b"isolated-local-test-secret-32-bytes" + b"x"*8
@@ -11,7 +11,7 @@ SECRET=b"isolated-local-test-secret-32-bytes" + b"x"*8
 def worker(root,token,digest,start,out):
  start.wait()
  try:
-  data=transition(root,action="activate",digest=digest,token=token,secret=SECRET)
+  data=transition(root,action="activate",digest=digest,token=token,secret=SECRET,reviewer_secret=SECRET)
   out.put({"ok":True,"generation":data["generation"]})
  except Exception as e:out.put({"ok":False,"type":type(e).__name__})
 def main():
@@ -24,6 +24,12 @@ def main():
    (root/"models"/(digest+".zip")).write_bytes(raw)
    _atomic_json(root/"candidates"/(digest+".json"),{"model_sha256":digest,"promotable":True,"gate":{"accepted":True}})
    _atomic_json(root/"candidates"/(digest+".confirmation.json"),{"digest":digest,"gate_accepted":True,"independence_certified":True,"provenance_reviewed":True})
+  for digest in digests:
+   evidence=root/"candidates"/(digest+".json")
+   confirmation=root/"candidates"/(digest+".confirmation.json")
+   _atomic_json(root/"candidates"/(digest+".certification.json"),
+     sign_certification(SECRET,digest=digest,candidate_sha256=sha256(evidence.read_bytes()).hexdigest(),
+     confirmation_sha256=sha256(confirmation.read_bytes()).hexdigest(),reviewer="test-reviewer"))
   q=ctx.Queue();start=ctx.Event()
   ps=[ctx.Process(target=worker,args=(str(root),approval_token(SECRET,action="activate",digest=d,expected_generation=0,actor="test-issuer"),d,start,q)) for d in digests]
   for p in ps:p.start()

@@ -29,9 +29,9 @@ def main():
   assert rejected(lambda:activate(root,digest,approved=True),PermissionError)
   assert rejected(lambda:rollback(root,approved=True),ValueError)
   assert rejected(lambda:stage(root,model,train_rows=train,heldout_rows=train[:20],provenance=provenance,incumbent=model),ValueError)
-  assert rejected(lambda:stage(root,model,train_rows=train,heldout_rows=held[:10],provenance=provenance,incumbent=model,min_samples=20),AssertionError) if False else True
-  few=stage(root,model,train_rows=train,heldout_rows=held[:10],provenance=provenance,incumbent=model,min_samples=20)
-  assert not few["gate"]["accepted"] and "insufficient-heldout" in few["gate"]["reasons"]
+  assert rejected(lambda:stage(root,model,train_rows=train,heldout_rows=held[:10],provenance=provenance,incumbent=model,min_samples=20),ValueError)
+  retained=json.loads((root/"candidates"/(digest+".json")).read_text())
+  assert retained["gate"]["accepted"], "weak duplicate evaluation overwrote accepted candidate"
   assert snapshot(root)["active"] is None
   f=root/"models"/(digest+".zip")
   f.write_bytes(f.read_bytes()+b"tamper")

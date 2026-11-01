@@ -1,0 +1,23 @@
+name: External corpus provenance gate contract
+on:
+  push:
+    branches:
+      - research/encoding-identifiability-audit
+    paths:
+      - "experiments/logic_first/external_corpus_gate.py"
+      - "experiments/logic_first/test_external_corpus_gate.py"
+      - ".github/workflows/external-corpus-gate.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate the acceptance corpus contract without external data
+        run: python experiments/logic_first/test_external_corpus_gate.py

@@ -26,7 +26,12 @@ def main():
      "truth_rank":true_rank,"top3":ranked.candidates,"scores":ranked.scores,"score_margin":gap})
   print("TOP3_FOLD_DONE",fold,flush=True)
  errors=[r for r in result if not r["correct"]]
- summary={"n":len(result),"errors":len(errors),"recoverable_top3":sum(r["truth_rank"] is not None for r in errors),
+ margins=sorted(r["score_margin"] for r in errors if r["score_margin"] is not None)
+ byrank=collections.Counter(r["truth_rank"] if r["truth_rank"] is not None else "absent" for r in errors)
+ summary={"n":len(result),"errors":len(errors),"error_truth_rank_distribution":dict(byrank),
+  "error_margin_p50":margins[len(margins)//2] if margins else None,
+  "error_margin_p90":margins[int(.9*(len(margins)-1))] if margins else None,
+  "recoverable_top3":sum(r["truth_rank"] is not None for r in errors),
   "truth_absent_top3":sum(r["truth_rank"] is None for r in errors),
   "error_by_family":[{"encoding":k,**dict(v)} for k,v in sorted(stats.items(),key=lambda kv:-kv[1]["errors"]) if v["errors"]],
   "examples":errors[:30]}

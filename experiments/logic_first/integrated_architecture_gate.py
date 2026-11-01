@@ -77,7 +77,7 @@ def main():
  import chardet,charset_normalizer
  ext=[];seen_text={hashlib.sha256(strict_text(b,y).replace("\r\n","\n").replace("\r","\n").lstrip("\ufeff").encode()).hexdigest() for b,y,_,_,_ in rows if strict_text(b,y) is not None}
  from external_accuracy_tournament import truth_label,measure,canonical
- finalmodel=TrainableDetector.fit(residual_subset([(b,y,g) for b,y,_,_,_ in rows])[0],feature_profile="stable23")
+ finalmodel=TrainableDetector.fit(residual_subset([(b,y,g) for b,y,g,_,_ in rows])[0],feature_profile="stable23")
  for path in sorted((Path(a.external)/"test").rglob("*")):
     if not path.is_file():continue
     truth=truth_label(path)

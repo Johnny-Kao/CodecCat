@@ -70,7 +70,13 @@ def stage(root,model,*,train_rows,heldout_rows,provenance,incumbent=None,
           "gate":{"accepted":decision.accepted,"reasons":list(decision.reason),"report":decision.report},
           "validation_status":"development-only","promotable":False}
         root.joinpath("candidates").mkdir(parents=True,exist_ok=True)
-        _atomic_json(root/"candidates"/(digest+".json"),record)
+        candidate_record=root/"candidates"/(digest+".json")
+        if candidate_record.exists():
+            previous=json.loads(candidate_record.read_text())
+            if previous!=record:
+                raise ValueError("candidate digest already recorded with different evaluation or provenance")
+        else:
+            _atomic_json(candidate_record,record)
         if decision.accepted:
             root.joinpath("models").mkdir(parents=True,exist_ok=True)
             dest=root/"models"/(digest+".zip")

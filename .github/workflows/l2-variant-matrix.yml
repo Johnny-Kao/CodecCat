@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [baseline, full_train, unigram_bigram, ngram_1_3, ngram_2_4, ridge, linear_svc, strong_regularization]
+        variant: [baseline, unigram_bigram, balanced_12, binary_12, wide_12]
     env:
       OPENBLAS_NUM_THREADS: "1"
       OMP_NUM_THREADS: "1"

@@ -12,7 +12,11 @@ import codeccat
 def main():
     root = Path(codeccat.__file__).resolve()
     assert "site-packages" in str(root), root
-    assert importlib.metadata.version("codeccat") == "0.1.0a1"
+    import tomllib
+    metadata_path = Path(__file__).resolve().parents[2] / "pyproject.toml"
+    with metadata_path.open("rb") as config:
+        expected_version = tomllib.load(config)["project"]["version"]
+    assert importlib.metadata.version("codeccat") == expected_version
     resources = files("codeccat")
     for name in ("stable23.zip", "language-l3.json", "manifest.json"):
         assert resources.joinpath("models", name).is_file(), name

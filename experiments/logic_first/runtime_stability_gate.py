@@ -18,13 +18,13 @@ def main():
  test=[b for b,y,g,k,sha in rows if k==0][:300]
  model=TrainableDetector.fit(train)
  path=root/"model.zip";model.save_portable(path)
- original=worker(path,test)
+ original=json.loads(json.dumps(worker(path,test)))
  hashes=[];elapsed=[]
  for i in range(3):
   t=time.process_time()
   result=worker(path,test)
   elapsed.append(round(time.process_time()-t,4))
-  assert result==original,"stateful prediction drift"
+  assert json.loads(json.dumps(result))==original,"stateful prediction drift"
   hashes.append(hashlib.sha256(json.dumps(result,sort_keys=True).encode()).hexdigest())
  for seed in ("0","1","17"):
   p=subprocess.run([sys.executable,__file__,"--worker",str(path)],input=json.dumps([x.hex() for x in test]),text=True,capture_output=True,check=True,env=dict(os.environ,PYTHONHASHSEED=seed))

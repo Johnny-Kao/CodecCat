@@ -1,0 +1,38 @@
+name: Publish approved CodecCat alpha a2
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/alpha-a2-release-bootstrap.yml"
+permissions:
+  contents: write
+  actions: write
+jobs:
+  tag-and-dispatch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check release scope and create immutable version tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import tomllib
+          with open("pyproject.toml", "rb") as f:
+              assert tomllib.load(f)["project"]["version"] == "0.1.0a2"
+          PY
+          if git ls-remote --tags origin refs/tags/v0.1.0a2 | grep -q .; then
+            echo "Tag already exists; refusing to move release tag"
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a v0.1.0a2 -m "CodecCat v0.1.0a2 alpha"
+          git push origin refs/tags/v0.1.0a2
+      - name: Dispatch existing verified model-bearing release workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run alpha-usable-wheel.yml --repo "${{ github.repository }}" --ref v0.1.0a2

@@ -17,13 +17,13 @@ def main():
   if sha not in seen and valid(b,label) is not None:
    external.append((b,label,name,sha))
  variants={}
- for name in ("baseline","binary_12"):
+ for name in ("baseline","binary_12_alpha_high"):
   runs=[run_variant(name,i,rows,external) for i in range(3)]
   vals=[x for r in runs for x in r["local"]]
   variants[name]={"folds":runs,"by_sha":{x["sha"]:x for x in vals},
     "external":{x["sha"]:x for x in runs[0]["external"]}}
   print("CANDIDATE_FIT_DONE",name,flush=True)
- a=variants["baseline"];b=variants["binary_12"]
+ a=variants["baseline"];b=variants["binary_12_alpha_high"]
  assert a["by_sha"].keys()==b["by_sha"].keys()
  summary={"n":len(a["by_sha"]),"baseline_correct":0,"candidate_correct":0,
   "candidate_only":0,"baseline_only":0,"both_correct":0,"both_wrong":0}

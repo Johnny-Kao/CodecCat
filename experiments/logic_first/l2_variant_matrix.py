@@ -23,6 +23,11 @@ VARIANTS={
  "balanced_12":("residual",(1,2),60000,"sgd_balanced"),
  "binary_12":("residual",(1,2),60000,"sgd_binary"),
  "wide_12":("residual",(1,2),90000,"sgd"),
+ "binary_12_full":("full",(1,2),60000,"sgd_binary"),
+ "binary_12_balanced":("residual",(1,2),60000,"sgd_binary_balanced"),
+ "binary_12_min_df1":("residual",(1,2),90000,"sgd_binary_df1"),
+ "binary_12_alpha_low":("residual",(1,2),60000,"sgd_binary_alpha_low"),
+ "binary_12_alpha_high":("residual",(1,2),60000,"sgd_binary_alpha_high"),
  "strong_regularization":("residual",(2,3),45000,"sgd_strong"),
 }
 def valid(raw,enc):
@@ -38,11 +43,11 @@ def run_variant(variant,fold,rows,external):
   model=TrainableDetector.fit(train,feature_profile="stable23")
  else:
   labels=[y for b,y,g in train];strings=[b.decode("latin1") for b,y,g in train]
-  vec=TfidfVectorizer(analyzer="char",ngram_range=grams,min_df=2,max_features=features,sublinear_tf=True,binary=(kind=="sgd_binary"))
+  vec=TfidfVectorizer(analyzer="char",ngram_range=grams,min_df=1 if kind=="sgd_binary_df1" else 2,max_features=features,sublinear_tf=True,binary=kind.startswith("sgd_binary"))
   X=vec.fit_transform(strings)
   if kind=="ridge":clf=RidgeClassifier(alpha=1.0)
   elif kind=="svc":clf=LinearSVC(C=0.5,random_state=20261015)
-  else:clf=SGDClassifier(loss="modified_huber",alpha=0.001 if kind=="sgd_strong" else 0.0001,random_state=20261015,max_iter=1500,class_weight="balanced" if kind=="sgd_balanced" else None)
+  else:clf=SGDClassifier(loss="modified_huber",alpha=0.001 if kind=="sgd_strong" else 0.00003 if kind=="sgd_binary_alpha_low" else 0.0003 if kind=="sgd_binary_alpha_high" else 0.0001,random_state=20261015,max_iter=1500,class_weight="balanced" if kind in ("sgd_balanced","sgd_binary_balanced") else None)
   clf.fit(X,labels)
   model=TrainableDetector(vectorizer=vec,classifier=clf,fingerprint="experiment")
  train_cpu=time.process_time()-begin

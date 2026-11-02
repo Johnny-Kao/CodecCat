@@ -4,6 +4,8 @@ from pathlib import Path
 from vnext_actual_adapter import corpus
 from vnext_residual_study import residual_subset
 from codeccat.vnext_strong_l2 import TrainableDetector
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import SGDClassifier
 from codeccat.vnext_decoding import decode
 def cases():
  rng=random.Random(20261102)
@@ -25,14 +27,26 @@ def run(model,inp):
   if item.encoding is not None: assert item.text is not None
   out.append((item.encoding,item.text,item.reason,item.ambiguous))
  return out
+def binary_model(train):
+ strings=[b.decode("latin1") for b,y,g in train]
+ vec=TfidfVectorizer(analyzer="char",ngram_range=(1,2),min_df=2,max_features=60000,sublinear_tf=True,binary=True)
+ x=vec.fit_transform(strings)
+ clf=SGDClassifier(loss="modified_huber",alpha=0.0003,random_state=20261015,max_iter=1500)
+ clf.fit(x,[y for b,y,g in train])
+ return TrainableDetector(vectorizer=vec,classifier=clf,fingerprint="robustness-binary")
 def main():
  root=Path("research-results/input-robustness");root.mkdir(parents=True,exist_ok=True)
  rows=corpus(Path("training"))
  train=residual_subset([(b,y,g) for b,y,g,k,sha in rows if k!=0])[0]
- model=TrainableDetector.fit(train)
- path=root/"model.zip";model.save_portable(path)
- inp=cases();a=run(model,inp);b=run(model,inp);assert a==b
- report={"n":len(inp),"repeat_parity":True,"accepted":sum(r[1] is not None for r in a),"abstained":sum(r[1] is None for r in a),"max_len":max(map(len,inp))}
+ inp=cases()
+ report={"n":len(inp),"max_len":max(map(len,inp)),"models":{}}
+ for label,model in (("stable23",TrainableDetector.fit(train)),("binary_alpha_high",binary_model(train))):
+  path=root/(label+".zip");model.save_portable(path)
+  restored=TrainableDetector.load_portable(path)
+  a=run(model,inp);b=run(model,inp);c=run(restored,inp)
+  assert a==b==c,(label,"prediction drift across load or repeat")
+  report["models"][label]={"repeat_and_reload_parity":True,"accepted":sum(r[1] is not None for r in a),"abstained":sum(r[1] is None for r in a),"model_sha256":hashlib.sha256(path.read_bytes()).hexdigest()}
+ report["semantic_note"]="Syntactically decodable random bytes are not necessarily meaningful text; this gate tests crash resistance and reproducibility only."
  (root/"report.json").write_text(json.dumps(report,indent=2))
  print("ROBUSTNESS_RESULT",json.dumps(report),flush=True)
 if __name__=="__main__":main()

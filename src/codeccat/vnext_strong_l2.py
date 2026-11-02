@@ -22,6 +22,7 @@ from .vnext_unicode_structure import select_utf32_no_bom
 
 SCHEMA = "vnext-l2-tfidf-ordered23-sgd-huber-v1"
 SCHEMA_V2 = "vnext-l2-tfidf-ordered13-sgd-huber-v2"
+SCHEMA_BINARY12 = "vnext-l2-tfidf-binary12-sgd-huber-v3"
 
 @dataclass(frozen=True)
 class Ranked:
@@ -246,13 +247,15 @@ class TrainableDetector:
         out = Path(path)
         vocab = self.vectorizer.vocabulary_
         meta = {
-            "schema": SCHEMA if self.vectorizer.ngram_range == (2,3) else SCHEMA_V2,
+            "schema": (SCHEMA_BINARY12 if self.vectorizer.ngram_range == (1,2) and self.vectorizer.binary else
+                       SCHEMA if self.vectorizer.ngram_range == (2,3) and not self.vectorizer.binary else SCHEMA_V2),
             "fingerprint": self.fingerprint,
             "vocabulary": {str(k): int(v) for k, v in vocab.items()},
             "classes": [str(x) for x in self.classifier.classes_],
             "params": {
                 "ngram_range": list(self.vectorizer.ngram_range),
                 "sublinear_tf": bool(self.vectorizer.sublinear_tf),
+                "binary": bool(self.vectorizer.binary),
                 "lowercase": bool(self.vectorizer.lowercase),
                 "norm": self.vectorizer.norm,
             },
@@ -283,13 +286,14 @@ class TrainableDetector:
                 raise ValueError("weights are too large")
             meta = json.loads(archive.read("manifest.json"))
             schema = meta.get("schema")
-            if schema not in (SCHEMA, SCHEMA_V2):
+            if schema not in (SCHEMA, SCHEMA_V2, SCHEMA_BINARY12):
                 raise ValueError("model schema mismatch")
             params = meta["params"]
-            expected_range = [2, 3] if schema == SCHEMA else [1, 3]
+            expected_range = [2, 3] if schema == SCHEMA else [1, 2] if schema == SCHEMA_BINARY12 else [1, 3]
             if params != {
                 "ngram_range": expected_range,
                 "sublinear_tf": True,
+                "binary": schema == SCHEMA_BINARY12,
                 "lowercase": True,
                 "norm": "l2",
             }:
@@ -314,7 +318,7 @@ class TrainableDetector:
             raise ValueError("invalid portable model shape or values")
         vec = TfidfVectorizer(
             analyzer="char", ngram_range=tuple(expected_range),
-            vocabulary=vocab, sublinear_tf=True,
+            vocabulary=vocab, sublinear_tf=True, binary=schema == SCHEMA_BINARY12,
         )
         vec.fixed_vocabulary_ = True
         vec.vocabulary_ = dict(vocab)

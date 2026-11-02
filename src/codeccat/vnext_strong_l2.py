@@ -246,6 +246,8 @@ class TrainableDetector:
         import zipfile
         out = Path(path)
         vocab = self.vectorizer.vocabulary_
+        if self.vectorizer.ngram_range not in ((2,3),(1,3),(1,2)) or (self.vectorizer.binary and self.vectorizer.ngram_range != (1,2)) or (self.vectorizer.ngram_range == (1,2) and not self.vectorizer.binary):
+            raise ValueError("unsupported portable vectorizer profile")
         meta = {
             "schema": (SCHEMA_BINARY12 if self.vectorizer.ngram_range == (1,2) and self.vectorizer.binary else
                        SCHEMA if self.vectorizer.ngram_range == (2,3) and not self.vectorizer.binary else SCHEMA_V2),
@@ -255,7 +257,7 @@ class TrainableDetector:
             "params": {
                 "ngram_range": list(self.vectorizer.ngram_range),
                 "sublinear_tf": bool(self.vectorizer.sublinear_tf),
-                "binary": bool(self.vectorizer.binary),
+                **({"binary": True} if self.vectorizer.binary else {}),
                 "lowercase": bool(self.vectorizer.lowercase),
                 "norm": self.vectorizer.norm,
             },
@@ -293,7 +295,7 @@ class TrainableDetector:
             if params != {
                 "ngram_range": expected_range,
                 "sublinear_tf": True,
-                "binary": schema == SCHEMA_BINARY12,
+                **({"binary": True} if schema == SCHEMA_BINARY12 else {}),
                 "lowercase": True,
                 "norm": "l2",
             }:

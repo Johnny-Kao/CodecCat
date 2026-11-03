@@ -12,6 +12,7 @@ from l2_variant_matrix import valid
 def main():
  rows=corpus(Path("training"))
  totals=collections.Counter()
+ mismatches=[]
  elapsed=[]
  for fold in range(3):
   train=[(b,y,g) for b,y,g,k,sha in rows if k!=fold]
@@ -29,6 +30,18 @@ def main():
    actual=result.text
    if expected is not None and expected.startswith("\ufeff"):expected=expected[1:]
    totals["correct"]+=int(actual==expected)
+   selected_valid=valid(raw,result.encoding) if result.encoding else None
+   if selected_valid is not None and selected_valid.startswith("\\ufeff"):selected_valid=selected_valid[1:]
+   if selected_valid==expected and actual!=expected:
+    totals["selected_codec_decoding_contract_mismatch"]+=1
+    if len(mismatches)<18:
+     mismatches.append({"group":g,"truth":label,"selected":result.encoding,"reason":result.reason,
+      "bom":raw[:8].hex(),"raw_len":len(raw),"expected_len":len(expected) if expected is not None else None,
+      "actual_len":len(actual) if actual is not None else None,
+      "expected_first":repr(expected[:10]) if expected is not None else None,
+      "actual_first":repr(actual[:10]) if actual is not None else None})
+   if not result.accepted and expected is not None:
+    totals["rejected_text"]+=1
    if not result.accepted:totals["rejected"]+=1
    if result.declaration_used:totals["declarations"]+=1
    if result.language_changed:totals["language_changed"]+=1
@@ -46,4 +59,5 @@ def main():
  out=Path("research-results/layered-runtime-smoke");out.mkdir(parents=True,exist_ok=True)
  (out/"report.json").write_text(json.dumps(result,indent=2))
  print("LAYERED_RUNTIME_SMOKE",json.dumps(result),flush=True)
+ print("LAYERED_RUNTIME_DECODE_MISMATCH",json.dumps(mismatches),flush=True)
 if __name__=="__main__":main()

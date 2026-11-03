@@ -27,7 +27,7 @@ def main():
    totals["accepted"]+=int(result.accepted)
    # Strip BOM when comparing against truth (same logical text contract).
    actual=result.text
-   if expected is not None and expected.startswith("\\ufeff"):expected=expected[1:]
+   if expected is not None and expected.startswith("\ufeff"):expected=expected[1:]
    totals["correct"]+=int(actual==expected)
    if not result.accepted:totals["rejected"]+=1
    if result.declaration_used:totals["declarations"]+=1

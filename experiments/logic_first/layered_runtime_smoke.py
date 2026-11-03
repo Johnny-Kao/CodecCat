@@ -1,5 +1,5 @@
 """Real opt-in layered runtime smoke: strict correctness, deterministic cases and negatives."""
-import collections,json,time,statistics,codecs,hashlib
+import collections,json,time,statistics,codecs,hashlib,math
 from pathlib import Path
 from architecture_attribution import fit
 from vnext_actual_adapter import corpus
@@ -82,6 +82,14 @@ def main():
   check=detect(full_model,sample,language_model=full_language)
   totals["actual_enca_binary_n"]+=1
   totals["actual_enca_binary_rejected"]+=int(not check.accepted)
+  p=sample[:4096]
+  counts=collections.Counter(p)
+  entropy=-sum((v/len(p))*math.log2(v/len(p)) for v in counts.values()) if p else 0
+  controls=sum((c<32 and c not in (9,10,13)) or c==127 for c in p)
+  print("REAL_BINARY_DIAGNOSTIC",json.dumps({"name":"enca/test/binary","n":len(sample),
+   "first_32_hex":sample[:32].hex(),"unique":len(counts),"entropy":round(entropy,3),
+   "control_rate":round(controls/max(len(p),1),3),"zero_rate":round(p.count(0)/max(len(p),1),3),
+   "accepted":check.accepted,"reason":check.reason}),flush=True)
  train=[(b,y,g) for b,y,g,k,sha in rows if k!=0]
  model=fit(residual_subset(train)[0],"binary_high")
  language=LanguageCoherence.fit(train)

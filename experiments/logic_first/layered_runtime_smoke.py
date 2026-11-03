@@ -37,6 +37,7 @@ def main():
    except (UnicodeError,LookupError):
     strict_expected=None
    totals["strict_truth_valid"]+=int(strict_expected is not None)
+   totals["strict_valid_rejected"]+=int(strict_expected is not None and not result.accepted)
    if strict_expected is not None:totals["strict_complete_correct"]+=int(actual==strict_expected)
    prior=model.rank(raw,final=len(raw)<4096)
    current=model.rank(raw,final=True)
@@ -82,6 +83,7 @@ def main():
   check=detect(full_model,sample,language_model=full_language)
   totals["actual_enca_binary_n"]+=1
   totals["actual_enca_binary_rejected"]+=int(not check.accepted)
+  assert not check.accepted,"real Enca binary fixture must abstain"
   p=sample[:4096]
   counts=collections.Counter(p)
   entropy=-sum((v/len(p))*math.log2(v/len(p)) for v in counts.values()) if p else 0

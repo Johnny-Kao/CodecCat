@@ -48,6 +48,6 @@ def detect(model, raw:bytes, *, language_model=None, reject_binary:bool=True, bo
         text=_literal_decode(raw,str(encoding))
     except (UnicodeError,LookupError,ValueError):
         return LayeredDetection(None,None,False,"invalid-selected-codec",ranked.candidates,declared,changed)
-    if bom_policy=="strip" and inspect_bom(raw).signature and text.startswith("\\ufeff"):
+    if bom_policy=="strip" and inspect_bom(raw).signature and text.startswith("\ufeff"):
         text=text[1:]
     return LayeredDetection(str(encoding),text,True,reason,ranked.candidates,declared,changed)

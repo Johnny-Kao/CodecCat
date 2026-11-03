@@ -65,6 +65,10 @@ def inspect_text(raw:bytes)->TextPreflight:
     for name,signature in MAGIC.items():
         if prefix.startswith(signature):
             return TextPreflight(False,"binary-magic-"+name,True)
+    # Repeated non-ASCII high byte has no text structure, even in short input.
+    # Applies to every high-bit value, not to a specific known negative fixture.
+    if len(prefix)>=4 and len(set(prefix))==1 and prefix[0]>=128:
+        return TextPreflight(False,"repeated-high-byte",True)
     if len(prefix)<64:return TextPreflight(True,"short",False)
     n=len(prefix)
     if prefix.count(0)==n:

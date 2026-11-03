@@ -78,6 +78,15 @@ def inspect_text(raw:bytes)->TextPreflight:
         return TextPreflight(True,"utf32-byte-structure",False)
     if b"\\x1b$" in prefix or b"\\x1b(" in prefix:
         return TextPreflight(True,"escape-structure",False)
+    # A stateful escape encoding can contain legitimate control-like bytes.
+    # Require a strict decode producing predominantly printable Unicode text.
+    for name in ("iso2022_kr", "iso2022_jp", "iso2022_jp_2"):
+        try:
+            text=prefix.decode(name,"strict")
+        except (UnicodeError,LookupError):
+            continue
+        if len(text)>=16 and sum(ch.isprintable() or ch in "\\r\\n\\t" for ch in text)>=int(len(text)*.90):
+            return TextPreflight(True,"stateful-text-structure",False)
     controls=sum((b<32 and b not in (9,10,13)) or b==127 for b in prefix)
     if controls/n>=.20 and prefix.count(10)<=1:
         return TextPreflight(False,"control-density",True)

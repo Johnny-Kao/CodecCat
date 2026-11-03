@@ -1,5 +1,5 @@
 """Real opt-in layered runtime smoke: strict correctness, deterministic cases and negatives."""
-import collections,json,time,statistics
+import collections,json,time,statistics,codecs
 from pathlib import Path
 from architecture_attribution import fit
 from vnext_actual_adapter import corpus
@@ -30,6 +30,17 @@ def main():
    actual=result.text
    if expected is not None and expected.startswith("\ufeff"):expected=expected[1:]
    totals["correct"]+=int(actual==expected)
+   # Compare historical prefix-decoding score with a complete-document strict contract.
+   try:
+    strict_expected=codecs.getincrementaldecoder(label)("strict").decode(raw,final=True).lstrip("\\ufeff")
+   except (UnicodeError,LookupError):
+    strict_expected=None
+   totals["strict_truth_valid"]+=int(strict_expected is not None)
+   if strict_expected is not None:totals["strict_complete_correct"]+=int(actual==strict_expected)
+   prior=model.rank(raw,final=len(raw)<4096)
+   current=model.rank(raw,final=True)
+   totals["rank_finality_changed"]+=int(prior.encoding!=current.encoding)
+   if raw and len(raw)==4096:totals["length_4096"]+=1
    selected_valid=valid(raw,result.encoding) if result.encoding else None
    if selected_valid is not None and selected_valid.startswith("\\ufeff"):selected_valid=selected_valid[1:]
    if selected_valid==expected and actual!=expected:

@@ -8,6 +8,7 @@ import math
 from collections import Counter
 from dataclasses import dataclass
 from .vnext_bom import inspect_bom
+import codecs
 
 MAGIC={
     "png":bytes.fromhex("89504e470d0a1a0a"),
@@ -34,6 +35,27 @@ def _unicode_nul_shape(raw:bytes)->bool:
     dominant=max(even,odd)
     return dominant>=max(12,int(.30*n)) and dominant>=4*max(1,min(even,odd))
 
+def _utf32_shape(b:bytes)->bool:
+    """Validate zero high-byte alignment AND actual Unicode text, not mere decode."""
+    prefix=b[:4096]
+    groups=len(prefix)//4
+    if groups<16:return False
+    sample=prefix[:groups*4]
+    for encoding,hi,next_hi in (("utf-32-be",0,1),("utf-32-le",3,2)):
+        high=sample[hi::4]
+        second=sample[next_hi::4]
+        if high.count(0)<int(groups*.85):
+            continue
+        if sum(x<=0x10 for x in second)<int(groups*.90):
+            continue
+        try:
+            text=sample.decode(encoding,"strict")
+        except UnicodeError:
+            continue
+        if sum(ch.isprintable() or ch in "\\r\\n\\t" for ch in text)>=int(len(text)*.90):
+            return True
+    return False
+
 def inspect_text(raw:bytes)->TextPreflight:
     if not isinstance(raw,bytes):raise TypeError("raw must be bytes")
     if not raw:return TextPreflight(True,"empty",False)
@@ -52,6 +74,10 @@ def inspect_text(raw:bytes)->TextPreflight:
     # Do not reject UTF16/UTF32 based solely on null/control frequency.
     if _unicode_nul_shape(prefix):
         return TextPreflight(True,"unicode-null-structure",False)
+    if _utf32_shape(prefix):
+        return TextPreflight(True,"utf32-byte-structure",False)
+    if b"\\x1b$" in prefix or b"\\x1b(" in prefix:
+        return TextPreflight(True,"escape-structure",False)
     controls=sum((b<32 and b not in (9,10,13)) or b==127 for b in prefix)
     if controls/n>=.20 and prefix.count(10)<=1:
         return TextPreflight(False,"control-density",True)

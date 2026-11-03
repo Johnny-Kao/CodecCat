@@ -44,6 +44,10 @@ def evaluate():
    c["n"]+=1;c["base_correct"]+=int(base);c["chosen_correct"]+=int(ok)
    c["fixed"]+=int(not base and ok);c["broken"]+=int(base and not ok)
    c["changed"]+=int(q.encoding!=ranked.encoding)
+   if base and not ok:
+    reasons.setdefault(source,[]).append({"type":"regression","truth":y,"group":g,"baseline":ranked.encoding,"chosen":q.encoding,"reason":q.reason})
+   if not base and ok:
+    c["fixed_by_"+q.reason]+=1
    if q.reason.startswith("declared-"):
     c["declaration_found"]+=1
     if not ok:reasons.setdefault(source,[]).append({"truth":y,"baseline":ranked.encoding,"chosen":q.encoding,"reason":q.reason})

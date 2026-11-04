@@ -65,7 +65,15 @@ def main():
                     strict_breaks.append({"sha":sha,"fold":fold,"group":group,"len":len(raw),
                         "truth":label,"baseline":complete_rank.encoding,"runtime":runtime.encoding,
                         "reason":runtime.reason,"declaration_used":runtime.declaration_used,
-                        "language_changed":runtime.language_changed})
+                        "language_changed":runtime.language_changed,
+                        "bom_hex":raw[:8].hex(),"declared":choose(raw,complete_rank.encoding).encoding,
+                        "decl_reason":choose(raw,complete_rank.encoding).reason,
+                        "rank_candidates":list(complete_rank.candidates),
+                        "rank_scores":list(complete_rank.scores),
+                        "strict_baseline_text":repr(canonical(raw,complete_rank.encoding)[:40]),
+                        "strict_runtime_text":repr(runtime.text[:40]) if runtime.text is not None else None,
+                        "strict_expected_text":repr(strict[:40]),
+                        "utf7_escape_count":raw.count(b"+")})
             counts["rank_changed"]+=int(legacy_rank.encoding!=complete_rank.encoding)
             counts["rank_changed_at_4096"]+=int(len(raw)==4096 and legacy_rank.encoding!=complete_rank.encoding)
             counts["final_choice_changed"]+=int(historic!=runtime.encoding)
@@ -91,5 +99,6 @@ def main():
     "note":"Historical valid() uses non-final 4096-byte prefix; runtime strict decoding requires final=True. Scores on the same folds and records. Do not treat prefix and strict accuracies as interchangeable."}
     p=Path("research-results/runtime-parity");p.mkdir(parents=True,exist_ok=True)
     (p/"report.json").write_text(json.dumps(report,indent=2))
+    print("STRICT_BREAK_CASES",json.dumps(strict_breaks),flush=True)
     print("RUNTIME_PARITY_SUMMARY",json.dumps({k:v for k,v in report.items() if k not in ("examples","strict_break_cases")}),flush=True)
 if __name__=="__main__":main()

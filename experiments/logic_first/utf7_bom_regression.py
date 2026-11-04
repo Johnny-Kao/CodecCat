@@ -17,7 +17,7 @@ def check():
     for text in ("\ufeffPlain ASCII", "\ufeffRésumé français",
                  "\ufeff中文テスト"):
         raw=text.encode("utf-7")
-        assert raw.startswith((b"+/v8-", b"+/v9-", b"+/v+-", b"+/v/-")), raw[:10]
+        assert raw.startswith((b"+/v8", b"+/v9", b"+/v+", b"+/v/")), raw[:10]
         stripped=detect(utf7,raw,reject_binary=False,bom_policy="strip")
         preserved=detect(utf7,raw,reject_binary=False,bom_policy="preserve")
         assert stripped.accepted and stripped.text==text[1:], (stripped,text)

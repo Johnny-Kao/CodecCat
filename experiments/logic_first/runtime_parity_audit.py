@@ -27,6 +27,7 @@ def main():
     counts=Counter()
     reasons=defaultdict(Counter)
     examples=[]
+    strict_breaks=[]
     for fold in range(3):
         train=[(b,y,g) for b,y,g,k,sha in rows if k!=fold]
         model=fit(residual_subset(train)[0],"binary_high")
@@ -60,6 +61,11 @@ def main():
                 counts["strict_both_correct"]+=int(baseline_strict_ok and runtime.accepted and runtime.text==strict)
                 counts["strict_runtime_fixes"]+=int(not baseline_strict_ok and runtime.accepted and runtime.text==strict)
                 counts["strict_runtime_breaks"]+=int(baseline_strict_ok and (not runtime.accepted or runtime.text!=strict))
+                if baseline_strict_ok and (not runtime.accepted or runtime.text!=strict):
+                    strict_breaks.append({"sha":sha,"fold":fold,"group":group,"len":len(raw),
+                        "truth":label,"baseline":complete_rank.encoding,"runtime":runtime.encoding,
+                        "reason":runtime.reason,"declaration_used":runtime.declaration_used,
+                        "language_changed":runtime.language_changed})
             counts["rank_changed"]+=int(legacy_rank.encoding!=complete_rank.encoding)
             counts["rank_changed_at_4096"]+=int(len(raw)==4096 and legacy_rank.encoding!=complete_rank.encoding)
             counts["final_choice_changed"]+=int(historic!=runtime.encoding)
@@ -79,9 +85,11 @@ def main():
                 reasons["runtime_improvements"]["rank_changed" if legacy_rank.encoding!=complete_rank.encoding else "same_rank"]+=1
     assert counts["historic_ok"] - counts["runtime_selected_ok_prefix"] == counts["historic_pass_runtime_fail"] - counts["historic_fail_runtime_pass"]
     assert counts["strict_runtime_ok"] == counts["strict_both_correct"] + counts["strict_runtime_fixes"]
-    report={"counts":dict(counts),"reasons":{k:dict(v) for k,v in reasons.items()},"examples":examples,
+    report={"counts":dict(counts),"reasons":{k:dict(v) for k,v in reasons.items()},
+        "strict_breakdown":{k:dict(Counter(str(v.get(k)) for v in strict_breaks)) for k in ("reason","truth","declaration_used","language_changed","len")},
+        "strict_break_cases":strict_breaks,"examples":examples,
     "note":"Historical valid() uses non-final 4096-byte prefix; runtime strict decoding requires final=True. Scores on the same folds and records. Do not treat prefix and strict accuracies as interchangeable."}
     p=Path("research-results/runtime-parity");p.mkdir(parents=True,exist_ok=True)
     (p/"report.json").write_text(json.dumps(report,indent=2))
-    print("RUNTIME_PARITY_SUMMARY",json.dumps({k:v for k,v in report.items() if k!="examples"}),flush=True)
+    print("RUNTIME_PARITY_SUMMARY",json.dumps({k:v for k,v in report.items() if k not in ("examples","strict_break_cases")}),flush=True)
 if __name__=="__main__":main()

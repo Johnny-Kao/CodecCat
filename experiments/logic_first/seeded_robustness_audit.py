@@ -7,6 +7,9 @@ expected Unicode text for each variant, not the original text.
 from pathlib import Path
 from collections import Counter, defaultdict
 import codecs,hashlib,json,random,statistics,sys
+import chardet
+import charset_normalizer
+from charset_normalizer import from_bytes
 from architecture_attribution import fit
 from vnext_actual_adapter import corpus
 from vnext_residual_study import residual_subset
@@ -45,6 +48,8 @@ def main():
             chosen.add(item[4])
     summary=defaultdict(Counter)
     paired=defaultdict(Counter)
+    competitor_summary=defaultdict(lambda:defaultdict(Counter))
+    head_to_head=defaultdict(lambda:defaultdict(Counter))
     cases=[]
     for fold in range(3):
         train=[(b,y,g) for b,y,g,k,sha in rows if k!=fold]
@@ -68,6 +73,22 @@ def main():
                 correct=result.accepted and result.text==expected
                 c=summary[kind];c["n"]+=1;c["correct"]+=int(correct)
                 c["rejected"]+=int(not result.accepted)
+                cd=chardet.detect(variant).get("encoding")
+                cn_best=from_bytes(variant).best()
+                cn=cn_best.encoding if cn_best is not None else None
+                predictions={"codeccat":result.encoding,"chardet":cd,"charset-normalizer":cn}
+                correctness={"codeccat":correct,
+                             "chardet":strict(variant,cd)==expected if cd else False,
+                             "charset-normalizer":strict(variant,cn)==expected if cn else False}
+                for engine,ok in correctness.items():
+                    m=competitor_summary[kind][engine]
+                    m["n"]+=1;m["correct"]+=int(ok)
+                for other in ("chardet","charset-normalizer"):
+                    h=head_to_head[kind][other]
+                    h["both_correct"]+=int(correct and correctness[other])
+                    h["codeccat_only"]+=int(correct and not correctness[other])
+                    h["competitor_only"]+=int(not correct and correctness[other])
+                    h["both_wrong"]+=int(not correct and not correctness[other])
                 if kind=="original":original_correct=correct
                 elif original_correct is not None:
                     p=paired[kind];p["n"]+=1
@@ -75,16 +96,25 @@ def main():
                     p["original_wrong_variant_correct"]+=int(not original_correct and correct)
                 cases.append({"sha":sha,"source_group":group,"fold":fold,
                     "truth":enc,"variant":kind,"bytes":len(variant),
-                    "chosen":result.encoding,"correct":correct,"rejected":not result.accepted,
+                    "chosen":result.encoding,"correct":correct,"predicted":predictions,
+                    "correctness":correctness,"rejected":not result.accepted,
                     "original_correct":original_correct})
         print("STRESS_FOLD_DONE",fold,flush=True)
     report={"seed":SEED,"selected_base_documents":len(chosen),
         "by_variant":{k:{**dict(v),"accuracy":round(v["correct"]/v["n"],5)} for k,v in summary.items()},
         "paired":{k:dict(v) for k,v in paired.items()},
+        "competitors":{"versions":{"chardet":chardet.__version__,
+                    "charset-normalizer":charset_normalizer.__version__},
+                    "by_variant":{kind:{engine:{**dict(c),"accuracy":round(c["correct"]/c["n"],5)}
+                                   for engine,c in engines.items()}
+                                  for kind,engines in competitor_summary.items()},
+                    "head_to_head":{kind:{engine:dict(c) for engine,c in engines.items()}
+                                     for kind,engines in head_to_head.items()}},
         "limitations":["Same development source as training; source-group folds prevent within-fold overlap only.",
           "Prefixes are independently scored inputs, not expected to retain same predicted encoding.",
           "Truncation validity is checked with strict final decoding. Stateful encodings may be omitted.",
-          "Results are diagnostic sensitivity checks, not independent generalization estimates."]}
+          "Results are diagnostic sensitivity checks, not independent generalization estimates.",
+          "All three packages receive byte-for-byte identical inputs per case, and identical decoded-text truth scoring."]}
     p=Path("research-results/seeded-robustness");p.mkdir(parents=True,exist_ok=True)
     (p/"summary.json").write_text(json.dumps(report,indent=2))
     (p/"cases.jsonl").write_text("\n".join(json.dumps(x) for x in cases)+"\n")

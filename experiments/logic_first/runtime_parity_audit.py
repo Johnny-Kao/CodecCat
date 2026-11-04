@@ -54,7 +54,14 @@ def main():
             counts["runtime_decoded_ok_prefix"]+=int(runtime_text_ok)
             counts["strict_truth_valid"]+=int(strict is not None)
             counts["strict_runtime_ok"]+=int(strict is not None and runtime.text==strict and runtime.accepted)
+            if strict is not None:
+                baseline_strict_ok=canonical(raw,complete_rank.encoding)==strict
+                counts["strict_baseline_ok"]+=int(baseline_strict_ok)
+                counts["strict_both_correct"]+=int(baseline_strict_ok and runtime.accepted and runtime.text==strict)
+                counts["strict_runtime_fixes"]+=int(not baseline_strict_ok and runtime.accepted and runtime.text==strict)
+                counts["strict_runtime_breaks"]+=int(baseline_strict_ok and (not runtime.accepted or runtime.text!=strict))
             counts["rank_changed"]+=int(legacy_rank.encoding!=complete_rank.encoding)
+            counts["rank_changed_at_4096"]+=int(len(raw)==4096 and legacy_rank.encoding!=complete_rank.encoding)
             counts["final_choice_changed"]+=int(historic!=runtime.encoding)
             counts["historic_pass_runtime_fail"]+=int(historic_ok and not runtime_choice_ok)
             counts["historic_fail_runtime_pass"]+=int(not historic_ok and runtime_choice_ok)
@@ -70,6 +77,8 @@ def main():
                 if len(examples)<80:examples.append({"sha":sha,"fold":fold,"bytes":len(raw),"truth":label,"old_rank":legacy_rank.encoding,"complete_rank":complete_rank.encoding,"historic":historic,"runtime":runtime.encoding,"runtime_reason":runtime.reason,"tags":tags})
             if not historic_ok and runtime_choice_ok:
                 reasons["runtime_improvements"]["rank_changed" if legacy_rank.encoding!=complete_rank.encoding else "same_rank"]+=1
+    assert counts["historic_ok"] - counts["runtime_selected_ok_prefix"] == counts["historic_pass_runtime_fail"] - counts["historic_fail_runtime_pass"]
+    assert counts["strict_runtime_ok"] == counts["strict_both_correct"] + counts["strict_runtime_fixes"]
     report={"counts":dict(counts),"reasons":{k:dict(v) for k,v in reasons.items()},"examples":examples,
     "note":"Historical valid() uses non-final 4096-byte prefix; runtime strict decoding requires final=True. Scores on the same folds and records. Do not treat prefix and strict accuracies as interchangeable."}
     p=Path("research-results/runtime-parity");p.mkdir(parents=True,exist_ok=True)

@@ -48,6 +48,11 @@ def detect(model, raw:bytes, *, language_model=None, reject_binary:bool=True, bo
         text=_literal_decode(raw,str(encoding))
     except (UnicodeError,LookupError,ValueError):
         return LayeredDetection(None,None,False,"invalid-selected-codec",ranked.candidates,declared,changed)
-    if bom_policy=="strip" and inspect_bom(raw).signature and text.startswith("\ufeff"):
+    # UTF-7 represents its optional leading signature as shifted U+FEFF.
+    # Keep signature recognition separate from the L1 codec selection: the
+    # bytes are ASCII-compatible and are only a BOM when UTF-7 was selected.
+    utf7_signature = (str(encoding).replace("_", "-").lower() == "utf-7"
+                      and raw.startswith((b"+/v8-", b"+/v9-", b"+/v+-", b"+/v/-")))
+    if bom_policy=="strip" and (inspect_bom(raw).signature or utf7_signature) and text.startswith("\ufeff"):
         text=text[1:]
     return LayeredDetection(str(encoding),text,True,reason,ranked.candidates,declared,changed)

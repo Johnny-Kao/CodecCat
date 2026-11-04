@@ -46,13 +46,14 @@ def audit(source, name, raw, truth, model, language, families, counts, cases):
         candidate_sets["runtime_plus16"] = candidate_sets["top3_plus16"]
 
     base_ok = valid(raw, ranked.encoding) == expected
-    runtime_ok = layered.accepted and layered.text == expected
+    runtime_ok = layered.accepted and valid(raw, layered.encoding) == expected
     reached = {key: any(valid(raw, enc) == expected for enc in names)
                for key, names in candidate_sets.items()}
     c = counts[source]
     c["n"] += 1
     c["base_correct"] += int(base_ok)
     c["runtime_correct"] += int(runtime_ok)
+    c["runtime_text_matches_prefix_truth"] += int(layered.accepted and layered.text == expected)
     c["both_wrong"] += int(not base_ok and not runtime_ok)
     c["runtime_fixed"] += int(not base_ok and runtime_ok)
     c["runtime_broken"] += int(base_ok and not runtime_ok)
@@ -107,9 +108,9 @@ def main():
     report = {
         "summary": {key: dict(value) for key, value in counts.items()},
         "errors": cases,
-        "contract": "Historical valid() prefix semantics for comparable 3086-sample accuracy. "
+        "contract":  "Historical valid() prefix semantics for comparable 3086-sample accuracy. "
                     "strict_valid additionally reports full-document strict decodability. "
-                    "Oracle is decoded-text equivalence, not codec-name identity.",
+                    "Oracle is decoded-text equivalence, not codec-name identity. Runtime selected codec is scored with the historical prefix contract; runtime decoded text is separately audited.",
         "limitation": "This is an oracle upper bound conditional on existing candidate sets, "
                       "not achievable reranker accuracy. Small, correlated external sets "
                       "are diagnostic only. No training or release changes.",

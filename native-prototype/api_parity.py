@@ -12,6 +12,7 @@ import argparse,base64,hashlib,json
 from pathlib import Path
 
 OUTPUT=Path("native-prototype/api-parity-goldens.jsonl")
+FP_GOLDEN=Path("native-prototype/api-model-fingerprint.txt")
 
 def signature(r):
     return {
@@ -53,6 +54,7 @@ def generate():
     from codeccat import CodecCat
     old=CodecCat.from_files("src/codeccat/models/stable23.zip")
     OUTPUT.parent.mkdir(parents=True,exist_ok=True)
+    FP_GOLDEN.write_text(old.model_fingerprint+"\n",encoding="ascii")
     l3=CodecCat.from_files("src/codeccat/models/stable23.zip",
                          language_path="src/codeccat/models/language-l3.json")
     n=0
@@ -76,6 +78,8 @@ def verify():
     for name in ("numpy","sklearn","scipy","joblib"):
         assert importlib.util.find_spec(name) is None,name
     models={False:CodecCat(),True:CodecCat(use_l3=True)}
+    expected_fp=FP_GOLDEN.read_text(encoding="ascii").strip()
+    assert models[False].model_fingerprint==expected_fp, "public training fingerprint changed"
     n=0
     with OUTPUT.open(encoding="utf-8") as stream:
         for line in stream:

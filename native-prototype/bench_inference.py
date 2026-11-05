@@ -18,7 +18,7 @@ def percentile(values,p):
 
 def main():
     p=argparse.ArgumentParser()
-    p.add_argument("--variant",choices=("alpha","native"),required=True)
+    p.add_argument("--variant",choices=("alpha","native","native-f32"),required=True)
     p.add_argument("--model",default="src/codeccat/models/stable23.zip")
     args=p.parse_args()
     begin=time.perf_counter()
@@ -26,6 +26,8 @@ def main():
     import_ready=time.perf_counter()
     if args.variant=="alpha":
         detector=CodecCat.from_files(args.model)
+    elif args.variant=="native-f32":
+        detector=CodecCat.from_files("native-prototype/model/stable23-f32.ccm")
     else:
         detector=CodecCat()
     loaded=time.perf_counter()

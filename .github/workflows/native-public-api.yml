@@ -32,6 +32,7 @@ jobs:
           python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0 maturin==1.9.4
           PYTHONPATH=src python experiments/logic_first/build_installable_candidate.py --corpus training --training-commit b0c0d206913ba118ffea2f7d306883e7a4a76db7
           PYTHONPATH=src python native-prototype/export_ccm.py --output native-prototype/python/codeccat/models/default.ccm
+          mkdir -p native-prototype/model
           cp native-prototype/python/codeccat/models/default.ccm native-prototype/model/stable23.ccm
           PYTHONPATH=src:experiments/logic_first python native-prototype/api_parity.py generate
       - name: Package public Native API wheel

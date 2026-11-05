@@ -6,8 +6,21 @@ build-backend = "hatchling.build"
 name = "codeccat-train"
 version = "0.1.0a3"
 description = "Offline user-data trainer for CodecCat native inference models"
+readme = "README.md"
 requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Johnny Kao" }]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent",
+]
 dependencies = ["numpy>=2.0", "scikit-learn>=1.4,<2"]
+
+[project.urls]
+Repository = "https://github.com/Johnny-Kao/CodecCat"
+Issues = "https://github.com/Johnny-Kao/CodecCat/issues"
 
 [project.scripts]
 codeccat-train = "codeccat_train.__main__:main"

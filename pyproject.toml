@@ -9,16 +9,30 @@ description = "Native character-encoding detection and strict Unicode decoding"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Johnny Kao" }]
+keywords = ["character-encoding", "charset", "encoding-detection", "unicode", "rust"]
 classifiers = [
-  "Programming Language :: Python :: 3",
-  "Programming Language :: Rust",
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
   "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Rust",
+  "Topic :: Text Processing :: General",
 ]
 dependencies = []
 
 [project.urls]
+Homepage = "https://github.com/Johnny-Kao/CodecCat"
 Repository = "https://github.com/Johnny-Kao/CodecCat"
+Issues = "https://github.com/Johnny-Kao/CodecCat/issues"
+Documentation = "https://github.com/Johnny-Kao/CodecCat#readme"
+Changelog = "https://github.com/Johnny-Kao/CodecCat/releases"
 
 [project.optional-dependencies]
 legacy = ["numpy>=2.0"]

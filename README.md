@@ -1,50 +1,43 @@
 # CodecCat
 
-**CodecCat** is a Python package for character-encoding detection and strict text decoding. It provides a simple Python API and a command-line tool.
+**CodecCat** detects character encodings and decodes byte sequences using a compact trained model. The next release uses **Rust/PyO3 for native model inference** and Python's strict codecs for decoding.
 
-**Status:** [v0.1.0a2 Alpha Pre-release](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0a2) remains the published experimental release. A Rust-native runtime is under validation exclusively on `refactor/native-inference-v1` (target metadata `0.1.0a3`); it is **not yet released or merged to `main`**. PyPI publication has not been configured.
+> **Release status:** [v0.1.0a2](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0a2) is the latest published experimental Alpha. The native `0.1.0a3` package is undergoing release preparation on `refactor/native-inference-v1`; **it has not yet been published to GitHub Releases or PyPI**. `pip install codeccat` will not work until PyPI publication.
 
-## Install the Alpha
+## Install
 
-Install the wheel directly from the [GitHub Release](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0a2):
+For the **currently published Alpha (v0.1.0a2)**, install its model-bearing wheel:
 
 ```bash
 python -m pip install "https://github.com/Johnny-Kao/CodecCat/releases/download/v0.1.0a2/codeccat-0.1.0a2-py3-none-any.whl"
 ```
 
-Alternatively, download the wheel from Releases and install the local file. The Release also provides `SHA256SUMS` and a model-provenance manifest. The [build workflow](https://github.com/Johnny-Kao/CodecCat/actions/workflows/alpha-usable-wheel.yml) verifies the wheel and its clean installation on GitHub Actions.
+The forthcoming native package requires **Python 3.10+** and a compatible Linux, macOS, or Windows wheel. A future PyPI installation will use `python -m pip install codeccat` once published. The native inference wheel has **no NumPy, SciPy, or scikit-learn runtime dependencies**.
 
-**Important:** `pip install codeccat` does not work yet because this project has not been published to PyPI. The released Alpha wheel includes a trained model. Building a new Native wheel from this repository requires first generating the licensed/reviewed `.ccm` model artifacts; building from a plain source checkout is **not** a substitute for an official model-bearing wheel. Native root packaging is currently undergoing CI validation.
+**Source builds:** the default trained CCM model is generated separately and excluded from Git; installing a bare checkout without first preparing the model does **not** give a usable default detector. Maintainers should use the model-bearing GitHub Actions build instead. The canonical native distribution entry point is the **repository-root `pyproject.toml`**, backed by Maturin; `native-prototype/` houses the runtime sources.
 
-Requires Python 3.10 or later. This is an experimental pre-release, not a production deployment claim.
-
-## Python
+## Python API
 
 ```python
 import codeccat
 
-raw = "日本語と café".encode("utf-8")
+data = "日本語と café".encode("utf-8")
+result = codeccat.detect(data)
 
-result = codeccat.detect(raw)
-print(result.encoding)     # inferred encoding label or None
-print(result.text)         # strictly decoded text or None
-print(result.ambiguous)    # original label may be unidentifiable
+print(result.encoding)   # detected label, or None
+print(result.text)       # strictly decoded str, or None
+print(result.ambiguous)  # whether the encoding label is ambiguous
 
-text = codeccat.decode(raw)  # str | None
+text = codeccat.decode(data)
+detector = codeccat.CodecCat()
+custom = codeccat.CodecCat.from_files("my-model.ccm")
 ```
 
-Load a specific model instead of the bundled default:
+Legacy numeric `.zip` models remain loadable through `CodecCat.from_files()`. Older `Detector`, `RuntimeBundle` and related Python interfaces require the optional NumPy-dependent `codeccat[legacy]` extra when a compatible distribution is available. Optional language-coherence L3 is explicitly enabled with `CodecCat(use_l3=True)`; it is disabled by default.
 
-```python
-from codeccat import CodecCat
+The API consumes complete byte sequences, **not streaming fragments**. Encoding detection may be intrinsically ambiguous. Always inspect the returned result rather than assuming a chosen label is certain.
 
-detector = CodecCat.from_files("stable23.zip")
-result = detector.detect(b"some bytes")
-```
-
-The optional language-coherence L3 layer is disabled by default. Enable it explicitly with `CodecCat(use_l3=True)` when the corresponding L3 model is bundled. It increases conditional latency and has not established an independent net accuracy benefit.
-
-## Command line
+## CLI
 
 ```bash
 codeccat document.txt
@@ -53,35 +46,34 @@ codeccat --decode document.txt > decoded.txt
 cat document.txt | python -m codeccat --json
 ```
 
-Detection consumes a **complete byte sequence**, not a streaming fragment. CLI input is limited to 16 MiB. Decoding is strict: invalid selected encodings produce `None`/an error, never silent replacement. The default BOM policy strips an initial recognized BOM; pass `bom_policy="preserve"` in Python or `--bom-policy preserve` on the CLI to retain it.
+The CLI accepts inputs of up to **16 MiB**. Decoding is strict and does not silently replace invalid byte sequences. The default recognized-BOM policy is `strip`; `--bom-policy preserve` is available in the CLI, as is `bom_policy="preserve"` in Python.
 
-## Design and limitations
+## Train your own model
 
-CodecCat combines structural byte checks (L1), a compact trained byte n-gram model (L2), and optional decoded-text coherence (L3). The alpha model supports **88 trained encoding labels**; this is not a guarantee that every input can be identified. Structurally indistinguishable encodings may yield the same text; check `result.ambiguous` and `result.candidates`.
+The offline trainer is **a separate distribution**, `codeccat-train`. It is not installed with the inference package and requires training-only ML dependencies. Until independently released, install it from the source tree into a separate environment:
 
-Cross-source accuracy is still under evaluation. A small independent repository benchmark gave CodecCat stable23 **25/34** correctly decoded texts versus **23/34** for chardet 7.6, whereas a separate ICU source previously favored chardet. Neither result supports a claim of general superiority. Native x86-64 and ARM64 inference and a clean installed wheel have been exercised in GitHub Actions.
+```bash
+python -m pip install ./native-prototype/training
+python -m codeccat_train --manifest my-dataset/manifest.jsonl --output my-model.ccm --report my-model-report.json
+```
 
-The alpha's training corpus is pinned to `chardet/test-data`. That repository notes that individual source texts retain their publishers' copyrights; provenance and any constraints on downstream redistribution of the fitted model need review before an official public model release. The GitHub Release is an **experimental Alpha** with a bundled fitted model, not a claim of production suitability or blanket permission to redistribute the underlying training texts. Model provenance should be reviewed before wider PyPI or stable-release distribution.
+See [trainer documentation](native-prototype/training/README.md) for the manifest format and dataset isolation rules.
 
-## Copyright and rights inquiries
+## Architecture, limits, and verification
 
-See [Copyright, training provenance and rights inquiries](RIGHTS_AND_PROVENANCE.md). If you believe a CodecCat model or distribution affects material you own, [open a rights inquiry](https://github.com/Johnny-Kao/CodecCat/issues/new). For sensitive claims, request a private contact channel first; do not disclose confidential documents in a public issue.
+- **L1:** byte-structure/BOM checks.
+- **L2:** trained TF-IDF-style features and linear scoring in Rust, bundled as a `CCM2` float32 model; older `CCM1` float64 is supported.
+- **L3:** optional Python language-coherence reranking.
+- **No pickle deserialization** for the native CCM model; file checksum validation is not proof of authenticity.
 
-## Native runtime (unreleased branch)
+Native regression checks include API parity against the prior Alpha, malformed model rejection, concurrency, fresh-installed-wheel testing, Python 3.10–3.14 compatibility and six operating-system/architecture configurations. These tests do **not** establish general accuracy superiority. Performance numbers depend on workload and hardware; see [benchmark notes](native-prototype/BENCHMARK_AND_PLATFORM_2026-11-05.md).
 
-The native inference wheel is built with Maturin/Rust from the repository root. Python 3.10+ is supported by the native ABI; the inference wheel has **no NumPy, SciPy, or scikit-learn runtime dependencies**. `codeccat[legacy]` optionally enables the NumPy-dependent legacy public API. The separate offline trainer lives in `native-prototype/training/` and produces `.ccm` models; it is not installed with the detector.
+[Cross-platform native CI](https://github.com/Johnny-Kao/CodecCat/actions/workflows/native-platform-matrix.yml) · [Root-wheel CI](https://github.com/Johnny-Kao/CodecCat/actions/workflows/native-root-package.yml) · [Release checklist](RELEASE_CHECKLIST_NATIVE.md)
 
-The bundled native model uses CCM2 float32; CCM1 float64 remains readable. A model checksum establishes file integrity, **not** model publisher authenticity or training-data redistribution rights. Avoid using untrusted model files.
+## License, provenance, and contact
 
-Root-directory builds and clean installed-wheel tests: [native root-package workflow](https://github.com/Johnny-Kao/CodecCat/actions/workflows/native-root-package.yml). The Rust and Python source currently remains under `native-prototype/` as the single runtime source tree until release-candidate validation is finished.
+CodecCat's original source code is distributed under the [MIT License](LICENSE). This license does not grant rights to third-party training texts. The experimental default model derives from a pinned `chardet/test-data` revision; no source text files are intended to be distributed in the inference Wheel.
 
-## Development
+See [model provenance and rights inquiries](RIGHTS_AND_PROVENANCE.md). If you have a rights concern, [contact the maintainer through GitHub Issues](https://github.com/Johnny-Kao/CodecCat/issues/new) without posting confidential evidence publicly.
 
-- `src/codeccat/`: historical Alpha runtime (not the native wheel's Python source)
-- `native-prototype/src/`, `native-prototype/python/codeccat/`: Rust native inference and Python public API (unreleased branch)
-- `experiments/logic_first/`: reproducible alpha model build
-- `tests/`: decoding and model-contract tests
-- `.github/workflows/alpha-usable-wheel.yml`: model build, wheel, fresh environment install and smoke tests
-- `staging/initial-package`: historical research and experimental comparisons
-
-The legacy `Detector(RuntimeBundle)` interfaces remain available separately from `CodecCat()`. See the build workflow for the exact training source revision and model provenance.
+For bugs or feature requests: [GitHub Issues](https://github.com/Johnny-Kao/CodecCat/issues).

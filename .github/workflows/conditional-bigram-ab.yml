@@ -1,0 +1,47 @@
+name: Conditional byte bigram A/B
+on:
+  push:
+    branches: [research/encoding-identifiability-audit]
+    paths:
+      - experiments/logic_first/conditional_bigram_ab.py
+      - experiments/logic_first/conditional_byte_bigram.py
+      - .github/workflows/conditional-bigram-ab.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: training
+      - uses: actions/checkout@v4
+        with:
+          repository: Project-OSS-Revival/enca
+          ref: e6a62fbfa049c2c078963a042da89310a6a96e6e
+          path: external/enca
+      - uses: actions/checkout@v4
+        with:
+          repository: jawah/charset_normalizer
+          ref: 7d74fe4a8341ae27a8f42c759793301dbd304e10
+          path: external/charset_normalizer
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0 chardet==7.5.0 charset-normalizer==3.5.2
+      - run: PYTHONPATH=src:experiments/logic_first python experiments/logic_first/conditional_bigram_ab.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: conditional-bigram-ab
+          path: research-results/conditional-bigram-ab/
+          retention-days: 30

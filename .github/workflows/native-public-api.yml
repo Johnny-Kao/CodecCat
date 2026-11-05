@@ -66,6 +66,7 @@ jobs:
         run: |
           PYTHONPATH=src python native-prototype/bench_inference.py --variant alpha
           .native-clean/bin/python native-prototype/bench_inference.py --variant native
+          .native-clean/bin/python native-prototype/bench_inference.py --variant native-f32
           du -h native-prototype/dist/*.whl native-prototype/python/codeccat/models/default.ccm
       - name: Verify separate user-training tool and custom two-class CCM1
         run: |

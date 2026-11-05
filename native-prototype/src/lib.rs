@@ -81,12 +81,13 @@ impl NativeL2 {
     #[staticmethod]
     fn from_model_bytes(blob: &[u8]) -> PyResult<Self> {
         let parsed = format::read(blob)?;
-        let mut model = Self::new(
-            parsed.vocab, parsed.idf, parsed.weights, parsed.intercept,
-            parsed.ngram_min, parsed.ngram_max, parsed.binary, parsed.sublinear,
-        )?;
-        model.class_names = Some(parsed.classes);
-        Ok(model)
+        Ok(Self {
+            vocabulary:parsed.vocab,
+            idf:parsed.idf,weights:parsed.weights,intercept:parsed.intercept,
+            min_ngram:parsed.ngram_min,max_ngram:parsed.ngram_max,
+            binary:parsed.binary,sublinear_tf:parsed.sublinear,
+            class_names:Some(parsed.classes),
+        })
     }
 
     /// Class label order bound to the exported numeric weights.
@@ -125,8 +126,8 @@ impl NativeL2 {
             if chars.len() < n { continue; }
             for gram in chars.windows(n) {
                 if let Some(key) = pack_ngram(gram) {
-                    if let Some(&index) = self.vocabulary.get(&key) {
-                        *counts.entry(index).or_default() += 1;
+                    if let Some(&index) = self.vocabulary.binary_search_by_key(&key,|v|v.0).ok().map(|p|&(self.vocabulary[p].1)) {
+                        *counts.entry(*index as usize).or_default() += 1;
                     }
                 }
             }
@@ -143,9 +144,15 @@ impl NativeL2 {
             for (_, value) in &mut sparse { *value /= norm; }
         }
         let mut output = self.intercept.clone();
-        for (class, weights) in self.weights.iter().enumerate() {
-            for &(index, value) in &sparse {
-                output[class] += weights[index] * value;
+        let width=self.idf.len();
+        for (class,out) in output.iter_mut().enumerate() {
+            for &(index,value) in &sparse {
+                let pos=class*width+index;
+                let weight=match &self.weights {
+                    format::Weights::F64(v)=>v[pos],
+                    format::Weights::F32(v)=>v[pos] as f64,
+                };
+                *out+=weight*value;
             }
         }
         if output.len() == 1 {

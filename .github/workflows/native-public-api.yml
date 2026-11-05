@@ -1,0 +1,65 @@
+name: Native public API parity and zero heavy deps
+on:
+  push:
+    branches: [refactor/native-inference-v1]
+    paths:
+      - "native-prototype/**"
+      - ".github/workflows/native-public-api.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-api:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: training
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Train reference Alpha and generate fixed API goldens
+        run: |
+          python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0 maturin==1.9.4
+          PYTHONPATH=src python experiments/logic_first/build_installable_candidate.py --corpus training --training-commit b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          PYTHONPATH=src python native-prototype/export_ccm.py --output native-prototype/python/codeccat/models/default.ccm
+          cp native-prototype/python/codeccat/models/default.ccm native-prototype/model/stable23.ccm
+          PYTHONPATH=src:experiments/logic_first python native-prototype/api_parity.py generate
+      - name: Package public Native API wheel
+        run: |
+          cd native-prototype
+          maturin build --release --out dist
+          python - <<'PY'
+          import zipfile,glob
+          wheels=glob.glob("dist/*.whl")
+          assert len(wheels)==1,wheels
+          with zipfile.ZipFile(wheels[0]) as wheel:
+              names=wheel.namelist()
+              assert "codeccat/models/default.ccm" in names,names
+              assert any(name.startswith("codeccat/_codeccat_native") for name in names)
+              assert "codeccat/usable.py" in names
+          print("NATIVE_PUBLIC_WHEEL_CONTENTS_PASS")
+          PY
+      - name: Install clean and compare all public API results
+        run: |
+          python -m venv .native-clean
+          .native-clean/bin/python -m pip install native-prototype/dist/*.whl
+          .native-clean/bin/python native-prototype/api_parity.py verify
+          .native-clean/bin/codeccat --help
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-public-api-wheel-and-parity
+          path: |
+            native-prototype/dist/*.whl
+            native-prototype/api-parity-goldens.jsonl
+          retention-days: 10

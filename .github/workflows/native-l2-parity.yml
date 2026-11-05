@@ -48,11 +48,24 @@ jobs:
           python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0
           PYTHONPATH=src python experiments/logic_first/build_installable_candidate.py --corpus training --training-commit b0c0d206913ba118ffea2f7d306883e7a4a76db7
           python -m pip install native-prototype/dist/*.whl
+      - name: Export model to native CCM1
+        run: |
+          PYTHONPATH=src python native-prototype/export_ccm.py
+          .native-clean/bin/python - <<'PY'
+          from pathlib import Path
+          from _codeccat_native import NativeL2
+          model=NativeL2.from_model_bytes(Path("native-prototype/model/stable23.ccm").read_bytes())
+          assert len(model.class_names()) >= 80
+          assert len(model.scores(b"hello")) == len(model.class_names())
+          print("NATIVE_CCM1_NO_NUMPY_LOAD_PASS")
+          PY
       - name: Compare native feature and scoring parity
         run: PYTHONPATH=src:experiments/logic_first python native-prototype/verify_native.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: native-prototype-wheel
-          path: native-prototype/dist/*.whl
+          path: |
+            native-prototype/dist/*.whl
+            native-prototype/model/stable23.ccm
           retention-days: 10

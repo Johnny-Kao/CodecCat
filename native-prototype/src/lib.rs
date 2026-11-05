@@ -87,7 +87,7 @@ impl NativeL2 {
         let mut collapsed = Vec::with_capacity(chars.len());
         let mut i = 0;
         while i < chars.len() {
-            let is_space = |c: char| c.is_whitespace() || matches!(c, '\\u{001c}'..='\\u{001f}');
+            let is_space = |c: char| c.is_whitespace() || matches!(c, '\u{001c}'..='\u{001f}');
             if is_space(chars[i]) {
                 let mut end = i + 1;
                 while end < chars.len() && is_space(chars[end]) { end += 1; }

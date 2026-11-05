@@ -2,7 +2,9 @@
 //! detector and not yet a production model loader.
 //! Runtime dependencies: Rust std + PyO3; no numpy or sklearn.
 mod format;
-use pyo3::exceptions::PyValueError;
+use pyo3::exceptions::{PyValueError,PyIOError};
+use memmap2::MmapOptions;
+use std::fs::File;
 use pyo3::prelude::*;
 use std::collections::HashMap;
 
@@ -88,6 +90,23 @@ impl NativeL2 {
             binary:parsed.binary,sublinear_tf:parsed.sublinear,
             class_names:Some(parsed.classes),
         })
+    }
+
+    /// Load the model through a read-only OS file mapping instead of
+    /// allocating a second whole-file bytes buffer in the Python process.
+    #[staticmethod]
+    fn from_model_file(path:&str)->PyResult<Self>{
+        let file=File::open(path).map_err(|e|PyIOError::new_err(e.to_string()))?;
+        let map=unsafe {MmapOptions::new().map(&file)}
+            .map_err(|e|PyIOError::new_err(e.to_string()))?;
+        Self::from_model_bytes(&map)
+    }
+
+    fn numeric_format(&self)->&'static str{
+        match &self.weights {
+            format::Weights::F64(_)=>"f64",
+            format::Weights::F32(_)=>"f32",
+        }
     }
 
     /// Class label order bound to the exported numeric weights.

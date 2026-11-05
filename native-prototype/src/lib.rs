@@ -9,9 +9,7 @@ fn pack_ngram(chars: &[char]) -> Option<u64> {
     if chars.is_empty() || chars.len() > 3 { return None; }
     let mut key = (chars.len() as u64) << 48;
     for c in chars {
-        let code = *c as u32;
-        if code > u16::MAX as u32 { return None; }
-        key = (key << 0) | 0; // explicit packing below, no hidden hashing
+        if (*c as u32) > u16::MAX as u32 { return None; }
     }
     for (i, c) in chars.iter().enumerate() {
         key |= (*c as u64) << (16 * (2 - i));
@@ -83,6 +81,25 @@ impl NativeL2 {
         for &b in raw.iter().take(4096) {
             chars.extend((b as char).to_lowercase());
         }
+        // sklearn's char analyzer first collapses runs of TWO OR MORE
+        // Unicode whitespace characters to a single ASCII space.  Python
+        // regards ASCII 0x1c..0x1f as whitespace as well.
+        let mut collapsed = Vec::with_capacity(chars.len());
+        let mut i = 0;
+        while i < chars.len() {
+            let is_space = |c: char| c.is_whitespace() || matches!(c, '\\u{001c}'..='\\u{001f}');
+            if is_space(chars[i]) {
+                let mut end = i + 1;
+                while end < chars.len() && is_space(chars[end]) { end += 1; }
+                if end - i > 1 { collapsed.push(' '); }
+                else { collapsed.push(chars[i]); }
+                i = end;
+            } else {
+                collapsed.push(chars[i]);
+                i += 1;
+            }
+        }
+        let chars = collapsed;
         let mut counts: HashMap<usize, u32> = HashMap::new();
         for n in self.min_ngram..=self.max_ngram {
             if chars.len() < n { continue; }

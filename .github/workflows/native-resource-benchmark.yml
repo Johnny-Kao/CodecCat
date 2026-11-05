@@ -1,0 +1,81 @@
+name: CodecCat resource usage vs competing Python detectors
+on:
+  push:
+    branches: [refactor/native-inference-v1]
+    paths:
+      - "native-prototype/resource_comparison.py"
+      - ".github/workflows/native-resource-benchmark.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: training
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Train pinned Alpha default and prepare identical real-world fixture bytes
+        run: |
+          python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0 maturin==1.9.4
+          PYTHONPATH=src python experiments/logic_first/build_installable_candidate.py --corpus training --training-commit b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          PYTHONPATH=src:experiments/logic_first python native-prototype/resource_comparison.py --variant prepare
+          PYTHONPATH=src python native-prototype/export_ccm.py --output native-prototype/python/codeccat/models/default.ccm
+          cp src/codeccat/models/language-l3.json native-prototype/python/codeccat/models/language-l3.json
+      - name: Build Native package
+        run: |
+          cd native-prototype
+          maturin build --release --out dist
+      - name: Install four isolated benchmark environments
+        run: |
+          python -m venv .native-bench
+          python -m venv .alpha-bench
+          python -m venv .chardet-bench
+          python -m venv .charset-bench
+          .native-bench/bin/python -m pip install native-prototype/dist/*.whl
+          .alpha-bench/bin/python -m pip install -e . "numpy==2.5.3" "scipy==1.18.1" "scikit-learn==1.9.1" "joblib==1.6.0"
+          .chardet-bench/bin/python -m pip install chardet==7.5.0
+          .charset-bench/bin/python -m pip install charset-normalizer==3.5.2
+      - name: Isolated per-process detection + CPU + RSS comparison
+        run: |
+          .native-bench/bin/python native-prototype/resource_comparison.py --variant native
+          .alpha-bench/bin/python native-prototype/resource_comparison.py --variant alpha
+          .chardet-bench/bin/python native-prototype/resource_comparison.py --variant chardet
+          .charset-bench/bin/python native-prototype/resource_comparison.py --variant charset-normalizer
+          python - <<'PY'
+          import json, pathlib,os
+          root=pathlib.Path("native-prototype/resource-results")
+          docs=[json.loads(p.read_text()) for p in sorted(root.glob("*.json"))]
+          assert len(docs)==4,[r["variant"] for r in docs]
+          for d in docs:assert d["n"]==docs[0]["n"]
+          out={"cases":docs[0]["n"],"results":{d["variant"]:d for d in docs},
+               "warning":"This tests a development sample from chardet/test-data. Do not claim an untouched held-out accuracy benchmark.",
+               "semantic_difference":"Competitors detect encoding only or use distinct result behavior; CPU includes work actually done by each public API."}
+          (root/"comparison.json").write_text(json.dumps(out,indent=2))
+          print("RESOURCE_COMPARISON_SUMMARY",json.dumps({
+            "cases":out["cases"],
+            "engines":{k:{"correct":v["correct"],"p50_ms":v["p50_ms"],"cpu_total_ms":v["cpu_total_ms"],"rss_mib":v["maxrss_mib"]} for k,v in out["results"].items()}
+          }),flush=True)
+          PY
+      - name: Installed environment, model, and wheel disk footprint
+        run: |
+          du -sm .native-bench .alpha-bench .chardet-bench .charset-bench
+          du -h native-prototype/dist/*.whl native-prototype/python/codeccat/models/default.ccm src/codeccat/models/stable23.zip
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: real-resource-comparison
+          path: native-prototype/resource-results/*.json
+          retention-days: 14

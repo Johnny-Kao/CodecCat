@@ -85,7 +85,11 @@ class CodecCat:
         """
         from .vnext_strong_l2 import TrainableDetector
         from .vnext_l3_language import LanguageCoherence
-        model = TrainableDetector.load_native(model_path)
+        if Path(model_path).suffix.lower() == ".zip":
+            from .legacy_portable import load_legacy_zip
+            model = load_legacy_zip(model_path)
+        else:
+            model = TrainableDetector.load_native(model_path)
         language = LanguageCoherence.load(language_path) if language_path is not None else None
         return cls(model, language_model=language, use_l3=language is not None)
 

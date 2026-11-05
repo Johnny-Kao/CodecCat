@@ -28,6 +28,7 @@ def main():
         language=LanguageCoherence.fit(train)
         trained[fold]=(model,language)
     reasons=Counter();by_source=defaultdict(Counter);by_panel=defaultdict(Counter)
+    by_truth=defaultdict(Counter);missing=Counter();rank_stats=Counter()
     rows_out=[]
     for pi,panel in enumerate(panels,1):
         for row in panel:
@@ -44,6 +45,20 @@ def main():
             l2_correct=strict(raw,ranked.encoding)==expected if ranked.encoding else False
             top3_ok=[codec for codec in ranked.candidates if strict(raw,codec)==expected]
             pipeline_ok=bool(runtime.accepted and runtime.text==expected)
+            trained_classes=tuple(str(x) for x in model.classifier.classes_)
+            truth_in_classes=label in trained_classes
+            decodable_from_classes=[codec for codec in trained_classes if strict(raw,codec)==expected]
+            x=model.vectorizer.transform([raw.decode("latin1")])
+            import numpy as np
+            score_array=np.asarray(model.classifier.decision_function(x)).reshape(-1)
+            full_order=[trained_classes[int(i)] for i in np.argsort(score_array)[::-1]]
+            correct_ranks=[i for i,codec in enumerate(full_order,1) if strict(raw,codec)==expected]
+            best_rank=min(correct_ranks) if correct_ranks else None
+            rank_stats["within3"]+=int(best_rank is not None and best_rank<=3)
+            rank_stats["within16"]+=int(best_rank is not None and best_rank<=16)
+            rank_stats["trained_decodable"]+=int(bool(decodable_from_classes))
+            rank_stats["label_in_classes"]+=int(truth_in_classes)
+            if not decodable_from_classes:missing[(source,label)]+=1
             reason="correct"
             if not pipeline_ok:
                 if not preflight.text_possible:reason="preflight-reject"
@@ -54,6 +69,7 @@ def main():
                 elif not runtime.accepted:reason="runtime-decode-reject"
                 else:reason="decode-contract-or-other"
             reasons[reason]+=1
+            by_truth[(source,label)][reason]+=1
             by_source[source][reason]+=1;by_panel[pi][reason]+=1
             rows_out.append({"sha":row["sha"],"source":source,"panel":pi,
                 "group":row["group"],"truth":label,"bytes":len(raw),
@@ -64,13 +80,20 @@ def main():
                 "language_changed":runtime.language_changed,
                 "declaration_used":runtime.declaration_used,
                 "ambiguous_same_text":len(top3_ok)>1,
-                "margin":float(ranked.scores[0]-ranked.scores[1]) if len(ranked.scores)>1 else None})
+                "margin":float(ranked.scores[0]-ranked.scores[1]) if len(ranked.scores)>1 else None,
+                "truth_in_classes":truth_in_classes,
+                "trained_decodable":bool(decodable_from_classes),
+                "trained_equivalents":decodable_from_classes[:6],
+                "correct_rank":best_rank})
         print("SHORT_DIAGNOSTIC_PANEL_DONE",pi,flush=True)
     assert len(rows_out)==188,len(rows_out)
     report={"seed":SEED,"limit":LIMIT,"total":len(rows_out),
             "reasons":dict(reasons),
             "by_source":{k:dict(v) for k,v in by_source.items()},
             "by_panel":{str(k):dict(v) for k,v in by_panel.items()},
+            "by_truth":{source+"|"+enc:dict(v) for (source,enc),v in by_truth.items()},
+            "rank_reachability":dict(rank_stats),
+            "not_decodable_with_trained_classes":{source+"|"+enc:n for (source,enc),n in missing.items()},
             "top3_reachable":sum(r["top3_reachable"] for r in rows_out),
             "l2_correct":sum(r["l2_correct"] for r in rows_out),
             "runtime_correct":sum(r["correct"] for r in rows_out),

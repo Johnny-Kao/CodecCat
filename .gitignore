@@ -11,3 +11,14 @@ research-results/
 .env.*
 # Generated model weights must never be committed as source files
 src/codeccat/models/
+
+# Native build/test products (generated only in GitHub Actions)
+native-prototype/python/codeccat/models/
+native-prototype/model/
+native-prototype/dist/
+native-prototype/target/
+ci-fixtures/
+.root-clean/
+.native-clean/
+.clean/
+.legacy/

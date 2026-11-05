@@ -1,0 +1,102 @@
+name: Native Python version and optional legacy compatibility
+on:
+  push:
+    branches: [refactor/native-inference-v1]
+    paths:
+      - native-prototype/**
+      - .github/workflows/native-python-compat.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+
+jobs:
+  build-reference-and-wheel:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: training
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Produce reference model and full API golden set
+        run: |
+          python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0 maturin==1.9.4
+          PYTHONPATH=src python experiments/logic_first/build_installable_candidate.py --corpus training --training-commit b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          mkdir -p native-prototype/model native-prototype/python/codeccat/models
+          PYTHONPATH=src python native-prototype/export_ccm.py --precision f32 --output native-prototype/python/codeccat/models/default.ccm
+          PYTHONPATH=src python native-prototype/export_ccm.py --precision f64 --output native-prototype/model/stable23.ccm
+          cp src/codeccat/models/language-l3.json native-prototype/python/codeccat/models/language-l3.json
+          PYTHONPATH=src:experiments/logic_first python native-prototype/api_parity.py generate
+          PYTHONPATH=src:experiments/logic_first python native-prototype/verify_native.py generate
+          cd native-prototype
+          maturin build --release --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-compat-wheel-and-goldens
+          path: |
+            native-prototype/dist/*.whl
+            native-prototype/model/stable23.ccm
+            native-prototype/python/codeccat/models/default.ccm
+            native-prototype/python/codeccat/models/language-l3.json
+            native-prototype/api-parity-goldens.jsonl
+            native-prototype/l2-numeric-goldens.jsonl
+          retention-days: 7
+
+  python-versions:
+    needs: build-reference-and-wheel
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-compat-wheel-and-goldens
+          path: native-prototype
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Verify isolated wheel and public/legacy default API
+        run: |
+          python -m venv .clean
+          .clean/bin/python -m pip install native-prototype/dist/*.whl
+          .clean/bin/python native-prototype/api_parity.py verify
+          .clean/bin/python native-prototype/verify_native.py verify
+          .clean/bin/python native-prototype/release_reliability.py
+          .clean/bin/python -m pip check
+      - name: Report installed-wheel Python compatibility
+        run: |
+          .clean/bin/python -c "import sys,codeccat; print('PYTHON_COMPAT_PASS',sys.version.split()[0],codeccat.detect(b'hello').encoding)"
+
+  legacy-extra:
+    needs: build-reference-and-wheel
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-compat-wheel-and-goldens
+          path: native-prototype
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install wheel explicitly with optional legacy NumPy support
+        run: |
+          python -m venv .legacy
+          wheel=$(find native-prototype/dist -name '*.whl' -print -quit)
+          .legacy/bin/python -m pip install "${wheel}[legacy]"
+          .legacy/bin/python native-prototype/release_legacy_smoke.py
+          .legacy/bin/python -m pip check

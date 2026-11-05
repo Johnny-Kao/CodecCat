@@ -1,0 +1,120 @@
+name: CodecCat native cross-platform wheel parity
+on:
+  push:
+    branches: [refactor/native-inference-v1]
+    paths:
+      - "native-prototype/**"
+      - ".github/workflows/native-platform-matrix.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+
+jobs:
+  reference:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: training
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Produce frozen Alpha reference and platform-neutral native model
+        run: |
+          python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0
+          PYTHONPATH=src python experiments/logic_first/build_installable_candidate.py --corpus training --training-commit b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          PYTHONPATH=src python native-prototype/export_ccm.py --output ci-fixtures/default.ccm
+          PYTHONPATH=src:experiments/logic_first python native-prototype/api_parity.py generate
+          PYTHONPATH=src:experiments/logic_first python native-prototype/verify_native.py generate
+          cp src/codeccat/models/language-l3.json ci-fixtures/language-l3.json
+          cp native-prototype/api-parity-goldens.jsonl ci-fixtures/api-parity-goldens.jsonl
+          cp native-prototype/l2-numeric-goldens.jsonl ci-fixtures/l2-numeric-goldens.jsonl
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-cross-platform-reference
+          path: ci-fixtures/
+          retention-days: 7
+
+  wheels:
+    needs: reference
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: "ubuntu-24.04", platform: "linux-x64" }
+          - { runner: "ubuntu-24.04-arm", platform: "linux-arm64" }
+          - { runner: "macos-15-intel", platform: "macos-x64" }
+          - { runner: "macos-15", platform: "macos-arm64" }
+          - { runner: "windows-2025", platform: "windows-x64" }
+          - { runner: "windows-11-arm", platform: "windows-arm64" }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-cross-platform-reference
+          path: ci-fixtures
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install build-only tools
+        run: python -m pip install maturin==1.9.4
+      - name: Put fixed models and goldens into local staging paths
+        shell: bash
+        run: |
+          mkdir -p native-prototype/python/codeccat/models native-prototype/model
+          cp ci-fixtures/default.ccm native-prototype/python/codeccat/models/default.ccm
+          cp ci-fixtures/default.ccm native-prototype/model/stable23.ccm
+          cp ci-fixtures/language-l3.json native-prototype/python/codeccat/models/language-l3.json
+          cp ci-fixtures/api-parity-goldens.jsonl native-prototype/api-parity-goldens.jsonl
+          cp ci-fixtures/l2-numeric-goldens.jsonl native-prototype/l2-numeric-goldens.jsonl
+      - name: Build native public wheel for this runner
+        shell: bash
+        run: |
+          cd native-prototype
+          maturin build --release --out dist
+      - name: Fresh interpreter installed-wheel parity without ML libraries
+        shell: bash
+        run: |
+          python -m venv .native-clean
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            PY=".native-clean/Scripts/python.exe"
+            CLI=".native-clean/Scripts/codeccat.exe"
+          else
+            PY=".native-clean/bin/python"
+            CLI=".native-clean/bin/codeccat"
+          fi
+          "$PY" -m pip install native-prototype/dist/*.whl
+          "$PY" native-prototype/api_parity.py verify
+          "$PY" native-prototype/verify_native.py verify
+          "$CLI" --help
+          "$PY" - <<'PY'
+          import os,platform,sys,json,importlib.util
+          import codeccat
+          assert all(importlib.util.find_spec(x) is None
+                     for x in ('numpy','scipy','sklearn','joblib'))
+          assert codeccat.detect(b'hello').text == 'hello'
+          print('PLATFORM_NATIVE_RESULT',json.dumps({
+              'os':platform.system(),'machine':platform.machine(),
+              'python':sys.version.split()[0],
+              'install_no_heavy_deps':True,
+              'platform':os.getenv('RUNNER_OS')}),flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: native-wheel-${{ matrix.platform }}
+          path: native-prototype/dist/*.whl
+          retention-days: 7

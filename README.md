@@ -1,10 +1,23 @@
 # CodecCat
 
-**Don't know the encoding of a text file? CodecCat detects it and helps you read it.**
+**A Python library that detects text encodings and decodes text.**
 
-Give it raw bytes. Get the encoding and decoded text back. No need to guess between UTF-8, Shift-JIS, Big5, or other character encodings.
+Give it bytes, and CodecCat helps you read them—without guessing whether they are UTF-8, Shift-JIS, Big5, or something else.
 
-## Try it
+## Install
+
+Requires Python 3.10+ on Linux, macOS, or Windows.
+
+1. Download the **Native v0.1.0a3** wheel for your operating system and CPU from [GitHub Releases](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0a3).
+2. Install the downloaded `.whl` file:
+
+```bash
+python -m pip install ./codeccat-0.1.0a3-*.whl
+```
+
+Choose the wheel that matches your system. The native version does not require NumPy or scikit-learn. **Not yet on PyPI**—`pip install codeccat` alone is not supported.
+
+## Python
 
 ```python
 import codeccat
@@ -16,47 +29,35 @@ print(result.encoding)  # detected encoding
 print(result.text)      # decoded text
 ```
 
-Just want the text?
+Only need the text?
 
 ```python
-text = codeccat.decode(data)  # Returns a string, or None if decoding fails
+text = codeccat.decode(data)  # string, or None if decoding fails
 ```
 
-You can also use it from the command line:
+## Command line
 
 ```bash
 codeccat file.txt
 codeccat --decode file.txt > readable.txt
 ```
 
-## Install
+## Speed
 
-CodecCat is currently available as an **experimental GitHub release**. Install the latest published version (v0.1.0a2) with Python 3.10+:
+A Linux test with 304 text samples measured median detection time:
 
-```bash
-python -m pip install "https://github.com/Johnny-Kao/CodecCat/releases/download/v0.1.0a2/codeccat-0.1.0a2-py3-none-any.whl"
-```
-
-**Not on PyPI yet** — `pip install codeccat` is not available. A faster Rust-powered version is being prepared but has **not been released**.
-
-## How fast is it?
-
-In a Linux benchmark of 304 text samples, the upcoming native version took:
-
-| Library | Typical detection time (median) |
+| Library | Time |
 |---|---:|
 | **CodecCat Native** | **0.47 ms** |
 | chardet | 0.54 ms |
 | charset-normalizer | 0.89 ms |
 
-These are measurements from one development benchmark, **not guaranteed speeds**. The libraries do somewhat different work, and CodecCat uses more memory than these competitors. [See the full benchmark and test method](docs/BENCHMARKS.md).
+Results depend on the input and machine. The libraries do different work, and CodecCat uses more memory than the alternatives in this test. [Full benchmark and test details](docs/BENCHMARKS.md).
 
-## Good to know
+## Notes
 
-- Some encodings are impossible to distinguish from bytes alone. Check `result.ambiguous` when it matters.
-- CodecCat won't silently replace broken text with incorrect characters.
-- The native version is tested on Windows, macOS, and Linux, but isn't the currently downloadable version.
+- Some text encodings cannot be distinguished from the bytes alone. Check `result.ambiguous` if the exact encoding matters.
+- CodecCat never silently substitutes replacement characters when decoding.
+- This is an **Alpha release**; feedback and bug reports are welcome.
 
-## Links
-
-[Releases](https://github.com/Johnny-Kao/CodecCat/releases) · [Report a problem](https://github.com/Johnny-Kao/CodecCat/issues) · [Benchmarks](docs/BENCHMARKS.md) · [MIT License](LICENSE) · [Data sources and rights inquiries](RIGHTS_AND_PROVENANCE.md)
+[Releases](https://github.com/Johnny-Kao/CodecCat/releases) · [Report an issue](https://github.com/Johnny-Kao/CodecCat/issues) · [Benchmark details](docs/BENCHMARKS.md) · [MIT License](LICENSE) · [Rights inquiries](RIGHTS_AND_PROVENANCE.md)

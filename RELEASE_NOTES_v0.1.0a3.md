@@ -1,7 +1,7 @@
-# CodecCat v0.1.0a3 — native Alpha (draft release notes)
+# CodecCat v0.1.0a3 — Native Alpha
 
-**Status: not published.** These notes describe the proposed native Alpha,
-subject to final asset review and publication.
+**Experimental GitHub Alpha release.** Install the wheel matching your OS and CPU.
+PyPI publishing is not enabled.
 
 ## What's new
 

@@ -1,8 +1,8 @@
 # CodecCat performance benchmarks
 
-This document records measurements of **CodecCat Native CCM2**, not the
-currently published v0.1.0a2 Python Alpha. Native `0.1.0a3` remains
-unreleased as of this revision.
+This document records measurements of **CodecCat Native CCM2 v0.1.0a3**.
+The historical benchmark compares it with the previous Python Alpha and
+third-party detectors; results are workload- and runner-specific.
 
 **Source of truth:** [P0–P2 optimization results (2026-11-05)](../native-prototype/P0_P2_OPTIMIZATION_RESULTS_2026-11-05.md);
 [CI resource comparison #42052594947](https://github.com/Johnny-Kao/CodecCat/actions/runs/42052594947);

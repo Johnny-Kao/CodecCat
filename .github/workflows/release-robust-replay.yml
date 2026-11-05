@@ -1,0 +1,44 @@
+name: CodecCat v0.1.0a3 pinned-corpus robust replay
+on:
+  push:
+    branches: [research/native-release-robust-replay-20261106]
+    paths:
+      - "experiments/release_robust_replay.py"
+      - ".github/workflows/release-robust-replay.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    env:
+      PYTHONUNBUFFERED: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: training
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Confirm immutable test corpus
+        shell: bash
+        run: |
+          test "$(git -C training rev-parse HEAD)" = "b0c0d206913ba118ffea2f7d306883e7a4a76db7"
+      - name: Install exact published Native wheel and comparator versions
+        run: |
+          python -m pip install --no-deps "https://github.com/Johnny-Kao/CodecCat/releases/download/v0.1.0a3/codeccat-0.1.0a3-cp310-abi3-linux_x86_64.whl"
+          python -m pip install "chardet==7.7.0" "charset-normalizer==3.5.2"
+      - name: Score identical frozen source bytes under historical prefix rules
+        run: python experiments/release_robust_replay.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-release-robust-replay-summary
+          path: research-results/native-release-robust-replay/summary.json
+          retention-days: 30

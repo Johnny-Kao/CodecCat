@@ -8,6 +8,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: native-public-api-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   public-api:
     runs-on: ubuntu-24.04

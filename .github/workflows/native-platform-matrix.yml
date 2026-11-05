@@ -92,6 +92,10 @@ jobs:
         shell: bash
         run: |
           python -m build --wheel --outdir dist .
+      - name: Audit model-bearing wheel content
+        shell: bash
+        run: |
+          python native-prototype/audit_release_wheel.py dist/*.whl
       - name: Fresh interpreter installed-wheel parity without ML libraries
         shell: bash
         run: |

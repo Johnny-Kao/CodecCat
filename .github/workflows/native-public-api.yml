@@ -34,6 +34,7 @@ jobs:
           PYTHONPATH=src python native-prototype/export_ccm.py --output native-prototype/python/codeccat/models/default.ccm
           mkdir -p native-prototype/model
           cp native-prototype/python/codeccat/models/default.ccm native-prototype/model/stable23.ccm
+          PYTHONPATH=src python native-prototype/export_ccm.py --precision f32 --output native-prototype/model/stable23-f32.ccm
           cp src/codeccat/models/language-l3.json native-prototype/python/codeccat/models/language-l3.json
           PYTHONPATH=src:experiments/logic_first python native-prototype/api_parity.py generate
           PYTHONPATH=src:experiments/logic_first python native-prototype/verify_native.py generate
@@ -59,6 +60,7 @@ jobs:
           .native-clean/bin/python -m pip install native-prototype/dist/*.whl
           .native-clean/bin/python native-prototype/api_parity.py verify
           .native-clean/bin/python native-prototype/verify_native.py verify
+          .native-clean/bin/python native-prototype/precision_experiment.py
           .native-clean/bin/codeccat --help
       - name: Compare runtime cost against original Alpha on same runner
         run: |
@@ -87,4 +89,5 @@ jobs:
             native-prototype/api-parity-goldens.jsonl
             native-prototype/l2-numeric-goldens.jsonl
             native-prototype/model/user-sample-report.json
+            native-prototype/precision-results.json
           retention-days: 10

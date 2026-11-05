@@ -5,7 +5,14 @@ build-backend = "maturin"
 [project]
 name = "codeccat"
 version = "0.1.0a3"
-description = "Experimental zero-NumPy native CodecCat runtime (staging only)"
+description = "Native character-encoding detection and strict Unicode decoding"
+readme = "README.md"
+license = "MIT"
+authors = [{name = "Johnny Kao"}]
+classifiers = ["Programming Language :: Python :: 3", "Programming Language :: Rust", "Operating System :: OS Independent"]
+
+[project.urls]
+Repository = "https://github.com/Johnny-Kao/CodecCat"
 requires-python = ">=3.10"
 dependencies = []
 

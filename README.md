@@ -42,17 +42,21 @@ codeccat file.txt
 codeccat --decode file.txt > readable.txt
 ```
 
-## Speed
+## Comparison
 
-A Linux test with 304 text samples measured median detection time:
+Tested on the same **304 text samples** using Python 3.12 on Linux:
 
-| Library | Time |
-|---|---:|
-| **CodecCat Native** | **0.47 ms** |
-| chardet | 0.54 ms |
-| charset-normalizer | 0.89 ms |
+| | **CodecCat** | **chardet** | **charset-normalizer** |
+|---|---:|---:|---:|
+| Text decoded correctly | **294 / 304** | 286 / 304 | 249 / 304 |
+| Typical detection time | **0.47 ms** | 0.54 ms | 0.89 ms |
+| Slower-case detection time (p95) | **1.49 ms** | 3.62 ms | 2.77 ms |
+| Peak memory | 55 MB | 52 MB | **26 MB** |
+| Installed environment size | 30 MB | 16 MB | **14 MB** |
 
-Results depend on the input and machine. The libraries do different work, and CodecCat uses more memory than the alternatives in this test. [Full benchmark and test details](docs/BENCHMARKS.md).
+**What this means:** CodecCat decoded more of these samples correctly and was faster in this test, but used more memory and disk space.
+
+**Important:** These samples include data used during development, so the correct-text counts **are not an independent accuracy rating**. Different libraries also perform somewhat different work when called. Results may vary with your files and machine. [Benchmark details and methodology](docs/BENCHMARKS.md).
 
 ## Notes
 

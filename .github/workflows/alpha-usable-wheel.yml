@@ -1,25 +1,8 @@
 name: CodecCat usable alpha wheel (model + API + CLI)
+# Historical Alpha v0.1.0a1/a2 build; retained for reference.
+# Native releases must use the root-built six-platform wheel workflow.
+# Never publish a Native release using this legacy single-wheel pipeline.
 on:
-  push:
-    branches: [main, release/alpha-main]
-    tags: ["v*"]
-    paths:
-      - ".github/workflows/alpha-usable-wheel.yml"
-      - "src/**"
-      - "experiments/logic_first/**"
-      - "tests/test_vnext_*.py"
-      - "pyproject.toml"
-      - ".gitignore"
-      - "README.md"
-  pull_request:
-    branches: [main]
-    paths:
-      - ".github/workflows/alpha-usable-wheel.yml"
-      - "src/**"
-      - "experiments/logic_first/**"
-      - "tests/test_vnext_*.py"
-      - "pyproject.toml"
-      - ".gitignore"
   workflow_dispatch:
 permissions:
   contents: read
@@ -78,7 +61,7 @@ jobs:
           retention-days: 30
 
   github-pre-release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: false # Archived: the old source-only Alpha packaging is incompatible with the native root build
     needs: build-and-run
     runs-on: ubuntu-24.04
     permissions:

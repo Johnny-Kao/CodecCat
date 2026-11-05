@@ -1,30 +1,51 @@
 [build-system]
-requires = ["hatchling>=1.27"]
-build-backend = "hatchling.build"
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
 
 [project]
 name = "codeccat"
-version = "0.1.0a2"
-description = "Model-backed character-encoding detection and strict decoding"
+version = "0.1.0a3"
+description = "Native character-encoding detection and strict Unicode decoding"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Johnny Kao" }]
-dependencies = ["numpy>=2.0", "scikit-learn>=1.4,<2"]
+keywords = ["character-encoding", "charset", "encoding-detection", "unicode", "rust"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Rust",
+  "Topic :: Text Processing :: General",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/Johnny-Kao/CodecCat"
+Repository = "https://github.com/Johnny-Kao/CodecCat"
+Issues = "https://github.com/Johnny-Kao/CodecCat/issues"
+Documentation = "https://github.com/Johnny-Kao/CodecCat#readme"
+Changelog = "https://github.com/Johnny-Kao/CodecCat/releases"
+
+[project.optional-dependencies]
+legacy = ["numpy>=2.0"]
 
 [project.scripts]
 codeccat = "codeccat.cli:main"
 
-[project.optional-dependencies]
-dev = ["pytest>=8", "build>=1.2"]
-train = ["scikit-learn>=1.4,<2"]
-vnext = ["scikit-learn>=1.4,<2"]
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/codeccat"]
-# Build-time trained models are generated only in Actions; allow them into
-# the wheel even when ignored by Git. A source-only wheel can omit them.
-artifacts = ["src/codeccat/models/**"]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
+[tool.maturin]
+manifest-path = "native-prototype/Cargo.toml"
+python-source = "native-prototype/python"
+module-name = "codeccat._codeccat_native"
+bindings = "pyo3"
+include = [
+  "native-prototype/python/codeccat/models/*.ccm",
+  "native-prototype/python/codeccat/models/*.json",
+]

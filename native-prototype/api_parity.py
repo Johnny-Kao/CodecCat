@@ -53,16 +53,20 @@ def generate():
     from codeccat import CodecCat
     old=CodecCat.from_files("src/codeccat/models/stable23.zip")
     OUTPUT.parent.mkdir(parents=True,exist_ok=True)
+    l3=CodecCat.from_files("src/codeccat/models/stable23.zip",
+                         language_path="src/codeccat/models/language-l3.json")
     n=0
     with OUTPUT.open("w",encoding="utf-8") as stream:
-        for data in cases():
+        for index,data in enumerate(cases()):
             for policy in ("strip","preserve"):
-                result=old.detect(data,bom_policy=policy)
-                stream.write(json.dumps({
-                    "raw":base64.b64encode(data).decode("ascii"),
-                    "expected":signature(result)
-                },ensure_ascii=False,separators=(",",":"))+"\n")
-                n+=1
+                for active,detector in ((False,old),(True,l3)) if index%12==0 else ((False,old),):
+                    result=detector.detect(data,bom_policy=policy)
+                    stream.write(json.dumps({
+                        "raw":base64.b64encode(data).decode("ascii"),
+                        "use_l3":active,
+                        "expected":signature(result)
+                    },ensure_ascii=False,separators=(",",":"))+"\n")
+                    n+=1
     print("NATIVE_API_GOLDENS_GENERATED",n,flush=True)
 
 def verify():
@@ -71,14 +75,14 @@ def verify():
     from codeccat._codeccat_native import NativeL2
     for name in ("numpy","sklearn","scipy","joblib"):
         assert importlib.util.find_spec(name) is None,name
-    new=CodecCat()
+    models={False:CodecCat(),True:CodecCat(use_l3=True)}
     n=0
     with OUTPUT.open(encoding="utf-8") as stream:
         for line in stream:
             record=json.loads(line)
             raw=base64.b64decode(record["raw"],validate=True)
             policy=record["expected"]["bom_policy"]
-            result=new.detect(raw,bom_policy=policy)
+            result=models[record.get("use_l3",False)].detect(raw,bom_policy=policy)
             actual=signature(result)
             if actual!=record["expected"]:
                 diff={k:(record["expected"][k],actual[k]) for k in actual
@@ -92,7 +96,7 @@ def verify():
     assert CodecCat.from_files("native-prototype/model/stable23.ccm").detect(b"hello")==example
     print("NATIVE_PUBLIC_API_PARITY_PASS",
           json.dumps({"cases":n,"numpy":False,"sklearn":False,
-                      "model":"published Alpha stable23","l3":False}),flush=True)
+                      "model":"published Alpha stable23","l3":"enabled and disabled"}),flush=True)
 
 if __name__=="__main__":
     p=argparse.ArgumentParser();p.add_argument("mode",choices=("generate","verify"))

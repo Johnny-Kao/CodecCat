@@ -125,5 +125,6 @@ jobs:
         if: success()
         with:
           name: native-wheel-${{ matrix.platform }}
-          path: native-prototype/dist/*.whl
+          path: dist/*.whl
+          if-no-files-found: error
           retention-days: 7

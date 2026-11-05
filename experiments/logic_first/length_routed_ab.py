@@ -28,9 +28,18 @@ class LengthRouted:
 def fit_models(train):
     residual=residual_subset(train)[0]
     normal=fit(residual,"binary_high")
-    # Always source-group-heldout: only shorten training records from allowed
-    # groups. Keep actual short records intact; preserve their codec labels.
-    short_train=[(raw[:SHORT_LIMIT],enc,group) for raw,enc,group in residual]
+    # Keep the full-document observations, augment with two short windows.
+    # Source groups stay in their original training fold. Drop ambiguous
+    # same-byte windows if distinct original labels collapse to identical
+    # prefixes; do not invent a ground truth for non-identifiable samples.
+    raw_examples=[(raw,enc,group) for raw,enc,group in residual]
+    for raw,enc,group in residual:
+        if len(raw)>128: raw_examples.append((raw[:128],enc,group))
+        if len(raw)>SHORT_LIMIT: raw_examples.append((raw[:SHORT_LIMIT],enc,group))
+    label_sets={}
+    for raw,enc,group in raw_examples:
+        label_sets.setdefault(raw,set()).add(enc)
+    short_train=[(raw,enc,group) for raw,enc,group in raw_examples if len(label_sets[raw])==1]
     short=fit(short_train,"binary_high")
     language=LanguageCoherence.fit(train)
     return normal,LengthRouted(normal,short),language
@@ -100,7 +109,7 @@ def main():
         "panels":rounds,
         "limitations":[
             "Five panels are sourced from previously used fixture data; no independent confirmation.",
-            "The short branch trains from source-group-heldout <=256-byte prefixes, not handpicked errors.",
+            "The short branch uses source-group-heldout originals plus 128/256-byte augmentations, excluding ambiguous same-byte prefixes.",
             "This evaluates one prespecified length cutoff; not tuned on the test cases.",
             "No changes to released models, main branch, or standard runtime."
         ]}

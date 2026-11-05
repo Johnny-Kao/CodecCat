@@ -1,6 +1,11 @@
 name: Shared-base short-only L2 adapter A/B
 on:
   workflow_dispatch:
+  push:
+    branches: [research/encoding-identifiability-audit]
+    paths:
+      - .github/workflows/shared-short-adapter-ab.yml
+      - experiments/logic_first/shared_short_adapter_ab.py
 permissions:
   contents: read
 jobs:

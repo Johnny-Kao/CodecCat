@@ -24,9 +24,9 @@ class Ranked:
 
 class TrainableDetector:
     """Inference-only model. Training happens in a separate environment."""
-    def __init__(self,native:NativeL2,fingerprint:str):
+    def __init__(self,native:NativeL2,fingerprint:str,*,classes=None):
         self._native=native
-        self.classifier=SimpleNamespace(classes_=tuple(native.class_names()))
+        self.classifier=SimpleNamespace(classes_=tuple(classes if classes is not None else native.class_names()))
         self.fingerprint=fingerprint
 
     @classmethod
@@ -38,6 +38,17 @@ class TrainableDetector:
             for chunk in iter(lambda:stream.read(65536),b""):
                 digest.update(chunk)
         fp=digest.hexdigest()
+        metadata=Path(str(path)+".meta.json")
+        if metadata.is_file():
+            import json
+            info=json.loads(metadata.read_text(encoding="utf-8"))
+            training_fp=info.get("training_fingerprint")
+            if (info.get("schema")!="codeccat-native-model-provenance-v1"
+                    or info.get("model_sha256")!=fp
+                    or not isinstance(training_fp,str) or len(training_fp)!=64
+                    or any(c not in "0123456789abcdef" for c in training_fp)):
+                raise ValueError("invalid or mismatched native model provenance")
+            fp=training_fp
         return cls(native,fp)
 
     def analyze_structure(self, data: bytes, *, final: bool = True):

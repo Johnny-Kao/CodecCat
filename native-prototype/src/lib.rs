@@ -1,0 +1,135 @@
+//! Proof of equivalence for the existing sklearn L2 model, not a new
+//! detector and not yet a production model loader.
+//! Runtime dependencies: Rust std + PyO3; no numpy or sklearn.
+use pyo3::exceptions::PyValueError;
+use pyo3::prelude::*;
+use std::collections::HashMap;
+
+fn pack_ngram(chars: &[char]) -> Option<u64> {
+    if chars.is_empty() || chars.len() > 3 { return None; }
+    let mut key = (chars.len() as u64) << 48;
+    for c in chars {
+        let code = *c as u32;
+        if code > u16::MAX as u32 { return None; }
+        key = (key << 0) | 0; // explicit packing below, no hidden hashing
+    }
+    for (i, c) in chars.iter().enumerate() {
+        key |= (*c as u64) << (16 * (2 - i));
+    }
+    Some(key)
+}
+
+#[pyclass]
+pub struct NativeL2 {
+    vocabulary: HashMap<u64, usize>,
+    idf: Vec<f64>,
+    weights: Vec<Vec<f64>>,
+    intercept: Vec<f64>,
+    min_ngram: usize,
+    max_ngram: usize,
+    binary: bool,
+    sublinear_tf: bool,
+}
+
+#[pymethods]
+impl NativeL2 {
+    #[new]
+    #[pyo3(signature = (vocabulary, idf, weights, intercept, min_ngram, max_ngram, binary, sublinear_tf))]
+    #[allow(clippy::too_many_arguments)]
+    fn new(
+        vocabulary: HashMap<String, usize>,
+        idf: Vec<f64>,
+        weights: Vec<Vec<f64>>,
+        intercept: Vec<f64>,
+        min_ngram: usize,
+        max_ngram: usize,
+        binary: bool,
+        sublinear_tf: bool,
+    ) -> PyResult<Self> {
+        if !(1..=3).contains(&min_ngram) || min_ngram > max_ngram || max_ngram > 3 {
+            return Err(PyValueError::new_err("unsupported ngram range"));
+        }
+        let width = idf.len();
+        if width == 0 || vocabulary.len() != width || intercept.len() != weights.len()
+            || weights.is_empty() || weights.iter().any(|v| v.len() != width)
+            || idf.iter().any(|x| !x.is_finite())
+            || intercept.iter().any(|x| !x.is_finite())
+            || weights.iter().flatten().any(|x| !x.is_finite()) {
+            return Err(PyValueError::new_err("invalid finite model tensor shapes"));
+        }
+        let mut indexed = HashMap::with_capacity(width);
+        for (gram, index) in vocabulary {
+            if index >= width { return Err(PyValueError::new_err("vocabulary index out of bounds")); }
+            let chars: Vec<char> = gram.chars().collect();
+            if chars.len() < min_ngram || chars.len() > max_ngram {
+                return Err(PyValueError::new_err("vocabulary ngram length disagrees with schema"));
+            }
+            let Some(key) = pack_ngram(&chars) else {
+                return Err(PyValueError::new_err("non-BMP vocabulary ngram unsupported"));
+            };
+            if indexed.insert(key, index).is_some() {
+                return Err(PyValueError::new_err("duplicate vocabulary ngram"));
+            }
+        }
+        if indexed.len() != width { return Err(PyValueError::new_err("missing vocabulary indices")); }
+        Ok(Self { vocabulary: indexed, idf, weights, intercept,
+                  min_ngram, max_ngram, binary, sublinear_tf })
+    }
+
+    /// Return raw one-vs-rest class scores in classifier.classes_ order.
+    /// Matches the existing first-4096-byte Latin-1 TF-IDF L2 calculation.
+    fn scores(&self, raw: &[u8]) -> Vec<f64> {
+        let mut chars = Vec::<char>::with_capacity(raw.len().min(4096));
+        for &b in raw.iter().take(4096) {
+            chars.extend((b as char).to_lowercase());
+        }
+        let mut counts: HashMap<usize, u32> = HashMap::new();
+        for n in self.min_ngram..=self.max_ngram {
+            if chars.len() < n { continue; }
+            for gram in chars.windows(n) {
+                if let Some(key) = pack_ngram(gram) {
+                    if let Some(&index) = self.vocabulary.get(&key) {
+                        *counts.entry(index).or_default() += 1;
+                    }
+                }
+            }
+        }
+        let mut sparse: Vec<(usize, f64)> = counts.into_iter().map(|(i, count)| {
+            let tf = if self.binary { 1.0 } else if self.sublinear_tf {
+                1.0 + (count as f64).ln()
+            } else { count as f64 };
+            (i, tf * self.idf[i])
+        }).collect();
+        sparse.sort_unstable_by_key(|x| x.0);
+        let norm = sparse.iter().map(|(_, x)| x * x).sum::<f64>().sqrt();
+        if norm > 0.0 {
+            for (_, value) in &mut sparse { *value /= norm; }
+        }
+        let mut output = self.intercept.clone();
+        for (class, weights) in self.weights.iter().enumerate() {
+            for &(index, value) in &sparse {
+                output[class] += weights[index] * value;
+            }
+        }
+        if output.len() == 1 {
+            vec![-output[0], output[0]]
+        } else { output }
+    }
+}
+
+#[pymodule]
+fn _codeccat_native(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_class::<NativeL2>()?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn ngram_packing_is_unique_for_short_byte_sequences() {
+        assert_ne!(pack_ngram(&['a']), pack_ngram(&['a', '\0']));
+        assert_ne!(pack_ngram(&['a', 'b']), pack_ngram(&['b', 'a']));
+        assert!(pack_ngram(&['a', 'b', 'c', 'd']).is_none());
+    }
+}

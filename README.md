@@ -12,8 +12,8 @@ import codeccat
 data = "こんにちは".encode("shift_jis")
 result = codeccat.detect(data)
 
-print(result.encoding)  # shift_jis
-print(result.text)      # こんにちは
+print(result.encoding)  # detected encoding
+print(result.text)      # decoded text
 ```
 
 Just want the text?

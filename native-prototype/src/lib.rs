@@ -20,6 +20,41 @@ pub(crate) fn pack_ngram(chars: &[char]) -> Option<u64> {
     Some(key)
 }
 
+/// Compact open-addressing map: one contiguous buffer, no HashMap allocations.
+fn build_vocab_table(entries:Vec<(u64,u32)>)->Vec<(u64,u32)>{
+    let cap=(entries.len().saturating_mul(3)/2+1).next_power_of_two().max(8);
+    let mut table=vec![(0,u32::MAX);cap];
+    for (key,index) in entries{
+        let mut i=(hash_ngram(key) as usize)&(cap-1);
+        loop{
+            if table[i].1==u32::MAX{table[i]=(key,index);break;}
+            i=(i+1)&(cap-1);
+        }
+    }
+    table
+}
+#[inline]
+fn hash_ngram(mut key:u64)->u64{
+    key^=key>>33;
+    key=key.wrapping_mul(0xff51afd7ed558ccd);
+    key^=key>>33;
+    key
+}
+
+impl NativeL2 {
+    #[inline]
+    fn lookup_index(&self,key:u64)->Option<usize>{
+        let mask=self.vocabulary.len()-1;
+        let mut i=(hash_ngram(key) as usize)&mask;
+        loop{
+            let (candidate,index)=self.vocabulary[i];
+            if index==u32::MAX{return None;}
+            if candidate==key{return Some(index as usize);}
+            i=(i+1)&mask;
+        }
+    }
+}
+
 #[pyclass]
 pub struct NativeL2 {
     vocabulary: Vec<(u64,u32)>,
@@ -75,7 +110,7 @@ impl NativeL2 {
         }
         indexed.sort_unstable_by_key(|v|v.0);
         if indexed.windows(2).any(|w|w[0].0==w[1].0){return Err(PyValueError::new_err("duplicate ngram"));}
-        Ok(Self { vocabulary: indexed, idf, weights:format::Weights::F64(weights.into_iter().flatten().collect()), intercept,
+        Ok(Self { vocabulary: build_vocab_table(indexed), idf, weights:format::Weights::F64(weights.into_iter().flatten().collect()), intercept,
                   min_ngram, max_ngram, binary, sublinear_tf, class_names: None })
     }
 
@@ -84,7 +119,7 @@ impl NativeL2 {
     fn from_model_bytes(blob: &[u8]) -> PyResult<Self> {
         let parsed = format::read(blob)?;
         Ok(Self {
-            vocabulary:parsed.vocab,
+            vocabulary:build_vocab_table(parsed.vocab),
             idf:parsed.idf,weights:parsed.weights,intercept:parsed.intercept,
             min_ngram:parsed.ngram_min,max_ngram:parsed.ngram_max,
             binary:parsed.binary,sublinear_tf:parsed.sublinear,
@@ -145,8 +180,8 @@ impl NativeL2 {
             if chars.len() < n { continue; }
             for gram in chars.windows(n) {
                 if let Some(key) = pack_ngram(gram) {
-                    if let Some(&index) = self.vocabulary.binary_search_by_key(&key,|v|v.0).ok().map(|p|&(self.vocabulary[p].1)) {
-                        *counts.entry(index as usize).or_default() += 1;
+                    if let Some(index) = self.lookup_index(key) {
+                        *counts.entry(index).or_default() += 1;
                     }
                 }
             }

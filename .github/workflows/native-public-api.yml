@@ -34,6 +34,7 @@ jobs:
           PYTHONPATH=src python native-prototype/export_ccm.py --output native-prototype/python/codeccat/models/default.ccm
           mkdir -p native-prototype/model
           cp native-prototype/python/codeccat/models/default.ccm native-prototype/model/stable23.ccm
+          cp src/codeccat/models/language-l3.json native-prototype/python/codeccat/models/language-l3.json
           PYTHONPATH=src:experiments/logic_first python native-prototype/api_parity.py generate
       - name: Package public Native API wheel
         run: |
@@ -46,6 +47,7 @@ jobs:
           with zipfile.ZipFile(wheels[0]) as wheel:
               names=wheel.namelist()
               assert "codeccat/models/default.ccm" in names,names
+              assert "codeccat/models/language-l3.json" in names,names
               assert any(name.startswith("codeccat/_codeccat_native") for name in names)
               assert "codeccat/usable.py" in names
           print("NATIVE_PUBLIC_WHEEL_CONTENTS_PASS")

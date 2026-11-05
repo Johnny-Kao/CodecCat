@@ -2,7 +2,7 @@
 
 **CodecCat** is a Python package for character-encoding detection and strict text decoding. It provides a simple Python API and a command-line tool.
 
-**Status:** [v0.1.0a1 Alpha Pre-release](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0a1) is available with a trained default model. Code is on `main`; PyPI publication has **not** been configured. Research experiments remain on `staging/initial-package`.
+**Status:** [v0.1.0a1 Alpha Pre-release](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0a1) remains the published experimental release. A Rust-native runtime is under validation exclusively on `refactor/native-inference-v1` (target metadata `0.1.0a3`); it is **not yet released or merged to `main`**. PyPI publication has not been configured.
 
 ## Install the Alpha
 
@@ -14,7 +14,7 @@ python -m pip install "https://github.com/Johnny-Kao/CodecCat/releases/download/
 
 Alternatively, download the wheel from Releases and install the local file. The Release also provides `SHA256SUMS` and a model-provenance manifest. The [build workflow](https://github.com/Johnny-Kao/CodecCat/actions/workflows/alpha-usable-wheel.yml) verifies the wheel and its clean installation on GitHub Actions.
 
-**Important:** `pip install codeccat` does not work yet because this project has not been published to PyPI. Likewise, `pip install .` from source installs the code without the trained default model; use the model-bearing Release wheel or load a custom model with `CodecCat.from_files(...)`.
+**Important:** `pip install codeccat` does not work yet because this project has not been published to PyPI. The released Alpha wheel includes a trained model. Building a new Native wheel from this repository requires first generating the licensed/reviewed `.ccm` model artifacts; building from a plain source checkout is **not** a substitute for an official model-bearing wheel. Native root packaging is currently undergoing CI validation.
 
 Requires Python 3.10 or later. This is an experimental pre-release, not a production deployment claim.
 
@@ -63,9 +63,18 @@ Cross-source accuracy is still under evaluation. A small independent repository 
 
 The alpha's training corpus is pinned to `chardet/test-data`. That repository notes that individual source texts retain their publishers' copyrights; provenance and any constraints on downstream redistribution of the fitted model need review before an official public model release. The GitHub Release is an **experimental Alpha** with a bundled fitted model, not a claim of production suitability or blanket permission to redistribute the underlying training texts. Model provenance should be reviewed before wider PyPI or stable-release distribution.
 
+## Native runtime (unreleased branch)
+
+The native inference wheel is built with Maturin/Rust from the repository root. Python 3.10+ is supported by the native ABI; the inference wheel has **no NumPy, SciPy, or scikit-learn runtime dependencies**. `codeccat[legacy]` optionally enables the NumPy-dependent legacy public API. The separate offline trainer lives in `native-prototype/training/` and produces `.ccm` models; it is not installed with the detector.
+
+The bundled native model uses CCM2 float32; CCM1 float64 remains readable. A model checksum establishes file integrity, **not** model publisher authenticity or training-data redistribution rights. Avoid using untrusted model files.
+
+Root-directory builds and clean installed-wheel tests: [native root-package workflow](https://github.com/Johnny-Kao/CodecCat/actions/workflows/native-root-package.yml). The Rust and Python source currently remains under `native-prototype/` as the single runtime source tree until release-candidate validation is finished.
+
 ## Development
 
-- `src/codeccat/`: runtime, public API and CLI
+- `src/codeccat/`: historical Alpha runtime (not the native wheel's Python source)
+- `native-prototype/src/`, `native-prototype/python/codeccat/`: Rust native inference and Python public API (unreleased branch)
 - `experiments/logic_first/`: reproducible alpha model build
 - `tests/`: decoding and model-contract tests
 - `.github/workflows/alpha-usable-wheel.yml`: model build, wheel, fresh environment install and smoke tests

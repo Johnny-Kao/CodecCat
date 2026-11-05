@@ -1,6 +1,7 @@
 //! Proof of equivalence for the existing sklearn L2 model, not a new
 //! detector and not yet a production model loader.
 //! Runtime dependencies: Rust std + PyO3; no numpy or sklearn.
+mod format;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use std::collections::HashMap;
@@ -27,6 +28,7 @@ pub struct NativeL2 {
     max_ngram: usize,
     binary: bool,
     sublinear_tf: bool,
+    class_names: Option<Vec<String>>,
 }
 
 #[pymethods]
@@ -71,7 +73,24 @@ impl NativeL2 {
         }
         if indexed.len() != width { return Err(PyValueError::new_err("missing vocabulary indices")); }
         Ok(Self { vocabulary: indexed, idf, weights, intercept,
-                  min_ngram, max_ngram, binary, sublinear_tf })
+                  min_ngram, max_ngram, binary, sublinear_tf, class_names: None })
+    }
+
+    /// Load an authenticated, bounded numeric model artifact without NumPy.
+    #[staticmethod]
+    fn from_model_bytes(blob: &[u8]) -> PyResult<Self> {
+        let parsed = format::read(blob)?;
+        let mut model = Self::new(
+            parsed.vocab, parsed.idf, parsed.weights, parsed.intercept,
+            parsed.ngram_min, parsed.ngram_max, parsed.binary, parsed.sublinear,
+        )?;
+        model.class_names = Some(parsed.classes);
+        Ok(model)
+    }
+
+    /// Class label order bound to the exported numeric weights.
+    fn class_names(&self) -> Option<Vec<String>> {
+        self.class_names.clone()
     }
 
     /// Return raw one-vs-rest class scores in classifier.classes_ order.

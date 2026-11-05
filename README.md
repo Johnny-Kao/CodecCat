@@ -63,6 +63,10 @@ Cross-source accuracy is still under evaluation. A small independent repository 
 
 The alpha's training corpus is pinned to `chardet/test-data`. That repository notes that individual source texts retain their publishers' copyrights; provenance and any constraints on downstream redistribution of the fitted model need review before an official public model release. The GitHub Release is an **experimental Alpha** with a bundled fitted model, not a claim of production suitability or blanket permission to redistribute the underlying training texts. Model provenance should be reviewed before wider PyPI or stable-release distribution.
 
+## Copyright and rights inquiries
+
+See [Copyright, training provenance and rights inquiries](RIGHTS_AND_PROVENANCE.md). If you believe a CodecCat model or distribution affects material you own, [open a rights inquiry](https://github.com/Johnny-Kao/CodecCat/issues/new). For sensitive claims, request a private contact channel first; do not disclose confidential documents in a public issue.
+
 ## Native runtime (unreleased branch)
 
 The native inference wheel is built with Maturin/Rust from the repository root. Python 3.10+ is supported by the native ABI; the inference wheel has **no NumPy, SciPy, or scikit-learn runtime dependencies**. `codeccat[legacy]` optionally enables the NumPy-dependent legacy public API. The separate offline trainer lives in `native-prototype/training/` and produces `.ccm` models; it is not installed with the detector.

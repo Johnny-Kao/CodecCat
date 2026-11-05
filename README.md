@@ -2,14 +2,14 @@
 
 **CodecCat** is a Python package for character-encoding detection and strict text decoding. It provides a simple Python API and a command-line tool.
 
-**Status:** [v0.1.0a1 Alpha Pre-release](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0a1) remains the published experimental release. A Rust-native runtime is under validation exclusively on `refactor/native-inference-v1` (target metadata `0.1.0a3`); it is **not yet released or merged to `main`**. PyPI publication has not been configured.
+**Status:** [v0.1.0a2 Alpha Pre-release](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0a2) remains the published experimental release. A Rust-native runtime is under validation exclusively on `refactor/native-inference-v1` (target metadata `0.1.0a3`); it is **not yet released or merged to `main`**. PyPI publication has not been configured.
 
 ## Install the Alpha
 
-Install the wheel directly from the [GitHub Release](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0a1):
+Install the wheel directly from the [GitHub Release](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0a2):
 
 ```bash
-python -m pip install "https://github.com/Johnny-Kao/CodecCat/releases/download/v0.1.0a1/codeccat-0.1.0a1-py3-none-any.whl"
+python -m pip install "https://github.com/Johnny-Kao/CodecCat/releases/download/v0.1.0a2/codeccat-0.1.0a2-py3-none-any.whl"
 ```
 
 Alternatively, download the wheel from Releases and install the local file. The Release also provides `SHA256SUMS` and a model-provenance manifest. The [build workflow](https://github.com/Johnny-Kao/CodecCat/actions/workflows/alpha-usable-wheel.yml) verifies the wheel and its clean installation on GitHub Actions.

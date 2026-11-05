@@ -31,9 +31,13 @@ class TrainableDetector:
 
     @classmethod
     def load_native(cls,path:str|Path):
-        native=NativeL2.from_model_bytes(Path(path).read_bytes())
+        native=NativeL2.from_model_file(str(path))
         import hashlib
-        fp=hashlib.sha256(Path(path).read_bytes()).hexdigest()
+        digest=hashlib.sha256()
+        with Path(path).open("rb") as stream:
+            for chunk in iter(lambda:stream.read(65536),b""):
+                digest.update(chunk)
+        fp=digest.hexdigest()
         return cls(native,fp)
 
     def analyze_structure(self, data: bytes, *, final: bool = True):

@@ -4,7 +4,6 @@ on:
     branches: [refactor/native-inference-v1]
     paths:
       - "pyproject.toml"
-      - "README.md"
       - "native-prototype/**"
       - ".github/workflows/native-root-package.yml"
   workflow_dispatch:

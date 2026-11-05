@@ -8,6 +8,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: native-platform-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   reference:
@@ -100,7 +103,7 @@ jobs:
           "$PY" -m pip install native-prototype/dist/*.whl
           "$PY" native-prototype/api_parity.py verify
           "$PY" native-prototype/verify_native.py verify
-          "$PY" native-prototype/release_reliability.py verify
+          "$PY" native-prototype/release_reliability.py
           "$CLI" --help
           "$PY" - <<'PY'
           import os,platform,sys,json,importlib.util

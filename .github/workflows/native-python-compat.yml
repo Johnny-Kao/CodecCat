@@ -8,6 +8,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: native-python-compat-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-reference-and-wheel:

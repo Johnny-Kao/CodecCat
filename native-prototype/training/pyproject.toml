@@ -1,0 +1,16 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "codeccat-train"
+version = "0.1.0a3"
+description = "Offline user-data trainer for CodecCat native inference models"
+requires-python = ">=3.10"
+dependencies = ["numpy>=2.0", "scikit-learn>=1.4,<2"]
+
+[project.scripts]
+codeccat-train = "codeccat_train.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/codeccat_train"]

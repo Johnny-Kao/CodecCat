@@ -98,7 +98,7 @@ def api_contract() -> None:
         assert importlib.util.find_spec(dep) is None, dep
     dist = importlib.metadata.distribution("codeccat")
     requirements = dist.requires or []
-    assert not requirements, requirements
+    assert all("extra == " in r and "legacy" in r for r in requirements), requirements
     assert dist.version == "0.1.0a3", dist.version
     assert CodecCat.__module__ == "codeccat.usable"
     assert detect(b"hello").text == "hello"
@@ -122,18 +122,23 @@ def api_contract() -> None:
         output = default.detect(b"\xef\xbb\xbfhello", bom_policy=policy)
         assert output.text is not None and output.encoding is not None
 
-    # Existing legacy symbols are a real migration blocker, not to be
-    # erased silently. Record precisely which have changed.
+    # Each old top-level symbol remains discoverable and has a clear,
+    # actionable missing-extra error rather than disappearing silently.
     legacy = (
         "DetectionResult", "Detector", "LinearModel", "RuntimeBundle",
         "RuntimeStack", "load_bundle", "save_bundle"
     )
     import codeccat
-    missing = [name for name in legacy if not hasattr(codeccat, name)]
-    print("RELEASE_LEGACY_COMPATIBILITY", json.dumps({
-        "legacy_symbols": list(legacy), "missing": missing,
-        "fully_compatible": not missing,
-    }, sort_keys=True))
+    for name in legacy:
+        assert name in codeccat.__all__
+        try:
+            getattr(codeccat, name)
+        except ImportError as exc:
+            assert "codeccat[legacy]" in str(exc), (name, str(exc))
+        else:
+            raise AssertionError(f"legacy {name} unexpectedly loaded NumPy in clean env")
+    print("RELEASE_LEGACY_OPTIONAL_IMPORT_PASS",
+          json.dumps({"symbols":len(legacy),"requires_extra":"legacy"}))
     print("RELEASE_API_BASE_PASS")
 
 

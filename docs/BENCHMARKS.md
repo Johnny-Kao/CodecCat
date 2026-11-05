@@ -1,8 +1,47 @@
-# CodecCat performance benchmarks
+# CodecCat accuracy and performance benchmarks
 
-This document records measurements of **CodecCat Native CCM2 v0.1.0a3**.
-The historical benchmark compares it with the previous Python Alpha and
-third-party detectors; results are workload- and runner-specific.
+The README presents **two separate kinds of evidence**. Accuracy results
+are historical, external-source **stable23** evaluations. Speed and memory
+results are measurements of the released Native implementation in a
+development benchmark. They must not be conflated.
+
+## Accuracy across data sources
+
+CodecCat's native default is derived from the historical stable23 classifier;
+the release CI verified behavioral parity on fixed regression inputs.
+**These accuracy evaluations ran the earlier stable23 implementation** rather
+than the downloaded `v0.1.0a3` Native wheel. They therefore describe the
+classifier's earlier external-source behavior, not an independent blind
+release-artifact acceptance test.
+
+The primary measure here is whether the detected encoding can be strictly
+decoded to the **correct Unicode text**, not whether the name of the original
+encoding was recovered.
+
+| Original data source | Evaluated | stable23 | chardet 7.7.0 | charset-normalizer 3.5.2 |
+|:--|--:|--:|--:|--:|
+| Vim translation strings | 159 | 155 (97.48%) | **159 (100%)** | 143 (89.94%) |
+| Git translation strings | 76 | 76 (100%) | 76 (100%) | 76 (100%) |
+| Tatoeba CC0 sentences, synthetically re-encoded | 560 | 524 (93.57%) | **554 (98.93%)** | 498 (88.93%) |
+
+The three source families should **not be pooled into a single general
+accuracy percentage**. The Git samples are UTF-8 only, Vim samples include
+correlated windows from source catalogs, and Tatoeba's chosen byte encodings
+are synthetic rather than naturally occurring frequency distributions.
+
+Test provenance and CI:
+- [Vim 159 real translation windows, CI #41238286450](https://github.com/Johnny-Kao/CodecCat/actions/runs/41238286450)
+- [Git 76 real translation windows, CI #41239422354](https://github.com/Johnny-Kao/CodecCat/actions/runs/41239422354)
+- [Tatoeba 560 frozen CC0-derived sentences, CI #41233855912](https://github.com/Johnny-Kao/CodecCat/actions/runs/41233855912)
+- [Research report and source-contamination analysis](https://github.com/Johnny-Kao/CodecCat/blob/research/accuracy-data-gate-v2/research/REAL_BYTE_ACCURACY_EVIDENCE_2026-11-01.md)
+- [Accuracy evaluation and model promotion decisions](https://github.com/Johnny-Kao/CodecCat/blob/research/accuracy-data-gate-v2/research/ACCURACY_SOLUTION_EXECUTION_2026-11-01.md)
+
+The 3,092-item / 94.24% historical development benchmark belongs to a
+**different experimental binary 1–2-gram research model**, not the packaged
+Native stable23 model. It is **not** the release's accuracy figure. That
+benchmark also included data used in development.
+
+## Performance and resources
 
 **Source of truth:** [P0–P2 optimization results (2026-11-05)](../native-prototype/P0_P2_OPTIMIZATION_RESULTS_2026-11-05.md);
 [CI resource comparison #42052594947](https://github.com/Johnny-Kao/CodecCat/actions/runs/42052594947);
@@ -11,7 +50,7 @@ Raw benchmarking code:
 [`bench_inference.py`](../native-prototype/bench_inference.py) and
 [`resource_comparison.py`](../native-prototype/resource_comparison.py).
 
-## 1. Optimized Native vs prior Alpha (fixed 4 KB input)
+### Optimized Native vs prior Alpha (fixed 4 KB input)
 
 One Linux x86-64 GitHub Actions runner, separate interpreters with their
 corresponding installed dependencies, original Alpha stable23 model vs the
@@ -31,7 +70,7 @@ the same as an installed virtual environment size or a process's RSS.
 The benchmark's measured workload is an API call, not an isolated
 mathematical kernel.
 
-## 2. Four detectors on the same 304 input bytes
+### Four detectors on the same 304 input bytes
 
 [Resource benchmark CI #42052594947](https://github.com/Johnny-Kao/CodecCat/actions/runs/42052594947)
 used one Ubuntu 24.04 x86-64 GitHub runner with **Python 3.12**,
@@ -64,7 +103,7 @@ Interpretation:
   held-out dataset. The separate 94.243% research model is **not** the
   packaged Alpha-derived classifier.
 
-## Reproduction and measurement boundaries
+### Reproduction and measurement boundaries
 
 The reproducible source is the workflow
 [`native-resource-benchmark.yml`](../.github/workflows/native-resource-benchmark.yml)

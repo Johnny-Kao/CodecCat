@@ -62,6 +62,9 @@ jobs:
               assert "Requires-Dist: scipy" not in data
               print("ROOT_WHEEL_METADATA_PASS", wheels[0])
           PY
+      - name: Audit wheel for bundled raw corpus and model feature bounds
+        run: |
+          python native-prototype/audit_release_wheel.py dist/*.whl
       - name: Test installed root wheel with no ML dependencies
         shell: bash
         run: |

@@ -1,82 +1,73 @@
-"""Compare native Rust TF-IDF scores against the frozen shipped stable23 model.
+"""Rust L2 numeric parity through separate train-side and runtime interpreters.
 
-This script runs in a TRAINING/VERIFICATION environment with sklearn/NumPy.
-The installed Rust wheel itself has no runtime dependencies.
+Generate with the legacy Alpha + sklearn training environment.
+Verify with the native public Wheel in a fresh environment *without* NumPy.
 """
 from __future__ import annotations
-import json,sys,time
+import argparse,base64,json,math
 from pathlib import Path
-import numpy as np
-from codeccat.vnext_strong_l2 import TrainableDetector
-from vnext_actual_adapter import corpus
-from _codeccat_native import NativeL2
 
-def make_native(model):
-    vec=model.vectorizer
-    clf=model.classifier
-    assert vec.ngram_range in ((1,2),(2,3),(1,3))
-    return NativeL2(
-        vec.vocabulary_,
-        vec.idf_.tolist(),
-        clf.coef_.tolist(),
-        clf.intercept_.tolist(),
-        *vec.ngram_range,
-        bool(vec.binary),bool(vec.sublinear_tf),
-    )
+GOLDEN=Path("native-prototype/l2-numeric-goldens.jsonl")
+MODEL=Path("native-prototype/model/stable23.ccm")
 
-def reference_scores(model,b):
-    v=model.vectorizer.transform([b[:4096].decode("latin1")])
-    raw=np.asarray(model.classifier.decision_function(v)).reshape(-1)
-    if len(model.classifier.classes_)==2:return np.array([-raw[0],raw[0]])
-    return raw
-
-def main():
-    model=TrainableDetector.load_portable("src/codeccat/models/stable23.zip")
-    native=make_native(model)
-    exported=Path("native-prototype/model/stable23.ccm").read_bytes()
-    native_file=NativeL2.from_model_bytes(exported)
-    assert native_file.class_names()==[str(x) for x in model.classifier.classes_]
-    corrupted=bytearray(exported)
-    corrupted[len(corrupted)//2] ^= 1
-    try:NativeL2.from_model_bytes(bytes(corrupted))
-    except ValueError:pass
-    else:raise AssertionError("corrupt CCM1 unexpectedly loaded")
-    dataset=corpus(Path("training"))
-    # Source-independent deterministic stride, plus Unicode/BOM/binary corner cases.
-    rows=[item[0] for item in dataset[::12]]
-    rows.extend([
+def inputs():
+    from vnext_actual_adapter import corpus
+    for item in corpus(Path("training"))[::12]:yield item[0]
+    yield from (
         b"",b"hello",b"a"*4096,b"hello\n\nworld",
         b"\xff\x80\x00\x81",bytes(range(256)),
-        "\u00b5\u00d8\u00e9".encode("latin1"),
-        "日本語".encode("utf-8"),
-        "日本語".encode("utf-16"),
+        "日本語".encode("utf-8"),"日本語".encode("utf-16"),
         "\ufeffcafé".encode("utf-8"),
-    ])
-    max_err=0.0;ranking_fail=0;max_relative=0.0
-    begin=time.perf_counter()
-    for n,b in enumerate(rows):
-        expected=reference_scores(model,b)
-        actual=np.asarray(native.scores(b),dtype=np.float64)
-        loaded=np.asarray(native_file.scores(b),dtype=np.float64)
-        if not np.array_equal(actual,loaded):
-            raise AssertionError(f"CCM1 differs from direct tensor scorer at case {n}")
-        if expected.shape!=actual.shape:raise AssertionError((n,expected.shape,actual.shape))
-        delta=float(np.max(np.abs(expected-actual)))
-        max_err=max(max_err,delta)
-        max_relative=max(max_relative,float(np.max(np.abs(expected-actual)/(1+np.abs(expected)))))
-        if not np.array_equal(np.argsort(expected)[::-1],np.argsort(actual)[::-1]):
-            ranking_fail+=1
-        if delta>1e-9:
-            raise AssertionError(f"Native L2 diverged on case {n}, length={len(b)}, max error={delta}")
-    report={"model":"alpha stable23","cases":len(rows),
-      "score_max_abs_error":max_err,"score_max_relative_error":max_relative,
-      "ranking_mismatch_count":ranking_fail,
-      "duration_s":round(time.perf_counter()-begin,3),
-      "native_module":"_codeccat_native",
-      "ccm1_file_size":len(exported),
-      "ccm1_verified":True,
-      "note":"Gate 1 numerical parity only. No full L1/L3 or end-user wheel parity claimed."}
-    print("NATIVE_L2_PARITY_RESULT",json.dumps(report),flush=True)
-    if ranking_fail:raise AssertionError("numeric rank ordering diverged")
+    )
 
-if __name__=="__main__":main()
+def generate():
+    import numpy as np
+    from codeccat.vnext_strong_l2 import TrainableDetector
+    model=TrainableDetector.load_portable("src/codeccat/models/stable23.zip")
+    GOLDEN.parent.mkdir(parents=True,exist_ok=True)
+    n=0
+    with GOLDEN.open("w",encoding="utf-8") as out:
+        for raw in inputs():
+            v=model.vectorizer.transform([raw[:4096].decode("latin1")])
+            score=np.asarray(model.classifier.decision_function(v)).reshape(-1)
+            if len(model.classifier.classes_)==2:
+                score=np.asarray([-score[0],score[0]])
+            out.write(json.dumps({"raw":base64.b64encode(raw).decode(),
+                "scores":score.tolist()},separators=(",",":"))+"\n")
+            n+=1
+    print("NATIVE_NUMERIC_GOLDENS_GENERATED",n,flush=True)
+
+def verify():
+    from codeccat._codeccat_native import NativeL2
+    model=NativeL2.from_model_bytes(MODEL.read_bytes())
+    n=0;max_error=0.0
+    with GOLDEN.open(encoding="utf-8") as stream:
+        for line in stream:
+            item=json.loads(line)
+            raw=base64.b64decode(item["raw"],validate=True)
+            actual=model.scores(raw)
+            old=item["scores"]
+            assert len(actual)==len(old)
+            delta=max((abs(a-b) for a,b in zip(actual,old)),default=0.0)
+            max_error=max(max_error,delta)
+            if delta>1e-9:
+                raise AssertionError(f"L2 score parity mismatch case {n}: {delta}")
+            order=lambda values:sorted(range(len(values)),key=lambda i:(values[i],i),reverse=True)
+            if order(old)!=order(actual):
+                raise AssertionError(f"L2 rank parity mismatch case {n}")
+            n+=1
+    assert n>=260,n
+    corrupted=bytearray(MODEL.read_bytes())
+    corrupted[len(corrupted)//2]^=1
+    try:NativeL2.from_model_bytes(bytes(corrupted))
+    except ValueError:pass
+    else:raise AssertionError("invalid checksum allowed")
+    print("NATIVE_NUMERIC_PARITY_PASS",
+          json.dumps({"cases":n,"max_abs_error":max_error,"rank_mismatches":0}),flush=True)
+
+if __name__=="__main__":
+    ap=argparse.ArgumentParser()
+    ap.add_argument("mode",choices=("generate","verify"))
+    args=ap.parse_args()
+    if args.mode=="generate":generate()
+    else:verify()

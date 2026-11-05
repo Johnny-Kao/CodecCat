@@ -77,8 +77,9 @@ pub fn read(blob: &[u8]) -> PyResult<ParsedModel> {
         return Err(PyValueError::new_err("invalid model metadata"));
     }
     // Preflight the matrix allocation against encoded size, not only row count.
-    let floats=(width.checked_mul(classes_n)
-        .and_then(|x| x.checked_add(width+classes_n)))
+    let rows = if classes_n == 2 { 1 } else { classes_n };
+    let floats=(width.checked_mul(rows)
+        .and_then(|x| x.checked_add(width+rows)))
         .and_then(|x| x.checked_mul(8))
         .ok_or_else(|| PyValueError::new_err("model tensor dimensions overflow"))?;
     if floats>body.len() { return Err(PyValueError::new_err("model weights truncated")); }
@@ -86,19 +87,21 @@ pub fn read(blob: &[u8]) -> PyResult<ParsedModel> {
     let mut classes=Vec::with_capacity(classes_n);
     for _ in 0..classes_n { classes.push(r.string()?); }
     let mut vocab=HashMap::with_capacity(width);
+    let mut used=vec![false;width];
     for _ in 0..width {
         let idx=r.u32()?;
         let gram=r.string()?;
-        if idx>=width || vocab.insert(gram,idx).is_some() {
-            return Err(PyValueError::new_err("invalid vocabulary index"));
+        if idx>=width || used[idx] || vocab.insert(gram,idx).is_some() {
+            return Err(PyValueError::new_err("invalid or duplicate vocabulary index"));
         }
+        used[idx]=true;
     }
     let mut idf=Vec::with_capacity(width);
     for _ in 0..width { idf.push(r.float()?); }
-    let mut intercept=Vec::with_capacity(classes_n);
-    for _ in 0..classes_n { intercept.push(r.float()?); }
-    let mut weights=Vec::with_capacity(classes_n);
-    for _ in 0..classes_n {
+    let mut intercept=Vec::with_capacity(rows);
+    for _ in 0..rows { intercept.push(r.float()?); }
+    let mut weights=Vec::with_capacity(rows);
+    for _ in 0..rows {
         let mut row=Vec::with_capacity(width);
         for _ in 0..width { row.push(r.float()?); }
         weights.push(row);

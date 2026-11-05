@@ -33,7 +33,9 @@ def main(argv: list[str] | None = None) -> int:
         if result.text is None:
             print("codeccat: unable to strictly decode input", file=sys.stderr)
             return 2
-        # Decoded data is emitted as UTF-8 bytes on all platforms.\n        # Windows terminal defaults (e.g., cp1252) must not corrupt text.\n        sys.stdout.buffer.write(result.text.encode("utf-8", "strict"))
+        # Decoded data is emitted as UTF-8 bytes on all platforms.
+        # Windows terminal defaults (e.g., cp1252) must not corrupt text.
+        sys.stdout.buffer.write(result.text.encode("utf-8", "strict"))
     elif args.json:
         print(json.dumps({
             "encoding": result.encoding,

@@ -30,7 +30,8 @@ jobs:
       - name: Build isolated Native scorer
         run: |
           python -m pip install maturin==1.9.4
-          maturin build --release --manifest-path native-prototype/Cargo.toml --out native-prototype/dist
+          cd native-prototype
+          maturin build --release --out dist
       - name: Verify Native Wheel has no heavy inference dependencies
         run: |
           python -m venv .native-clean

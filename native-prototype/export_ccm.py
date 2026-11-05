@@ -4,7 +4,7 @@ Requires NumPy/scikit-learn ONLY during training/export. The resulting
 read-only artifact is loaded directly by Rust without those libraries.
 """
 from __future__ import annotations
-import argparse,hashlib,struct
+import argparse,hashlib,struct,json
 from pathlib import Path
 from codeccat.vnext_strong_l2 import TrainableDetector
 
@@ -39,6 +39,13 @@ def export(source:Path,destination:Path,precision:str="f64"):
     payload+=hashlib.sha256(payload).digest()
     destination.parent.mkdir(parents=True,exist_ok=True)
     destination.write_bytes(payload)
+    provenance={
+        "schema":"codeccat-native-model-provenance-v1",
+        "model_sha256":hashlib.sha256(payload).hexdigest(),
+        "training_fingerprint":model.fingerprint,
+    }
+    Path(str(destination)+".meta.json").write_text(
+        json.dumps(provenance,sort_keys=True)+"\n",encoding="utf-8")
     print("NATIVE_CCM1_EXPORT",str(destination),len(payload),
           hashlib.sha256(payload).hexdigest(),flush=True)
 

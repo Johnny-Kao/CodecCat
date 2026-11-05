@@ -32,7 +32,7 @@ jobs:
           python -m pip install numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0 maturin==1.9.4
           PYTHONPATH=src python experiments/logic_first/build_installable_candidate.py --corpus training --training-commit b0c0d206913ba118ffea2f7d306883e7a4a76db7
           PYTHONPATH=src:experiments/logic_first python native-prototype/resource_comparison.py --variant prepare
-          PYTHONPATH=src python native-prototype/export_ccm.py --output native-prototype/python/codeccat/models/default.ccm
+          PYTHONPATH=src python native-prototype/export_ccm.py --output native-prototype/python/codeccat/models/default.ccm --precision f32
           cp src/codeccat/models/language-l3.json native-prototype/python/codeccat/models/language-l3.json
       - name: Build Native package
         run: |

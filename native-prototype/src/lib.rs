@@ -6,7 +6,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use std::collections::HashMap;
 
-fn pack_ngram(chars: &[char]) -> Option<u64> {
+pub(crate) fn pack_ngram(chars: &[char]) -> Option<u64> {
     if chars.is_empty() || chars.len() > 3 { return None; }
     let mut key = (chars.len() as u64) << 48;
     for c in chars {
@@ -20,9 +20,9 @@ fn pack_ngram(chars: &[char]) -> Option<u64> {
 
 #[pyclass]
 pub struct NativeL2 {
-    vocabulary: HashMap<u64, usize>,
+    vocabulary: Vec<(u64,u32)>,
     idf: Vec<f64>,
-    weights: Vec<Vec<f64>>,
+    weights: format::Weights,
     intercept: Vec<f64>,
     min_ngram: usize,
     max_ngram: usize,
@@ -57,9 +57,11 @@ impl NativeL2 {
             || weights.iter().flatten().any(|x| !x.is_finite()) {
             return Err(PyValueError::new_err("invalid finite model tensor shapes"));
         }
-        let mut indexed = HashMap::with_capacity(width);
+        let mut indexed = Vec::with_capacity(width);
+        let mut used = vec![false;width];
         for (gram, index) in vocabulary {
-            if index >= width { return Err(PyValueError::new_err("vocabulary index out of bounds")); }
+            if index >= width || used[index] { return Err(PyValueError::new_err("vocabulary index out of bounds")); }
+            used[index]=true;
             let chars: Vec<char> = gram.chars().collect();
             if chars.len() < min_ngram || chars.len() > max_ngram {
                 return Err(PyValueError::new_err("vocabulary ngram length disagrees with schema"));
@@ -67,12 +69,11 @@ impl NativeL2 {
             let Some(key) = pack_ngram(&chars) else {
                 return Err(PyValueError::new_err("non-BMP vocabulary ngram unsupported"));
             };
-            if indexed.insert(key, index).is_some() {
-                return Err(PyValueError::new_err("duplicate vocabulary ngram"));
-            }
+            indexed.push((key,index as u32));
         }
-        if indexed.len() != width { return Err(PyValueError::new_err("missing vocabulary indices")); }
-        Ok(Self { vocabulary: indexed, idf, weights, intercept,
+        indexed.sort_unstable_by_key(|v|v.0);
+        if indexed.windows(2).any(|w|w[0].0==w[1].0){return Err(PyValueError::new_err("duplicate ngram"));}
+        Ok(Self { vocabulary: indexed, idf, weights:format::Weights::F64(weights.into_iter().flatten().collect()), intercept,
                   min_ngram, max_ngram, binary, sublinear_tf, class_names: None })
     }
 

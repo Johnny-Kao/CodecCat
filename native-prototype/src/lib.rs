@@ -146,7 +146,7 @@ impl NativeL2 {
             for gram in chars.windows(n) {
                 if let Some(key) = pack_ngram(gram) {
                     if let Some(&index) = self.vocabulary.binary_search_by_key(&key,|v|v.0).ok().map(|p|&(self.vocabulary[p].1)) {
-                        *counts.entry(*index as usize).or_default() += 1;
+                        *counts.entry(index as usize).or_default() += 1;
                     }
                 }
             }

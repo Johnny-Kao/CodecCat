@@ -33,6 +33,14 @@ def reference_scores(model,b):
 def main():
     model=TrainableDetector.load_portable("src/codeccat/models/stable23.zip")
     native=make_native(model)
+    exported=Path("native-prototype/model/stable23.ccm").read_bytes()
+    native_file=NativeL2.from_model_bytes(exported)
+    assert native_file.class_names()==[str(x) for x in model.classifier.classes_]
+    corrupted=bytearray(exported)
+    corrupted[len(corrupted)//2] ^= 1
+    try:NativeL2.from_model_bytes(bytes(corrupted))
+    except ValueError:pass
+    else:raise AssertionError("corrupt CCM1 unexpectedly loaded")
     dataset=corpus(Path("training"))
     # Source-independent deterministic stride, plus Unicode/BOM/binary corner cases.
     rows=[item[0] for item in dataset[::12]]
@@ -49,6 +57,9 @@ def main():
     for n,b in enumerate(rows):
         expected=reference_scores(model,b)
         actual=np.asarray(native.scores(b),dtype=np.float64)
+        loaded=np.asarray(native_file.scores(b),dtype=np.float64)
+        if not np.array_equal(actual,loaded):
+            raise AssertionError(f"CCM1 differs from direct tensor scorer at case {n}")
         if expected.shape!=actual.shape:raise AssertionError((n,expected.shape,actual.shape))
         delta=float(np.max(np.abs(expected-actual)))
         max_err=max(max_err,delta)
@@ -62,6 +73,8 @@ def main():
       "ranking_mismatch_count":ranking_fail,
       "duration_s":round(time.perf_counter()-begin,3),
       "native_module":"_codeccat_native",
+      "ccm1_file_size":len(exported),
+      "ccm1_verified":True,
       "note":"Gate 1 numerical parity only. No full L1/L3 or end-user wheel parity claimed."}
     print("NATIVE_L2_PARITY_RESULT",json.dumps(report),flush=True)
     if ranking_fail:raise AssertionError("numeric rank ordering diverged")

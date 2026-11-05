@@ -56,6 +56,11 @@ jobs:
           .native-clean/bin/python -m pip install native-prototype/dist/*.whl
           .native-clean/bin/python native-prototype/api_parity.py verify
           .native-clean/bin/codeccat --help
+      - name: Compare runtime cost against original Alpha on same runner
+        run: |
+          PYTHONPATH=src python native-prototype/bench_inference.py --variant alpha
+          .native-clean/bin/python native-prototype/bench_inference.py --variant native
+          du -h native-prototype/dist/*.whl native-prototype/python/codeccat/models/default.ccm
       - uses: actions/upload-artifact@v4
         if: always()
         with:

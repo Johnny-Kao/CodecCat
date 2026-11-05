@@ -11,13 +11,14 @@ No GitHub Release or PyPI publication is authorized by CI status alone.
       Windows x64/ARM64, macOS Intel/ARM64.
 - [ ] Installed-wheel CLI Unicode, corrupt CCM1/CCM2, concurrency, and
       numerical/API parity.
+- [ ] Run `python native-prototype/audit_release_wheel.py dist/*.whl` on each final wheel and inspect its report.
 - [ ] Verify release assets correspond to the final tag commit and have
       SHA256SUMS. Do not upload artifacts from a different commit.
 - [ ] Decide whether a source distribution can include a usable model or
       needs an explicit source-build model-generation process. A bare source
       checkout is currently not a working model-bearing installation.
 
-## Distribution / provenance gate (BLOCKING)
+## Distribution / provenance review
 
 The frozen training corpus is `chardet/test-data` pinned to
 `b0c0d206913ba118ffea2f7d306883e7a4a76db7`.
@@ -25,8 +26,9 @@ Its license notice states that each test file remains copyrighted by its
 publisher. Public availability does **not** establish a blanket license to
 redistribute source texts or a fitted model. Check the corpus catalog and
 actual training use, record the applicable basis for fitted-parameter
-distribution, and have a documented approval before publishing the binary
-default model.
+distribution, and document the resulting risk assessment before publishing the binary
+default model. See RIGHTS_AND_PROVENANCE.md for the public rights-inquiry
+procedure. The contact mechanism is not a liability waiver.
 
 CCM SHA256 and the `model_fingerprint` prove integrity/lineage checks,
 **not** a license, authenticity of origin, or distribution permission.

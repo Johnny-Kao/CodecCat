@@ -2,7 +2,7 @@
 
 **CodecCat** detects character encodings and decodes byte sequences using a compact trained model. The next release uses **Rust/PyO3 for native model inference** and Python's strict codecs for decoding.
 
-> **Release status:** [v0.1.0a2](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0a2) is the latest published experimental Alpha. The native `0.1.0a3` package is undergoing release preparation on `refactor/native-inference-v1`; **it has not yet been published to GitHub Releases or PyPI**. `pip install codeccat` will not work until PyPI publication.
+> **Release status:** [v0.1.0a2](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0a2) is the latest published experimental Alpha. The native `0.1.0a3` package is undergoing release preparation; **it has not yet been published to GitHub Releases or PyPI**. `pip install codeccat` will not work until PyPI publication.
 
 ## Install
 

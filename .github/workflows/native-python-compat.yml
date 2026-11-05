@@ -1,7 +1,7 @@
 name: Native Python version and optional legacy compatibility
 on:
   push:
-    branches: [refactor/native-inference-v1]
+    branches: [main, refactor/native-inference-v1]
     paths:
       - native-prototype/**
       - .github/workflows/native-python-compat.yml

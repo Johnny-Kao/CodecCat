@@ -1,7 +1,7 @@
 name: Native root package smoke
 on:
   push:
-    branches: [refactor/native-inference-v1]
+    branches: [main, refactor/native-inference-v1]
     paths:
       - "pyproject.toml"
       - "native-prototype/**"

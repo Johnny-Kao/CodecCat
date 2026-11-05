@@ -176,6 +176,11 @@ def cli_contract() -> None:
         for cmd in commands:
             result = subprocess.run(cmd, capture_output=True, timeout=15, check=False)
             assert result.returncode == 0, (cmd, result.stderr.decode(errors="replace"))
+        decoded = subprocess.run(
+            commands[1], capture_output=True, timeout=15, check=True,
+            env={**os.environ, "PYTHONIOENCODING": "cp1252"},
+        ).stdout
+        assert decoded == "日本語".encode("utf-8"), decoded
         structured = json.loads(subprocess.run(
             commands[0], capture_output=True, timeout=15, check=True
         ).stdout.decode())

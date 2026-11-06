@@ -55,6 +55,8 @@ class ManifestSafetyTests(unittest.TestCase):
     def test_optional_content_sha256_rejects_modified_inputs(self):
         import hashlib
         rows=self.base()
+        (self.root/"c.bin").write_bytes(b"separate utf8 training sample")
+        rows.insert(1,{"path":"c.bin","encoding":"utf-8","split":"train","group":"c"})
         rows[0]["sha256"]=hashlib.sha256((self.root/"a.bin").read_bytes()).hexdigest()
         rows[0]["prefix_sha256"]=rows[0]["sha256"]
         path=self.write(rows)

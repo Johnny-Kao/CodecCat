@@ -100,15 +100,21 @@ def export_ccm(path,vectorizer,classifier,precision="f64"):
     path.write_bytes(data)
     return hashlib.sha256(data).hexdigest(),len(data)
 
-def fit(manifest:Path,output:Path,report:Path,seed:int,precision:str="f64"):
-    train,validation=read_manifest(manifest)
+def fit_l2(training_rows,seed:int):
+    """Stable23-equivalent L2 fitting on supplied rows; no official corpus implied."""
+    strings=[r[0][:4096].decode("latin1") for r in training_rows]
+    labels=[r[1] for r in training_rows]
     vec=TfidfVectorizer(analyzer="char",ngram_range=(2,3),
         min_df=2,max_features=45000,sublinear_tf=True)
-    strings=[r[0][:4096].decode("latin1") for r in train]
     x=vec.fit_transform(strings)
     model=SGDClassifier(loss="modified_huber",alpha=.0001,
         random_state=seed,max_iter=1500)
-    model.fit(x,[r[1] for r in train])
+    model.fit(x,labels)
+    return vec,model
+
+def fit(manifest:Path,output:Path,report:Path,seed:int,precision:str="f64"):
+    train,validation=read_manifest(manifest)
+    vec,model=fit_l2(train,seed)
     xval=vec.transform([r[0][:4096].decode("latin1") for r in validation])
     pred=model.predict(xval)
     accuracy=accuracy_score([r[1] for r in validation],pred)

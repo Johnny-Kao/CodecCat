@@ -29,6 +29,14 @@ def read_manifest(manifest:Path,require_validation:bool=True):
             raise ValueError(f"line {number}: path escapes manifest directory")
         raw=resolved.read_bytes()
         if not raw:raise ValueError(f"line {number}: empty input")
+        # Optional per-file attestations protect reproducible training against
+        # silent input changes after a manifest was generated.
+        for key,payload in (("sha256",raw),("prefix_sha256",raw[:4096])):
+            expected=record.get(key)
+            if expected is not None:
+                actual=hashlib.sha256(payload).hexdigest()
+                if not isinstance(expected,str) or expected!=actual:
+                    raise ValueError(f"line {number}: {key} mismatch")
         try:codecs.lookup(record["encoding"])
         except LookupError as ex:raise ValueError(f"line {number}: unknown codec") from ex
         try:raw.decode(record["encoding"],"strict")

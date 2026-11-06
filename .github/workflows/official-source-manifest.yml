@@ -1,0 +1,59 @@
+name: Official Stable23 source-manifest audit
+
+on:
+  pull_request:
+    paths:
+      - "datasets/official/prepare_manifest.py"
+      - ".github/workflows/official-source-manifest.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout CodecCat code only
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Checkout pinned third-party inputs for ephemeral audit only
+        uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: source-data
+          persist-credentials: false
+      - name: Generate metadata-only source manifest with pinned-commit guard
+        shell: bash
+        run: |
+          python datasets/official/prepare_manifest.py --corpus source-data
+      - name: Audit metadata and ensure no source file text is included
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          src=Path("source-data")
+          manifest=src/"codeccat-replay-manifest.jsonl"
+          rows=[json.loads(line) for line in manifest.read_text().splitlines()]
+          assert len(rows)>=1000
+          assert len({r["encoding"] for r in rows})>=40
+          assert all(r["split"]=="train" for r in rows)
+          assert all(set(r)>= {"path","sha256","prefix_sha256","group","encoding"} for r in rows)
+          assert not any("text" in r or "bytes" in r for r in rows)
+          print("OFFICIAL_METADATA_ONLY_MANIFEST_PASS",len(rows),len({r["encoding"] for r in rows}),hashlib.sha256(manifest.read_bytes()).hexdigest())
+          PY
+      - name: Upload manifest metadata only (never corpus bytes)
+        uses: actions/upload-artifact@v4
+        with:
+          name: stable23-input-manifest-metadata
+          path: source-data/codeccat-replay-manifest.jsonl
+          if-no-files-found: error
+          retention-days: 7

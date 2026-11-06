@@ -57,3 +57,37 @@ against the original published artifact has **not** passed or been claimed.
 Historically recorded package versions alone do not prove cross-machine
 bitwise determinism. Do not mirror the third-party raw corpus into this
 repository or publish a retrained official model without rights review.
+
+## Preparing an immutable source input manifest
+
+The version-pinned original corpus can be inventoried without storing any
+training text in CodecCat. `prepare_manifest.py` replays the historical
+directory parsing, strict-decoding filter, 4096-byte prefix deduplication,
+source-group normalization and sample order.
+
+Run the [metadata-only GitHub Actions audit](../../.github/workflows/official-source-manifest.yml)
+(or run the script in an isolated research environment with an existing
+checkout at the pinned commit):
+
+```bash
+python datasets/official/prepare_manifest.py --corpus /path/to/chardet-test-data
+```
+
+The tool verifies Git HEAD, rejects modified tracked corpus files and
+unexpected untracked corpus input files, then writes
+`codeccat-replay-manifest.jsonl` **inside the corpus root**. Its entries
+contain paths, codec labels, group IDs, SHA256 of the complete bytes,
+SHA256 of the first 4096 bytes, and the historical source-fold ID.
+**No original text bytes are copied into the manifest.**
+
+The independent Trainer verifies optional `sha256` and `prefix_sha256`
+fields when reading each sample. The generated manifest is *train-only* by
+design because the old release builder fitted the complete eligible corpus.
+Keep the corpus checkout and manifest together; do not commit or upload the
+third-party raw corpus.
+
+Use the resulting manifest with `codeccat-train fit --train-only
+--residual-focus --precision f32` for a **research candidate**, never as an
+automatic Stable replacement. The L3 language model is still trained by
+a separate historical step, and matching official CCM2 file hashes has not
+yet been demonstrated.

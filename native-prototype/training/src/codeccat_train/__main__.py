@@ -112,13 +112,19 @@ def fit_l2(training_rows,seed:int):
     model.fit(x,labels)
     return vec,model
 
-def fit(manifest:Path,output:Path,report:Path,seed:int,precision:str="f64"):
+def fit(manifest:Path,output:Path,report:Path,seed:int,precision:str="f64",residual_focus:bool=False):
     train,validation=read_manifest(manifest)
+    original_train_n=len(train)
+    source_fingerprint=fingerprint_dataset(train + validation)
+    removed={}
+    if residual_focus:
+        from .residual import residual_subset
+        train,removed=residual_subset(train)
+    effective_fingerprint=fingerprint_dataset(train)
     vec,model=fit_l2(train,seed)
     xval=vec.transform([r[0][:4096].decode("latin1") for r in validation])
     pred=model.predict(xval)
     accuracy=accuracy_score([r[1] for r in validation],pred)
-    data_fingerprint = fingerprint_dataset(train + validation)
     digest,size=export_ccm(output,vec,model,precision=precision)
     result={
         "schema":"codeccat-offline-train-v1",
@@ -127,13 +133,17 @@ def fit(manifest:Path,output:Path,report:Path,seed:int,precision:str="f64"):
         "weight_precision":precision,
         "seed":seed,
         "training_n":len(train),"validation_n":len(validation),
+        "training_original_n":original_train_n,
+        "residual_focus_applied":residual_focus,
+        "training_removed_by_label":removed,
         "training_groups":len({r[2] for r in train}),
         "validation_groups":len({r[2] for r in validation}),
         "classes":list(model.classes_),
         "validation_codec_label_accuracy":float(accuracy),
         "note":"Validation checks exact encoding LABEL, not full public Runtime text-level detection and not independent external generalization.",
         "manifest_sha256":hashlib.sha256(manifest.read_bytes()).hexdigest(),
-        "dataset_content_fingerprint_sha256":data_fingerprint,
+        "dataset_content_fingerprint_sha256":source_fingerprint,
+        "effective_training_fingerprint_sha256":effective_fingerprint,
         "dataset_fingerprint_scope":"SHA256 of ordered accepted bytes SHA256, encoding, group and split; no raw text",
         "model_sha256":digest,
         "model_bytes":size,
@@ -174,9 +184,11 @@ def main():
     p.add_argument("--output",type=Path,required=True)
     p.add_argument("--report",type=Path,required=True)
     p.add_argument("--seed",type=int,default=20261015)
+    p.add_argument("--residual-focus",action="store_true",
+                   help="replay historical Stable23 residual sample filtering (not official release approval)")
     p.add_argument("--precision",choices=("f64","f32"),default="f64",
                    help="f64 exports CCM1 (default); f32 exports compact CCM2 weights")
     a=p.parse_args(args)
-    print("CODECCAT_TRAIN_RESULT",json.dumps(fit(a.manifest,a.output,a.report,a.seed,precision=a.precision)),flush=True)
+    print("CODECCAT_TRAIN_RESULT",json.dumps(fit(a.manifest,a.output,a.report,a.seed,precision=a.precision,residual_focus=a.residual_focus)),flush=True)
 
 if __name__=="__main__":main()

@@ -114,7 +114,7 @@ def tensor_differences(left, right):
         max_abs = max(max_abs, delta)
     return {
         "values": count,
-        "bitwise_equal_values": exact,
+        "numerically_equal_values": exact,
         "changed_values": count-exact,
         "abs_delta_gt_1e-6": above_1e6,
         "abs_delta_gt_1e-4": above_1e4,
@@ -161,7 +161,8 @@ def compare(reference: Path, candidate: Path) -> dict:
         result["weights"] = tensor_differences(a["weights"], b["weights"])
         width = a["width"]
         per_class = []
-        for idx, label in enumerate(a["classes"]):
+        labels = ["binary-class-margin"] if len(a["classes"]) == 2 else a["classes"]
+        for idx, label in enumerate(labels):
             start = idx * width
             delta = tensor_differences(
                 a["weights"][start:start+width],

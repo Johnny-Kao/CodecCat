@@ -59,7 +59,7 @@ jobs:
                   "pyproject.toml",
                   "LICENSE",
               ):
-                  matches=[n for n in names if n.endswith("/"+relative)]
+                  matches=[n for n in names if n == "codeccat-0.1.0/"+relative]
                   assert len(matches)==1,(relative,matches)
               data=archive.extractfile(next(n for n in names if n.endswith("/native-prototype/python/codeccat/models/default.ccm"))).read()
               assert hashlib.sha256(data).hexdigest()=="16073306b5027bf93acc2883f57fbda0cb0cf2d77b9a7bb62cf1b07fcbb9748b"

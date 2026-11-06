@@ -34,14 +34,14 @@ Both datasets were selected and pinned to an immutable public repository commit 
 
 ## Later overlap audit — correction to independence interpretation
 
-A subsequent pinned-source exact-overlap audit [CI #42235598046](https://github.com/Johnny-Kao/CodecCat/actions/runs/42235598046) replicated all 328 GTK and 102 uchardet benchmark windows. **33/102 uchardet windows are exact full-byte matches** to examples from the historical L2 training corpus; **50/102** flag sampled-span near-overlap, *including* those 33 exact matches. GTK had no detected raw-byte or sampled-span matches under this screen. See [full audit caveats](EXTERNAL_HOLDOUT_OVERLAP_SCREEN_2026-11-06.md).
+A subsequent pinned-source exact-overlap audit [CI #42235598046](https://github.com/Johnny-Kao/CodecCat/actions/runs/42235598046) replicated all 328 GTK and 102 uchardet benchmark windows. **33/102 uchardet windows are exact full-byte matches** to examples from the historical L2 training corpus; **50/102** flag sampled-span near-overlap. These sets intersect in 26 windows: **57/102 have at least one overlap flag**. The previous assumption that all 33 exact matches were among the 50 sampled-span candidates was incorrect. GTK had no detected raw-byte or sampled-span matches under this screen. See [full audit caveats](EXTERNAL_HOLDOUT_OVERLAP_SCREEN_2026-11-06.md).
 
 **Correction:** although the uchardet repository itself was distinct, the evaluated data were not fully independent of training. The 94/102 score below is descriptive, not unbiased held-out accuracy. Do not characterize uchardet as a fully independent blind test. The GTK result also remains a limited, previously observed single-genre diagnostic, not proof of semantic independence.
 
 ## Clear outcome
 
-**Do not promote to Stable yet.** CodecCat missed 32/328 texts on the new UTF-8-only GTK source compared to zero misses for chardet, and 8/102 on the independent multi-encoding source compared with 6 for chardet. Calling a CI PASS a product-accuracy PASS would be misleading.
+**These were Alpha v0.1.0a4 results, not current Stable v0.1.0 results.** The Alpha missed 32/328 GTK texts compared with zero chardet misses and 8/102 on the uchardet sample compared with 6 chardet misses. Later pinned-source overlap analysis invalidated the characterization of the uchardet cases as independent. Calling CI PASS a product-accuracy PASS would be misleading. The released Stable 0.1.0 has separately measured 324/328 GTK and 95/102 uchardet correct texts; these remain previously inspected development diagnostics, not independent confirmation.
 
 **Engineering priorities derived from the untouched results:** inspect the 32 GTK UTF-8 failures and the per-encoding uchardet misses (notably Latin-15, cp1252, Shift-JIS), then make changes using *a separate new confirmation source*. Previously inspected heldouts become development fixtures after the results have been examined; they must not be presented as pristine blind tests for future revisions.
 
-**PyPI remains unpublished; no new model or release assets were changed by these quality evaluations** except the new frozen-reference archive attached to the existing GitHub Alpha release.
+**The earlier Alpha evaluation did not publish a new model.** Subsequently `codeccat==0.1.0` became available through PyPI; distinguish that released Runtime from the earlier pinned Alpha wheel when citing accuracy. The evaluation and overlap research did not publish any new models.

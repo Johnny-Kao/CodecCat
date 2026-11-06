@@ -15,6 +15,23 @@
 
 Fixed source subsets are: chardet/test-data **633** (CodecCat 622 correct), charset-normalizer original labeled tests **15** (CodecCat 14 correct), and previously inspected Vim/Git windows **195** (CodecCat 190 correct). The last source is 97.44% correct for CodecCat, but the full 843-case sample mixes training and development sources. These percentages **cannot be interpreted as blind population accuracy**. Small timing changes across CI runs should not be presented as significant or guaranteed. Exact model and all six release wheel assets were validated in [Stable publication CI #42163214006](https://github.com/Johnny-Kao/CodecCat/actions/runs/42163214006); the Linux manylinux gate itself was [#42162646277](https://github.com/Johnny-Kao/CodecCat/actions/runs/42162646277). Stable denotes supported API and distribution quality, **not 100% encoding-classification correctness**.
 
+## Stable v0.1.0 published Wheel (2026-11-06)
+
+[Post-release Stable benchmark #42163479473](https://github.com/Johnny-Kao/CodecCat/actions/runs/42163479473) **PASS**: installed the actual published `v0.1.0` manylinux x86-64 Wheel, confirmed the frozen model SHA256, then evaluated the same 843 original byte cases across five fixed corpora against chardet 7.7.0 and charset-normalizer 3.5.2.
+
+| Metric | CodecCat Stable v0.1.0 | chardet | charset-normalizer |
+|---|---:|---:|---:|
+| Correct decoded Unicode text | 826/843 (**97.98%**) | **829/843 (98.34%)** | 698/843 (82.80%) |
+| Exact encoding name | **787/843 (93.36%)** | 712/843 (84.46%) | 583/843 (69.16%) |
+| Total CPU time in one CI run | **779 ms** | 1,008 ms | 1,205 ms |
+| p50 latency range over five sets | 0.94–1.04 ms | **0.49–0.83 ms** | 0.85–1.16 ms |
+| p95 latency range | **1.38–1.65 ms** | 3.23–3.86 ms | 3.55–5.15 ms |
+| Process peak RSS | 66–69 MiB | 61–64 MiB | **40–44 MiB** |
+
+The **843-case development data contains 633 source cases that overlap the model's training provenance**. This is **not** an unbiased estimate of real-world accuracy. Timings are single-run observations on GitHub-hosted hardware.
+
+Stable's packaging was separately validated on actual manylinux 2.28 x86-64 and ARM64 containers: [tagged manylinux CI #42162646277](https://github.com/Johnny-Kao/CodecCat/actions/runs/42162646277). [Six-platform tagged CI #42162673211](https://github.com/Johnny-Kao/CodecCat/actions/runs/42162673211) and [Stable publisher validation #42163214006](https://github.com/Johnny-Kao/CodecCat/actions/runs/42163214006) passed.
+
 ## Five-corpus benchmark (released Native v0.1.0a5)
 
 [Post-release run #42158308518](https://github.com/Johnny-Kao/CodecCat/actions/runs/42158308518) installed the **published v0.1.0a5 Wheel**. The same 843 byte samples across five fixed sets were compared with chardet 7.7.0 and charset-normalizer 3.5.2 on Ubuntu 24.04 / Python 3.12.

@@ -1,5 +1,22 @@
 # CodecCat accuracy and performance benchmarks
 
+## Five-corpus benchmark (released Native v0.1.0a5)
+
+[Post-release run #42158308518](https://github.com/Johnny-Kao/CodecCat/actions/runs/42158308518) installed the **published v0.1.0a5 Wheel**. The same 843 byte samples across five fixed sets were compared with chardet 7.7.0 and charset-normalizer 3.5.2 on Ubuntu 24.04 / Python 3.12.
+
+| Metric | CodecCat a5 | chardet | charset-normalizer |
+|---|---:|---:|---:|
+| Correct Unicode text | 826/843 (97.98%) | **829/843 (98.34%)** | 698/843 (82.80%) |
+| Exact encoding label | **787/843 (93.36%)** | 712/843 (84.46%) | 583/843 (69.16%) |
+| Total CPU time | **660 ms** | 861 ms | 1,073 ms |
+| p50 latency range | 0.78–0.89 ms | **0.46–0.75 ms** | 0.74–1.02 ms |
+| p95 latency range | **1.20–1.32 ms** | 2.69–3.01 ms | 3.10–4.64 ms |
+| Whole-process peak RSS | 66–69 MiB | 61–64 MiB | **40–44 MiB** |
+
+The new version correctly decodes **190/195** previously examined Vim/Git samples (a4: 183/195). This development benchmark includes 633 samples from the model's training source; **97.98% is not an independent real-world accuracy estimate**. CPU and latency values are one hosted CI observation, not guaranteed differences.
+
+[Same-model paired evidence and limitations](../research/UTF8_EVIDENCE_V2_2026-11-06.md). Historical a4 results remain below.
+
 ## Source-disjoint follow-up checks (2026-11-06)
 
 These are **new source repositories**, selected and pinned before running the published `v0.1.0a4` Wheel. They are distinct from the model's documented training repository, but no exhaustive semantic near-duplicate audit has been completed.

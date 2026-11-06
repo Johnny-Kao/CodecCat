@@ -33,6 +33,17 @@ A proposed official-default-model change must pass an additional maintainer-cont
 
 For now, do not commit new binary model artifacts to the repository without an agreed issue and audit. Prefer a temporary, clearly identified research artifact or an external reproducible recipe. A new candidate model may be shared as a separate, clearly experimental release only after review.
 
-## Official corpus limitation
+## Actual state of the historical model (2026-11-06)
 
-The released v0.1.0 default CCM2 model came from a pinned third-party corpus whose copyright conditions are mixed. The existing standalone Trainer uses a simplified CCM1 path, **not yet a reproduction of the exact official training recipe**. See [official dataset provenance](../datasets/official/README.md) and [rights](../RIGHTS_AND_PROVENANCE.md). Until the source clearance and reproducibility gates are complete, do not claim a model can be reproduced byte-for-byte from a public recipe.
+**Engineering reproduction PASS.** The independent Trainer has reproduced the published L2 CCM2 and optional L3 artifacts **byte-for-byte** using the pinned historical corpus, scientific-library environment, and fixed source order. The manual research workflow fails closed on 52 required conditions. See [official reproducibility status](../datasets/official/README.md) and [strict replay CI](https://github.com/Johnny-Kao/CodecCat/actions/runs/42233278592). This proves reproduction of existing artifacts under the checked conditions, **not** improved generalization or permission to distribute third-party inputs.
+
+**Independent accuracy evidence is limited.** The [overlap screen](../research/EXTERNAL_HOLDOUT_OVERLAP_SCREEN_2026-11-06.md) found **33 exact training-byte matches among 102 previously scored uchardet windows**, and flagged **50/102** as near-overlap candidates (inclusive of the 33). Treat its historical 94/102 score as descriptive only. The 328 GTK windows had no detected raw-byte overlap, but they form a narrow, previously inspected genre and do not establish general model quality. Existing observed test cases are suitable for regression development, **not** pristine new blind validation.
+
+**Release promotion remains blocked pending separate decisions:**
+
+- **Data rights:** review the individual upstream fixture origins and permissions, document the basis for training/model distribution, and resolve or explicitly document material unresolved rights risks. Do not assume the source repository's public accessibility is a license.
+- **Quality:** pre-register a genuinely new, non-overlapping confirmation source before inspecting results; require correct decoded Unicode as the primary metric, per-codec effects and paired help/harm against the current Stable model. Record accepted trade-offs and ensure no unexplained security or decoding regressions.
+- **Platform compatibility:** Trainer synthetic CCM1/CCM2 generation and published Runtime loading passed on Linux ARM64 as well as Linux x86-64, Windows and macOS Intel. **macOS ARM64 Trainer E2E remains unverified**, and must not be inferred from Intel macOS or Linux ARM64.
+- **Final release decision:** the maintainer reviews the exact source revision, model SHA256, test provenance and rights assessment. CI success and a merged PR never automatically publish or promote a model.
+
+The official L3 inference behavior remains **disabled by default**; successful L3 retraining alone does not justify enabling it. See [rights and provenance](../RIGHTS_AND_PROVENANCE.md).

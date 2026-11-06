@@ -1,0 +1,39 @@
+name: CodecCat source-disjoint multi-encoding holdout
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/frozen-model-gtk-holdout-20261106]
+    paths:
+      - "experiments/uchardet_blind_holdout.py"
+      - ".github/workflows/uchardet-blind-holdout.yml"
+permissions:
+  contents: read
+jobs:
+  independently-sourced:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: BYVoid/uchardet
+          ref: 4e685757780cb3c652fc6c9ec759f62888969ec9
+          path: external-encoding-source
+          sparse-checkout: test
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install published CodecCat and pinned alternatives
+        run: |
+          python -m pip install --no-deps https://github.com/Johnny-Kao/CodecCat/releases/download/v0.1.0a4/codeccat-0.1.0a4-cp310-abi3-linux_x86_64.whl
+          python -m pip install chardet==7.7.0 charset-normalizer==3.5.2
+      - name: Verify frozen source commit
+        run: test "$(git -C external-encoding-source rev-parse HEAD)" = "4e685757780cb3c652fc6c9ec759f62888969ec9"
+      - name: Evaluate all three detectors in five document-level folds
+        run: python experiments/uchardet_blind_holdout.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: external-multicodec-holdout
+          path: research-results/uchardet-holdout/
+          retention-days: 90

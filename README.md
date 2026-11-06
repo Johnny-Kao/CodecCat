@@ -20,7 +20,7 @@ Download the wheel for your operating system from [CodecCat v0.1.0](https://gith
 python -m pip install ./codeccat-0.1.0-*.whl
 ```
 
-Supports **Python 3.10+** on Linux, macOS and Windows. On Windows, use the exact downloaded wheel filename instead of the `*` wildcard. Native detection doesn't require NumPy or scikit-learn. **GitHub Wheels; PyPI publishing is a separate distribution step.**
+Supports **Python 3.10–3.14** on the published Linux (manylinux 2.28+), macOS and Windows targets. On Windows, use the exact downloaded wheel filename instead of the `*` wildcard. Native detection doesn't require NumPy or scikit-learn. **GitHub Wheels; PyPI publishing is a separate distribution step.**
 
 ## Use it
 
@@ -45,25 +45,24 @@ codeccat --decode file.txt > readable.txt
 
 ## Comparison
 
-CodecCat **v0.1.0 stable candidate**, using the same frozen model and decoder code as the verified v0.1.0a5 baseline, compared with chardet and charset-normalizer on the **same 843 text samples** across five fixed test sets (Ubuntu 24.04 / Python 3.12).
+Tested with the **published Stable v0.1.0 manylinux Wheel**, chardet and charset-normalizer on exactly the same **843 text samples** across five fixed sets (Ubuntu 24.04 / Python 3.12).
 
 | | CodecCat | chardet | charset-normalizer |
 |---|---:|---:|---:|
 | Correctly decoded text | 97.98% | **98.34%** | 82.80% |
 | Exact encoding name | **93.36%** | 84.46% | 69.16% |
-| Total CPU time | **660 ms** | 861 ms | 1,073 ms |
-| Typical latency (p50 range) | 0.78–0.89 ms | **0.46–0.75 ms** | 0.74–1.02 ms |
-| Slower-case latency (p95 range) | **1.20–1.32 ms** | 2.69–3.01 ms | 3.10–4.64 ms |
+| Total CPU time | **779 ms** | 1,008 ms | 1,205 ms |
+| Typical latency (p50 range) | 0.94–1.04 ms | **0.49–0.83 ms** | 0.85–1.16 ms |
+| Slower-case latency (p95 range) | **1.38–1.65 ms** | 3.23–3.86 ms | 3.55–5.15 ms |
 | Peak RAM (range) | 66–69 MiB | 61–64 MiB | **40–44 MiB** |
 
-**chardet still decoded slightly more of these samples correctly.** CodecCat used less measured CPU time and had lower p95 latency, but used more RAM.
+**chardet decoded slightly more text correctly.** CodecCat used less measured CPU and lower p95 latency, but more RAM. Results are from one shared CI runner; small speed differences are not statistical guarantees.
 
-**Limits:** These test sets include model training and development sources; **97.98% is not a general real-world accuracy estimate**. CPU and timing values come from one hosted CI run. A separately pinned GNOME Software source showed **198/225 → 216/225** correct decodes versus v0.1.0a4, using the identical model and with no observed regressions. [Full methods and caveats](docs/BENCHMARKS.md#five-corpus-benchmark-released-native-v010a5).
+**Accuracy limitation:** This benchmark includes training and previously examined source texts; **97.98% is not an independently estimated real-world accuracy**. A source-level paired GNOME Software test showed 18 correct decodes gained with the same frozen model, without observed regressions. [Official Stable CI and methodology](docs/BENCHMARKS.md#stable-v010-published-wheel-2026-11-06).
 
 ## Notes
 
 [Public API compatibility contract](docs/STABILITY.md): the 0.1.x stable line preserves the documented public calls and result fields. Encoding inference remains probabilistic and is not guaranteed for arbitrary bytes.
-
 
 Encoding isn't always identifiable from bytes alone. Check `result.ambiguous` when the exact encoding matters. Decoding is strict: invalid text is not silently replaced. CodecCat v0.1.0 is a **stable release**.
 

@@ -1,0 +1,89 @@
+name: CodecCat source distribution round-trip
+
+on:
+  pull_request:
+    paths:
+      - "pyproject.toml"
+      - "native-prototype/**"
+      - ".github/workflows/source-distribution.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-install:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Restore pinned released numeric model without retraining
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 -o /tmp/native-reference.tar.gz \
+            https://github.com/Johnny-Kao/CodecCat/releases/download/v0.1.0a4/native-reference-v0.1.0a4.tar.gz
+          echo "e3dd654817fb0e3324910b1a39af9bc19185400582d5a066c533d7cc5dd81c8c  /tmp/native-reference.tar.gz" | sha256sum -c -
+          mkdir -p ci-fixtures native-prototype/python/codeccat/models
+          tar -xzf /tmp/native-reference.tar.gz -C ci-fixtures
+          echo "16073306b5027bf93acc2883f57fbda0cb0cf2d77b9a7bb62cf1b07fcbb9748b  ci-fixtures/default.ccm" | sha256sum -c -
+          cp ci-fixtures/default.ccm ci-fixtures/default.ccm.meta.json ci-fixtures/language-l3.json native-prototype/python/codeccat/models/
+          git add -f -N native-prototype/python/codeccat/models/default.ccm \
+            native-prototype/python/codeccat/models/default.ccm.meta.json \
+            native-prototype/python/codeccat/models/language-l3.json
+      - name: Build the source distribution using the real backend
+        run: |
+          python -m pip install --disable-pip-version-check build==1.3.0 maturin==1.9.4 twine==7.0.0
+          python -m build --no-isolation --sdist --outdir dist .
+      - name: Confirm sdist contains immutable model and Rust package
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib,tarfile
+          from pathlib import Path
+          files=list(Path("dist").glob("codeccat-0.1.0.tar.gz"))
+          assert len(files)==1,files
+          with tarfile.open(files[0],"r:gz") as archive:
+              names=archive.getnames()
+              for relative in (
+                  "native-prototype/python/codeccat/models/default.ccm",
+                  "native-prototype/python/codeccat/models/default.ccm.meta.json",
+                  "native-prototype/python/codeccat/models/language-l3.json",
+                  "native-prototype/src/lib.rs",
+                  "pyproject.toml",
+                  "LICENSE",
+              ):
+                  matches=[n for n in names if n.endswith("/"+relative)]
+                  assert len(matches)==1,(relative,matches)
+              data=archive.extractfile(next(n for n in names if n.endswith("/native-prototype/python/codeccat/models/default.ccm"))).read()
+              assert hashlib.sha256(data).hexdigest()=="16073306b5027bf93acc2883f57fbda0cb0cf2d77b9a7bb62cf1b07fcbb9748b"
+          print("SDIST_IMMUTABLE_MODEL_AND_SOURCE_PRESENT")
+          PY
+          python -m twine check --strict dist/*.tar.gz
+      - name: Build and install wheel from sdist in a fresh environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p unpacked rebuilt
+          tar -xzf dist/codeccat-0.1.0.tar.gz -C unpacked
+          python -m build --wheel --outdir rebuilt unpacked/codeccat-0.1.0
+          python native-prototype/audit_release_wheel.py rebuilt/*.whl
+          python -m venv .sdist-clean
+          .sdist-clean/bin/python -m pip install --no-deps rebuilt/*.whl
+          .sdist-clean/bin/python - <<'PY'
+          import hashlib,importlib.resources,importlib.util
+          import codeccat
+          assert all(importlib.util.find_spec(name) is None for name in ("numpy","scipy","sklearn","joblib"))
+          assert codeccat.detect(b"hello").text=="hello"
+          assert codeccat.decode("日本語".encode())=="日本語"
+          with importlib.resources.as_file(importlib.resources.files("codeccat").joinpath("models/default.ccm")) as path:
+              assert hashlib.sha256(path.read_bytes()).hexdigest()=="16073306b5027bf93acc2883f57fbda0cb0cf2d77b9a7bb62cf1b07fcbb9748b"
+          print("SDIST_ROUND_TRIP_INSTALL_PASS")
+          PY
+          .sdist-clean/bin/python -m pip check

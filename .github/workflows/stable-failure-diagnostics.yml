@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "experiments/stable_failure_diagnostics.py"
+      - "experiments/stable_utf8_counterfactual.py"
       - ".github/workflows/stable-failure-diagnostics.yml"
   workflow_dispatch:
 
@@ -43,6 +44,8 @@ jobs:
           persist-credentials: false
       - name: Attribute existing 11 failures
         run: python experiments/stable_failure_diagnostics.py
+      - name: Evaluate paired UTF-8 rescue counterfactuals
+        run: python experiments/stable_utf8_counterfactual.py
       - name: Check safe diagnostic output
         run: |
           python - <<'PY'
@@ -59,6 +62,10 @@ jobs:
                    "runtime_text_matches_own_codec_decode","runtime_text_mismatch_kind",
                    "own_codec_decode_mismatch_kind","correct_under_truth_codec"}
           assert all(set(x)==allowed for x in r["failures"])
+          paired=json.loads(Path("research-results/stable-utf8-counterfactual.json").read_text())
+          assert paired["development_only"] and not paired["raw_content_exported"]
+          assert paired["data"]["gtk"]["n"] == 328
+          assert paired["data"]["uchardet"]["n"] == 102
           print("METADATA_ONLY_11_FAILURES_VALID")
           PY
       - name: Upload failure metadata only
@@ -66,6 +73,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: stable-failure-diagnostics-metadata
-          path: research-results/stable-failure-diagnostics.json
+          path: |
+            research-results/stable-failure-diagnostics.json
+            research-results/stable-utf8-counterfactual.json
           if-no-files-found: error
           retention-days: 7

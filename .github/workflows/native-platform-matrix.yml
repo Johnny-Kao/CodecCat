@@ -2,6 +2,7 @@ name: CodecCat native cross-platform wheel parity
 on:
   push:
     branches: [main, refactor/native-inference-v1]
+    tags: ['v*']
     paths:
       - "native-prototype/**"
       - "pyproject.toml"

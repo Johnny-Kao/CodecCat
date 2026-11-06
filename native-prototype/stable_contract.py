@@ -49,7 +49,7 @@ for value in (b"hello",payload,b"",bytes(range(256)),"日本語".encode("utf-8")
 
 with tempfile.TemporaryDirectory() as d:
     p=Path(d)/"in.bin"
-    p.write_bytes("café".encode("utf-8"))
+    p.write_bytes(b"\xef\xbb\xbf"+"café".encode("utf-8"))
     cmd=[sys.executable,"-m","codeccat",str(p),"--json"]
     run=subprocess.run(cmd,capture_output=True,timeout=30,check=True)
     data=json.loads(run.stdout)

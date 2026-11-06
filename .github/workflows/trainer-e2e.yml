@@ -1,0 +1,67 @@
+name: Offline trainer to published Runtime E2E
+
+on:
+  push:
+    branches:
+      - main
+      - staging/trainer-e2e-20261106
+    paths:
+      - "native-prototype/training/**"
+      - ".github/workflows/trainer-e2e.yml"
+  pull_request:
+    paths:
+      - "native-prototype/training/**"
+      - ".github/workflows/trainer-e2e.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  train-and-run:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install trainer in its own isolated environment
+        shell: bash
+        run: |
+          python -m venv .train-env
+          .train-env/bin/python -m pip install --disable-pip-version-check ./native-prototype/training
+          .train-env/bin/python -m unittest discover -s native-prototype/training/tests -v
+      - name: Generate deterministic synthetic fixtures (no upstream corpora)
+        run: .train-env/bin/python native-prototype/training/make_smoke_data.py
+      - name: Run offline training twice with same seed
+        shell: bash
+        run: |
+          mkdir -p trainer-results
+          .train-env/bin/python -m codeccat_train             --manifest native-prototype/training/smoke-data/manifest.jsonl             --output trainer-results/custom.ccm             --report trainer-results/training-report.json --seed 20261015
+          .train-env/bin/python -m codeccat_train             --manifest native-prototype/training/smoke-data/manifest.jsonl             --output trainer-results/repeat.ccm             --report trainer-results/repeat-report.json --seed 20261015
+          cmp trainer-results/custom.ccm trainer-results/repeat.ccm
+          .train-env/bin/python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path("trainer-results/training-report.json").read_text())
+          b=json.loads(Path("trainer-results/repeat-report.json").read_text())
+          assert a==b
+          print("TRAINER_SAME_ENV_REPRODUCIBLE_PASS",a["model_sha256"])
+          PY
+      - name: Install published Stable runtime separately without training dependencies
+        shell: bash
+        run: |
+          python -m venv .runtime-env
+          .runtime-env/bin/python -m pip install --disable-pip-version-check --only-binary=:all: --no-deps codeccat==0.1.0
+      - name: Test the model with the actual Stable Runtime API
+        run: .runtime-env/bin/python native-prototype/training/tests/check_runtime_e2e.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trainer-p0-report
+          path: |
+            trainer-results/training-report.json
+            trainer-results/repeat-report.json
+          if-no-files-found: ignore
+          retention-days: 7

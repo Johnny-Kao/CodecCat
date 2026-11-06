@@ -1,0 +1,15 @@
+# CodecCat v0.1.0a5 — Native Alpha
+
+More reliable decoding of complete UTF-8 documents containing only a few non-ASCII characters.
+
+- Reduce the conservative UTF-8 evidence floor from 16 to 3 non-ASCII Unicode codepoints.
+- Preserve the BOM hierarchy, strict decoding, control-character guard, 64-byte minimum, optional L3 behavior and numeric model contents.
+- Add a fully reproducible staged comparison against v0.1.0a4 with source-level and adversarial regression checks.
+- No changes to public function signatures or runtime dependencies.
+
+Validation before tag:
+- Linux/macOS/Windows six-platform staging CI PASS: https://github.com/Johnny-Kao/CodecCat/actions/runs/42156575255
+- Previously examined four source pools: **48 more correctly decoded texts**, zero observed regressions: https://github.com/Johnny-Kao/CodecCat/actions/runs/42156811989
+- New GNOME Software source (225 original translation-file windows): **198 → 216** correct texts, 18 helps, 0 harms with identical model SHA256: https://github.com/Johnny-Kao/CodecCat/actions/runs/42157052821
+
+This is an experimental Alpha release, not a general accuracy guarantee. See [detailed evidence](research/UTF8_EVIDENCE_V2_2026-11-06.md). Not published to PyPI.

@@ -14,10 +14,10 @@ A Python library for opening text when you don't know its character encoding.
 
 ## Install
 
-Download the wheel for your operating system from [CodecCat v0.1.0a4](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0a4), then install it:
+Download the wheel for your operating system from [CodecCat v0.1.0a5](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0a5), then install it:
 
 ```bash
-python -m pip install ./codeccat-0.1.0a4-*.whl
+python -m pip install ./codeccat-0.1.0a5-*.whl
 ```
 
 Supports **Python 3.10+** on Linux, macOS and Windows. On Windows, use the exact downloaded wheel filename instead of the `*` wildcard. Native detection doesn't require NumPy or scikit-learn. **Not on PyPI yet.**
@@ -45,7 +45,10 @@ codeccat --decode file.txt > readable.txt
 
 ## Comparison
 
-Tested with the released **v0.1.0a4 Native Wheel** against chardet and charset-normalizer on the **same 843 samples** across five fixed test sets.
+The v0.1.0a5 candidate improves UTF-8 recovery versus v0.1.0a4 on separately pinned translation sources, without changing the bundled model. [Paired evidence and remaining limitations](research/UTF8_EVIDENCE_V2_2026-11-06.md).
+
+
+Historical comparison tested with the released **v0.1.0a4 Native Wheel** against chardet and charset-normalizer on the **same 843 samples** across five fixed test sets.
 
 | | CodecCat | chardet | charset-normalizer |
 |---|---:|---:|---:|
@@ -63,6 +66,6 @@ Tested with the released **v0.1.0a4 Native Wheel** against chardet and charset-n
 
 ## Notes
 
-Encoding isn't always identifiable from bytes alone. Check `result.ambiguous` when the exact encoding matters. Decoding is strict: invalid text is not silently replaced. CodecCat v0.1.0a4 is an **Alpha release**.
+Encoding isn't always identifiable from bytes alone. Check `result.ambiguous` when the exact encoding matters. Decoding is strict: invalid text is not silently replaced. CodecCat v0.1.0a5 is an **Alpha release**.
 
 [Releases](https://github.com/Johnny-Kao/CodecCat/releases) · [Issues](https://github.com/Johnny-Kao/CodecCat/issues) · [Benchmarks](docs/BENCHMARKS.md) · [MIT License](LICENSE) · [Rights inquiries](RIGHTS_AND_PROVENANCE.md)

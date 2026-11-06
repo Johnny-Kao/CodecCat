@@ -49,6 +49,19 @@ jobs:
           assert a==b
           print("TRAINER_SAME_ENV_REPRODUCIBLE_PASS",a["model_sha256"])
           PY
+      - name: Train compact CCM2 twice and verify same-environment reproducibility
+        shell: bash
+        run: |
+          .train-env/bin/python -m codeccat_train fit \
+            --manifest native-prototype/training/smoke-data/manifest.jsonl \
+            --output trainer-results/custom-f32.ccm \
+            --report trainer-results/training-report-f32.json --seed 20261015 --precision f32
+          .train-env/bin/python -m codeccat_train fit \
+            --manifest native-prototype/training/smoke-data/manifest.jsonl \
+            --output trainer-results/repeat-f32.ccm \
+            --report trainer-results/repeat-report-f32.json --seed 20261015 --precision f32
+          cmp trainer-results/custom-f32.ccm trainer-results/repeat-f32.ccm
+          cmp trainer-results/training-report-f32.json trainer-results/repeat-report-f32.json
       - name: Install published Stable runtime separately without training dependencies
         shell: bash
         run: |
@@ -56,6 +69,8 @@ jobs:
           .runtime-env/bin/python -m pip install --disable-pip-version-check --only-binary=:all: --no-deps codeccat==0.1.0
       - name: Test the model with the actual Stable Runtime API
         run: .runtime-env/bin/python native-prototype/training/tests/check_runtime_e2e.py
+      - name: Validate CCM2 with the published Stable Runtime
+        run: .runtime-env/bin/python native-prototype/training/tests/check_ccm2_e2e.py
       - name: Compare candidate with published default on labeled validation bytes
         shell: bash
         run: |
@@ -100,7 +115,9 @@ jobs:
           name: trainer-p0-generated-model
           path: |
             trainer-results/custom.ccm
+            trainer-results/custom-f32.ccm
             trainer-results/training-report.json
+            trainer-results/training-report-f32.json
           if-no-files-found: error
           retention-days: 7
       - uses: actions/upload-artifact@v4
@@ -110,6 +127,7 @@ jobs:
           path: |
             trainer-results/training-report.json
             trainer-results/repeat-report.json
+            trainer-results/repeat-report-f32.json
             trainer-results/comparison.json
             trainer-results/comparison-cli.json
           if-no-files-found: ignore
@@ -142,3 +160,4 @@ jobs:
         run: |
           python native-prototype/training/make_smoke_data.py
           python native-prototype/training/tests/check_runtime_e2e.py
+          python native-prototype/training/tests/check_ccm2_e2e.py

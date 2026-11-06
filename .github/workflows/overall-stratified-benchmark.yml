@@ -1,0 +1,106 @@
+name: CodecCat overall stratified accuracy and resources
+
+on:
+  pull_request:
+    paths:
+      - "experiments/overall_stratified_benchmark.py"
+      - "research/OVERALL_BENCHMARK_PROTOCOL_2026-11-07.md"
+      - ".github/workflows/overall-stratified-benchmark.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: GNOME/gnome-terminal
+          ref: d11cd622f07760e0281841d6b084a0d9e62484a6
+          path: external-terminal
+          sparse-checkout: po
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: python/cpython
+          ref: f64e51563a85667446793ad61ea521d005ceb171
+          path: external-cpython
+          sparse-checkout: Lib/test/cjkencodings
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: source-data
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify frozen external commits and published model
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C external-terminal rev-parse HEAD)" = "d11cd622f07760e0281841d6b084a0d9e62484a6"
+          test "$(git -C external-cpython rev-parse HEAD)" = "f64e51563a85667446793ad61ea521d005ceb171"
+          test "$(git -C source-data rev-parse HEAD)" = "b0c0d206913ba118ffea2f7d306883e7a4a76db7"
+          python -m pip install --disable-pip-version-check --only-binary=:all: --no-deps codeccat==0.1.0
+          python -m pip install --disable-pip-version-check chardet==7.7.0 charset-normalizer==3.5.2 polib==1.2.0
+          python - <<'PY'
+          from importlib.resources import files
+          import hashlib
+          import codeccat
+          m=files("codeccat").joinpath("models/default.ccm").read_bytes()
+          assert hashlib.sha256(m).hexdigest()=="16073306b5027bf93acc2883f57fbda0cb0cf2d77b9a7bb62cf1b07fcbb9748b"
+          print("OVERALL_BENCHMARK_FROZEN_RELEASE_MODEL_PASS")
+          PY
+      - name: Reconstruct and validate pinned historical training manifest
+        run: python datasets/official/prepare_manifest.py --corpus source-data
+      - name: Preregistered deterministic selection and overlap audit BEFORE scoring
+        run: python experiments/overall_stratified_benchmark.py prepare
+      - name: Three independent detector processes, same predeclared bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          for engine in codeccat chardet charset_normalizer; do
+            python experiments/overall_stratified_benchmark.py worker --engine "$engine"
+          done
+          python experiments/overall_stratified_benchmark.py summary
+      - name: Reject missing categories or source/measurement discrepancies
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path("research-results/overall-benchmark/summary.json").read_text())
+          assert report["status"]=="completed"
+          assert report["raw_content_exported"] is False
+          assert set(report["by_pool"])=={
+              "natural_utf8","western_synthetic","cjk_synthetic","cjk_natural_preexamined"
+          }
+          for pool, engines in report["by_pool"].items():
+              totals={name:value["n"] for name,value in engines.items()}
+              assert len(set(totals.values()))==1, (pool,totals)
+              for engine,value in engines.items():
+                  assert value["correct_text"]+value["silent_wrong"]+value["abstained"]==value["n"],(pool,engine,value)
+          print("OVERALL_BENCHMARK_VALIDATED")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: overall-stratified-benchmark-summary-only
+          path: |
+            research-results/overall-benchmark/summary.json
+            research-results/overall-benchmark/overlap-failure.json
+          if-no-files-found: warn
+          retention-days: 30

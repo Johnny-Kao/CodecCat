@@ -46,17 +46,54 @@ def gtk_samples(root: Path):
 
 
 def uchardet_samples(root: Path):
-    """Original BYVoid fixture bytes and prefixes, before codec exclusions."""
+    """Replicate the previously evaluated 102-window extraction in pure stdlib.
+
+    Uses the exact encoding-label, strict-decode, boundary trimming, global
+    SHA dedup and minimum length rules from uchardet_blind_holdout.py.
+    """
+    import codecs
+    seen = set()
     for path in sorted(root.glob("*/*")):
         if not path.is_file() or path.name == "uchardet-tests.c":
             continue
+        enc = (
+            path.stem.lower()
+            .replace("utf-16be", "utf-16-be")
+            .replace("utf-16le", "utf-16-le")
+            .replace("utf-32be", "utf-32-be")
+            .replace("utf-32le", "utf-32-le")
+        )
+        if path.suffix.lower() in (".le", ".be"):
+            enc = path.stem + "-" + path.suffix[1:]
         if path.suffix.lower() not in (".txt", ".smi", ".le", ".be"):
             continue
+        try:
+            canonical = codecs.lookup(enc).name
+        except LookupError:
+            continue
         raw = path.read_bytes()
-        for take in sorted({len(raw), min(256, len(raw)), min(4096, len(raw))}):
-            piece = raw[:take]
-            if len(piece) >= 128:
-                yield path.relative_to(root).as_posix(), take, piece
+        try:
+            raw.decode(canonical, "strict")
+        except (LookupError, UnicodeError):
+            continue
+        for take in (256, 4096, len(raw)):
+            if take == len(raw):
+                piece = raw
+            else:
+                piece = raw[:min(len(raw), take)]
+                while piece:
+                    try:
+                        piece.decode(canonical, "strict")
+                        break
+                    except UnicodeError:
+                        piece = piece[:-1]
+            if len(piece) < 32:
+                continue
+            digest = sha(piece)
+            if digest in seen:
+                continue
+            seen.add(digest)
+            yield path.relative_to(root).as_posix(), take, piece
 
 
 def audit(training_manifest: Path, gtk_root: Path, uchardet_root: Path, *,

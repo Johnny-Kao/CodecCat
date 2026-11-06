@@ -1,0 +1,43 @@
+name: UTF-8 evidence guard diagnostic (published release)
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/utf8-gtk-evidence-20261106]
+    paths:
+      - experiments/utf8_threshold_sweep.py
+      - .github/workflows/utf8-threshold-sweep.yml
+permissions:
+  contents: read
+jobs:
+  sweep:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: GNOME/gtk
+          ref: 7c578d79eb8347b14a1717bfcc0084674a43c562
+          path: blind-source
+          sparse-checkout: po
+      - uses: actions/checkout@v4
+        with:
+          repository: BYVoid/uchardet
+          ref: 4e685757780cb3c652fc6c9ec759f62888969ec9
+          path: external-encoding-source
+          sparse-checkout: test
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install published v0.1.0a4 and frozen comparators
+        run: |
+          python -m pip install --no-deps https://github.com/Johnny-Kao/CodecCat/releases/download/v0.1.0a4/codeccat-0.1.0a4-cp310-abi3-linux_x86_64.whl
+          python -m pip install chardet==7.7.0 charset-normalizer==3.5.2
+      - name: Analyze UTF-8 threshold helps and harms
+        run: python experiments/utf8_threshold_sweep.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: utf8-evidence-threshold-sweep
+          path: research-results/utf8-sweep/
+          retention-days: 30

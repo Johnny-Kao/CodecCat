@@ -69,11 +69,17 @@ def load_ccm2(path: Path):
         raise ValueError("invalid CCM2 feature profile")
     classes = [reader.string() for _ in range(nclasses)]
     vocabulary_hash = sha256()
+    vocabulary = {}
+    used_indices = set()
     for _ in range(width):
         index, = reader.unpack("<I")
         gram = reader.string()
         if not 0 <= index < width or not gram_min <= len(gram) <= gram_max:
             raise ValueError("invalid CCM2 vocabulary")
+        if index in used_indices or gram in vocabulary:
+            raise ValueError("duplicate CCM2 index or gram")
+        used_indices.add(index)
+        vocabulary[gram] = index
         vocabulary_hash.update(struct.pack("<I", index))
         vocabulary_hash.update(gram.encode("utf-8") + b"\0")
     rows = 1 if nclasses == 2 else nclasses
@@ -90,6 +96,7 @@ def load_ccm2(path: Path):
         "ngram_range": [gram_min, gram_max],
         "flags": flags,
         "vocabulary_sha256": vocabulary_hash.hexdigest(),
+        "vocabulary": vocabulary,
         "idf": idf,
         "bias": biases,
         "weights": weights,
@@ -136,13 +143,23 @@ def compare(reference: Path, candidate: Path) -> dict:
         and a["ngram_range"] == b["ngram_range"]
         and a["flags"] == b["flags"]
     )
+    common = set(a["vocabulary"]) & set(b["vocabulary"])
+    exact_indices = sum(
+        a["vocabulary"][gram] == b["vocabulary"][gram] for gram in common
+    )
     result = {
-        "schema": "codeccat-ccm2-numerical-difference-v1",
+        "schema": "codeccat-ccm2-numerical-difference-v2",
         "reference_sha256": a["file_sha256"],
         "candidate_sha256": b["file_sha256"],
         "identical_files": a["file_sha256"] == b["file_sha256"],
         "same_class_order": a["classes"] == b["classes"],
         "same_vocabulary": a["vocabulary_sha256"] == b["vocabulary_sha256"],
+        "same_vocabulary_set": set(a["vocabulary"]) == set(b["vocabulary"]),
+        "shared_features": len(common),
+        "reference_only_features": len(a["vocabulary"]) - len(common),
+        "candidate_only_features": len(b["vocabulary"]) - len(common),
+        "shared_features_with_same_index": exact_indices,
+        "shared_features_with_different_index": len(common) - exact_indices,
         "same_feature_profile": (
             a["ngram_range"] == b["ngram_range"]
             and a["flags"] == b["flags"]
@@ -155,28 +172,47 @@ def compare(reference: Path, candidate: Path) -> dict:
         "candidate_bytes": b["bytes"],
         "aligned_for_numeric_comparison": aligned,
     }
-    if aligned:
-        result["idf"] = tensor_differences(a["idf"], b["idf"])
-        result["intercept"] = tensor_differences(a["bias"], b["bias"])
-        result["weights"] = tensor_differences(a["weights"], b["weights"])
-        width = a["width"]
+    # Even when the feature matrices have different positions or membership,
+    # we can align *common* grams without publishing their contents.
+    if common and a["classes"] == b["classes"] and (
+        a["ngram_range"] == b["ngram_range"] and a["flags"] == b["flags"]
+    ):
+        pairs = [
+            (a["vocabulary"][gram], b["vocabulary"][gram])
+            for gram in sorted(common)
+        ]
+        result["idf_on_shared_features"] = tensor_differences(
+            [a["idf"][ia] for ia, _ in pairs],
+            [b["idf"][ib] for _, ib in pairs],
+        )
+        rows = 1 if len(a["classes"]) == 2 else len(a["classes"])
         per_class = []
-        labels = ["binary-class-margin"] if len(a["classes"]) == 2 else a["classes"]
-        for idx, label in enumerate(labels):
-            start = idx * width
-            delta = tensor_differences(
-                a["weights"][start:start+width],
-                b["weights"][start:start+width],
-            )
+        reference_weights = []
+        candidate_weights = []
+        for row in range(rows):
+            ra = [a["weights"][row*a["width"]+ia] for ia, _ in pairs]
+            rb = [b["weights"][row*b["width"]+ib] for _, ib in pairs]
+            delta = tensor_differences(ra, rb)
             per_class.append({
-                "encoding": label,
+                "encoding": "binary-class-margin" if rows == 1 else a["classes"][row],
                 "max_abs_delta": delta["max_abs_delta"],
                 "mean_abs_delta": delta["mean_abs_delta"],
                 "changed_values": delta["changed_values"],
             })
+            reference_weights.extend(ra)
+            candidate_weights.extend(rb)
+        result["weights_on_shared_features"] = tensor_differences(
+            reference_weights, candidate_weights
+        )
+        result["intercept"] = tensor_differences(a["bias"], b["bias"])
         result["top_classes_by_weight_delta"] = sorted(
             per_class, key=lambda r: (-r["mean_abs_delta"], r["encoding"])
         )[:10]
+    if aligned:
+        result["idf"] = tensor_differences(a["idf"], b["idf"])
+        result["intercept"] = tensor_differences(a["bias"], b["bias"])
+        result["weights"] = tensor_differences(a["weights"], b["weights"])
+
     return result
 
 

@@ -40,7 +40,7 @@ class ManifestSafetyTests(unittest.TestCase):
     def test_reject_wrong_encoding(self):
         rows=self.base()
         rows[1]["encoding"]="ascii"
-        with self.assertRaisesRegex(UnicodeError,"label does not decode"):
+        with self.assertRaisesRegex(ValueError,"label does not decode"):
             read_manifest(self.write(rows))
 
     def test_reject_duplicate_bytes_cross_splits(self):

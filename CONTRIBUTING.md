@@ -10,6 +10,7 @@ CodecCat welcomes bug reports, documentation improvements, reproducible performa
 - **Feature or public API change:** [open a proposal first](https://github.com/Johnny-Kao/CodecCat/issues/new/choose), especially for breaking changes, new dependencies, new model families, or new benchmark datasets.
 - **Small fix, test, or documentation:** a focused Pull Request is welcome without a prior issue.
 - **Performance improvement:** provide the exact input characteristics, run environment, baseline/candidate commands, repetitions and output correctness. A speedup that changes decoded text is not a pure performance improvement.
+- **Trained models:** read [Model submissions](docs/MODEL_SUBMISSIONS.md) before proposing a model change; raw source data and unofficial models are never automatically promoted.
 - **Security or sensitive data:** follow [SECURITY.md](SECURITY.md); do not publish exploit details or private files in an Issue.
 
 A maintainer may ask to narrow scope, request stronger evidence, defer, or decline a change. An Issue is a discussion, not advance approval.

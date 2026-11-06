@@ -23,6 +23,7 @@ EXTRA = [
     ROOT / "RELEASE_CHECKLIST_NATIVE.md",
     ROOT / "docs/STABILITY.md",
     ROOT / "docs/PYPI_PUBLISHING.md",
+    ROOT / "docs/MODEL_SUBMISSIONS.md",
 ]
 RELEASE_DIR = ROOT / "docs/releases"
 release_notes = sorted(RELEASE_DIR.glob("v*.md"))
@@ -54,7 +55,8 @@ print("COMMUNITY_MARKDOWN_LINKS_PASS", len(files), "documents")
 forms = sorted((ROOT / ".github/ISSUE_TEMPLATE").glob("*.yml"))
 assert {p.name for p in forms} == {
     "config.yml", "01-bug.yml", "02-feature.yml",
-    "03-performance.yml", "04-question.yml"
+    "03-performance.yml", "04-question.yml",
+    "05-model.yml"
 }
 for path in forms:
     parsed = yaml.safe_load(path.read_text(encoding="utf-8"))

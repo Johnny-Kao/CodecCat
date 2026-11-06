@@ -21,7 +21,7 @@ The public `codeccat` Runtime and the experimental source-only `codeccat-train` 
 | --- | --- | --- |
 | P0 | Train a custom CCM1 model from a grouped manifest and load/decode it with published Stable `codeccat==0.1.0`; isolated CI, deterministic same-env smoke, safe manifest failures | **Source-level E2E tests implemented; CI verified** |
 | P1 | Official dataset sources and rights manifest, pinned dependencies/profile, test/holdout isolation and text-level model comparison | **Comparison and provenance metadata implemented; official reproducibility and dataset clearance still pending** |
-| P2 | Community model submission checks, review criteria, independent candidate release and automated rollback/compatibility tests | **Planned; no automatic official model promotion** |
+| P2 | Community model submission checks, review criteria, independent candidate release and automated rollback/compatibility tests | **Model proposal/review rules added; independent model-release automation still planned** |
 
 [Training guide](native-prototype/training/docs/GETTING_STARTED.md) · [Trainer source](native-prototype/training/) · [model provenance](RIGHTS_AND_PROVENANCE.md).
 

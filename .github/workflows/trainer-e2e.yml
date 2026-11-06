@@ -95,6 +95,15 @@ jobs:
           print("TRAINER_COMPARE_CLI_AND_API_PASS")
           PY
       - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: trainer-p0-generated-model
+          path: |
+            trainer-results/custom.ccm
+            trainer-results/training-report.json
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: trainer-p0-report
@@ -105,3 +114,30 @@ jobs:
             trainer-results/comparison-cli.json
           if-no-files-found: ignore
           retention-days: 7
+
+  model-portability:
+    name: Load one trained CCM on ${{ matrix.os }}
+    needs: train-and-run
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: trainer-p0-generated-model
+          path: trainer-results
+      - name: Install published Runtime without training dependencies
+        shell: bash
+        run: python -m pip install --disable-pip-version-check --only-binary=:all: --no-deps codeccat==0.1.0
+      - name: Rebuild synthetic validation source and check model load/decoding
+        shell: bash
+        run: |
+          python native-prototype/training/make_smoke_data.py
+          python native-prototype/training/tests/check_runtime_e2e.py

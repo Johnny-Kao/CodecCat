@@ -65,7 +65,8 @@ def add(rows, *, pool: str, source: str, codec: str, data: bytes, truth: str, gr
 
 def prepare():
     import polib
-    from datasets.official.audit_holdout_overlap import blocks
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "datasets" / "official"))
+    from audit_holdout_overlap import blocks
     if digest(TRAIN.read_bytes()) != TRAIN_HASH:
         raise ValueError("pinned training manifest mismatch")
     records = [json.loads(s) for s in TRAIN.read_text().splitlines() if s.strip()]

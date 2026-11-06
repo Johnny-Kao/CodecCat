@@ -32,6 +32,12 @@ Both datasets were selected and pinned to an immutable public repository commit 
 - This is **source-disjoint**, but a full training-text near-duplicate/semantic overlap audit is not yet established. Related text-document genres and multiple windows per source document reduce independence.
 - One run per source on GitHub-hosted hardware; CPU/latency measurements are diagnostic only.
 
+## Later overlap audit — correction to independence interpretation
+
+A subsequent pinned-source exact-overlap audit [CI #42235598046](https://github.com/Johnny-Kao/CodecCat/actions/runs/42235598046) replicated all 328 GTK and 102 uchardet benchmark windows. **33/102 uchardet windows are exact full-byte matches** to examples from the historical L2 training corpus; **50/102** flag sampled-span near-overlap, *including* those 33 exact matches. GTK had no detected raw-byte or sampled-span matches under this screen. See [full audit caveats](EXTERNAL_HOLDOUT_OVERLAP_SCREEN_2026-11-06.md).
+
+**Correction:** although the uchardet repository itself was distinct, the evaluated data were not fully independent of training. The 94/102 score below is descriptive, not unbiased held-out accuracy. Do not characterize uchardet as a fully independent blind test. The GTK result also remains a limited, previously observed single-genre diagnostic, not proof of semantic independence.
+
 ## Clear outcome
 
 **Do not promote to Stable yet.** CodecCat missed 32/328 texts on the new UTF-8-only GTK source compared to zero misses for chardet, and 8/102 on the independent multi-encoding source compared with 6 for chardet. Calling a CI PASS a product-accuracy PASS would be misleading.

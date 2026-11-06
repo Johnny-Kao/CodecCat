@@ -23,40 +23,55 @@ The native public decode path now allows a **conservative UTF-8 rescue** only if
 
 Rescued outcomes are marked `ambiguous=True` with reason `utf8_evidence`; no fabricated confidence or model retraining. Invalid bytes continue to fail strict decoding. A prior naive test wrongly overwrote six already-correct UTF-8 BOM examples; the final guard explicitly excludes BOM inputs.
 
-## Reproducible staged benchmark
+## Final tagged release verification
 
-- [Final six-platform wheel parity CI #42148598734](https://github.com/Johnny-Kao/CodecCat/actions/runs/42148598734): all 6 platforms PASS, reliability guards PASS.
-- [Staging same-byte five-corpus + external GLib CI #42148882888](https://github.com/Johnny-Kao/CodecCat/actions/runs/42148882888): complete PASS.
-- Pinned test code: [five-corpus benchmark](../experiments/five_corpus_benchmark.py), [new external GLib pair gate](../experiments/native_utf8_external_gate.py).
+- [Final tagged six-platform CI #42150439965](https://github.com/Johnny-Kao/CodecCat/actions/runs/42150439965): 6/6 PASS; the distributed wheels are tied to immutable `v0.1.0a4`.
+- [Python 3.10–3.14 + optional legacy CI #42149882615](https://github.com/Johnny-Kao/CodecCat/actions/runs/42149882615): PASS.
+- [Root-wheel CI #42149894376](https://github.com/Johnny-Kao/CodecCat/actions/runs/42149894376) and [public API CI #42149906701](https://github.com/Johnny-Kao/CodecCat/actions/runs/42149906701): PASS.
+- [Post-release three-detector five-corpus test #42151051728](https://github.com/Johnny-Kao/CodecCat/actions/runs/42151051728): PASS, downloaded published v0.1.0a4 Wheel.
+- [Paired published a3 vs published a4 on GLib #42151536276](https://github.com/Johnny-Kao/CodecCat/actions/runs/42151536276): PASS, both packages carry the **same default model SHA256**.
 
-Five existing corpora, 843 cases (Python 3.12, Ubuntu 24.04):
+### Five fixed corpora: published v0.1.0a4, 843 cases
 
-| Metric | Candidate Native | chardet 7.7.0 | charset-normalizer 3.5.2 |
+Python 3.12 / Ubuntu 24.04; chardet 7.7.0; charset-normalizer 3.5.2. Every detector sees identical bytes.
+
+| Metric | Released CodecCat v0.1.0a4 | chardet 7.7.0 | charset-normalizer 3.5.2 |
 |---|---:|---:|---:|
-| Correctly decoded Unicode text | 819 (97.15%) | **829 (98.34%)** | 698 (82.80%) |
-| Exact historical encoding name | **781 (92.65%)** | 712 (84.46%) | 583 (69.16%) |
-| Total CPU on timed 843 calls | **453 ms** | 482 ms | 667 ms |
-| Median latency range across five corpora | 0.57–0.61 ms | **0.25–0.43 ms** | 0.46–0.62 ms |
-| p95 latency range | **0.84–0.89 ms** | 1.39–1.79 ms | 1.90–2.87 ms |
-| Process peak RSS range | 66–69 MiB | 61–64 MiB | **40–44 MiB** |
+| Correctly decoded text | 819/843 (97.15%) | **829/843 (98.34%)** | 698/843 (82.80%) |
+| Exact normalized encoding name | **780/843 (92.53%)** | 712/843 (84.46%) | 583/843 (69.16%) |
+| Total CPU, 843 timed calls | **601 ms** | 801 ms | 1,061 ms |
+| p50 latency range across five corpora | 0.75–0.79 ms | **0.43–0.74 ms** | 0.72–1.00 ms |
+| p95 latency range | **1.11–1.18 ms** | 2.21–2.81 ms | 3.04–4.67 ms |
+| Whole-process peak RSS | 66–69 MiB | 61–64 MiB | **40–44 MiB** |
 
-**Paired before/after decoded-text counts on the same fixed source datasets:**
+These latency/CPU numbers are single-run observations on hosted CI, not statistical guarantees. The overall 843-case evaluation includes CodecCat model training data.
 
-| Source pool | Published v0.1.0a3 | Candidate |
+### Paired before/after decoded-text recovery
+
+Both published wheels embed `default.ccm` with **SHA256 `16073306b5027bf93acc2883f57fbda0cb0cf2d77b9a7bb62cf1b07fcbb9748b`**, so the model is held constant.
+
+| Source pool | Published a3 | Published a4 |
 |---|---:|---:|
-| chardet/test-data, model-training overlap (633) | 622 | **623** |
-| charset-normalizer upstream fixtures (15) | 14 | **14** |
-| Vim/Git PO windows previously inspected (195) | 169 | **182** |
+| chardet/test-data, overlaps training (633) | 622 | 622 |
+| charset-normalizer pinned labeled fixtures (15) | 14 | 14 |
+| Vim/Git PO windows previously inspected (195) | 169 | **183** |
 | **Total (843)** | **805** | **819** |
 
-**New frozen source confirmation:** `GNOME/glib@d34a927488b8b664cbd305dc880e86f34f8ca467`. After freezing the commit before scoring, sampled 285 distinct original translation-file byte windows with PO charset declaration masked. Same-file, same-case baseline v0.1.0a3 vs candidate results: **227 → 271 correct Unicode texts (+44)**, 44 helps, **0 harms**. This is a single new source domain; it is not population-level accuracy or proof of no regression across every legacy codec.
+The new previously unexamined source is `GNOME/glib@d34a927488b8b664cbd305dc880e86f34f8ca467`, frozen before scoring. For 285 distinct original PO windows with charset declarations masked, **227 correct in a3 → 271 correct in a4**: 44 improvements, **0 regressions**. This demonstrates source-specific gain, not general population accuracy or representative legacy-encoding coverage.
 
-Important measurement constraints:
-- The five-corpus cases overlap source texts used for model training and previous investigation; percent values cannot be marketed as blind population accuracy.
-- GLib documents were not part of earlier research in this repository, but exact near-duplicate/text-family overlap with all model-training data has not been fully excluded; treat this as source-level confirmation, not independently audited contamination-free holdout.
-- Timings come from a **single GitHub-hosted runner run**; cross-run variation matters. Do not claim tiny percentage CPU improvements are statistically significant.
-- The "v0.1.0a4 candidate" benchmark uses a staging wheel with the same decoder fix and model contents. Official tagged v0.1.0a4 wheels are separately built, verified, and published after final checks; do not conflate it with a measurement of those final assets.
-- The remaining 13/195 external incorrect cases include Latin-family and Big5 confusions not solved by UTF-8 evidence. No hard-coded document-specific exceptions were introduced.
+### Model reproducibility caveat found during release QC
+
+An earlier staging six-platform run generated a bundled model with SHA256 `95fb5f1e61970d294051b1e34f09162643e0d74bfbf5d54ea71b07a32d1fefd2`. The final tagged release embeds `16073306...`, matching the published a3 model exactly. The corpus/source revisions were pinned, but rebuilding the model across CI runs is **not reliably byte-reproducible**. Thus the provisional staging measurements (781 labels, 453 ms total CPU and 182/195 Vim/Git) must **not** be presented as measurements of the released model or as a clean paired baseline.
+
+The published wheel assets are immutable and have verified checksums, but future release pipelines should reuse a content-addressed frozen model snapshot rather than silently retrain a new model in every build.
+
+### Limits and unresolved errors
+
+- The five-corpus development benchmark includes training and previously inspected samples; it does not establish a statistically representative general accuracy.
+- GLib source-specific evidence uses a new upstream repo, but near-duplicate or document-family overlap with training has not been exhaustively audited.
+- The released a4 still decodes **12/195** Vim/Git windows incorrectly; further fixes require case-level root-cause classification and a separate fresh verification source.
+- No document-name-specific rules, unapproved model promotion, or PyPI publication.
+
 
 ## Decision
 

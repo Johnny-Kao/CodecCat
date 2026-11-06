@@ -1,5 +1,26 @@
 # CodecCat accuracy and performance benchmarks
 
+## Source-disjoint follow-up checks (2026-11-06)
+
+These are **new source repositories**, selected and pinned before running the published `v0.1.0a4` Wheel. They are distinct from the model's documented training repository, but no exhaustive semantic near-duplicate audit has been completed.
+
+| Source | Samples | Encodings represented | CodecCat correct text | chardet | charset-normalizer |
+|---|---:|---|---:|---:|---:|
+| GNOME GTK translation files | 328 | UTF-8 only | **296 (90.24%)** | **328 (100%)** | 326 (99.39%) |
+| uchardet original test files | 102 | 35 Python-supported encodings | **94 (92.16%)** | **96 (94.12%)** | 90 (88.24%) |
+
+[GTK five-fold CI #42153394720](https://github.com/Johnny-Kao/CodecCat/actions/runs/42153394720) and [multi-encoding five-fold CI #42153686436](https://github.com/Johnny-Kao/CodecCat/actions/runs/42153686436) both PASS as benchmark executions. The five groups are **document-level partitions**, not five independently collected sources. Files from the same document never cross folds. The multi-encoding source includes short original test files and correlated prefix windows; `viscii` and `euc-tw` were excluded because standard Python lacks those codecs. No model tuning was performed based on these held-out results.
+
+**These checks do not pass a Stable-release quality criterion:** GTK UTF-8 underperforms both competitors; on the multi-encoding source CodecCat is below chardet. A separate external-source regression test passing only proves the test ran, not product accuracy equivalence.
+
+## Frozen release-model reproducibility
+
+Future **release-platform matrix builds** and **root-wheel smoke builds** now retrieve a frozen model/reference archive from GitHub Release `v0.1.0a4` rather than retraining on every run. The archive SHA256 is pinned to `e3dd654817fb0e3324910b1a39af9bc19185400582d5a066c533d7cc5dd81c8c`, and the default model SHA256 to `16073306b5027bf93acc2883f57fbda0cb0cf2d77b9a7bb62cf1b07fcbb9748b`. The workflow fails closed when either differs.
+
+[Six-platform frozen reference verification #42153391865](https://github.com/Johnny-Kao/CodecCat/actions/runs/42153391865) and [root-wheel frozen reference verification #42153902552](https://github.com/Johnny-Kao/CodecCat/actions/runs/42153902552) both PASS. This ensures repeatable **model bytes in release builds**, not bit-for-bit deterministic model training or identical Wheel ZIP timestamps. Offline experimentation may still retrain independently; its outputs cannot silently replace the release model.
+
+[Full model-freeze and external-holdout report](../research/FROZEN_MODEL_AND_EXTERNAL_HOLDOUT_2026-11-06.md).
+
 ## Five-corpus benchmark (released Native v0.1.0a4)
 
 The latest measurement installed the **actual GitHub Release v0.1.0a4 Wheel**, not a development build. [Post-release five-corpus CI #42151051728](https://github.com/Johnny-Kao/CodecCat/actions/runs/42151051728) completed on 843 fixed byte inputs, comparing correct Unicode decoding, encoding labels, CPU, p50/p95 and RSS with chardet 7.7.0 and charset-normalizer 3.5.2.

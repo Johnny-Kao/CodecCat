@@ -1,0 +1,39 @@
+name: CodecCat GTK source-disjoint fixed blind evaluation
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/frozen-model-gtk-holdout-20261106]
+    paths:
+      - "experiments/gtk_blind_holdout.py"
+      - ".github/workflows/gtk-blind-holdout.yml"
+permissions:
+  contents: read
+jobs:
+  source-disjoint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: GNOME/gtk
+          ref: 7c578d79eb8347b14a1717bfcc0084674a43c562
+          path: blind-source
+          sparse-checkout: po
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install actual released model-backed wheel and competitor versions
+        run: |
+          python -m pip install --no-deps https://github.com/Johnny-Kao/CodecCat/releases/download/v0.1.0a4/codeccat-0.1.0a4-cp310-abi3-linux_x86_64.whl
+          python -m pip install chardet==7.7.0 charset-normalizer==3.5.2
+      - name: Verify frozen source commit
+        run: test "$(git -C blind-source rev-parse HEAD)" = "7c578d79eb8347b14a1717bfcc0084674a43c562"
+      - name: Score one untouched source across 3 detectors and 5 document-disjoint folds
+        run: python experiments/gtk_blind_holdout.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gtk-source-disjoint-holdout-results
+          path: research-results/gtk-blind/
+          retention-days: 90

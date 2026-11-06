@@ -112,3 +112,30 @@ the report's `byte_identical_model` and
 
 This workflow does not recreate the optional L3 language model, establish
 dataset redistribution rights, or authorize a replacement Stable release.
+
+## Optional L3 reconstruction
+
+L3 is a separate Unicode-trigram statistical model. The historical builder
+trained it on the **entire, unfiltered** 3,086-example corpus, unlike the
+residual-focused L2 model. L3 is opt-in and remains disabled by default.
+
+The independent Trainer now provides `codeccat-train fit-l3`, which uses
+the same manifest validation, source hashes and grouping but does **not**
+apply residual sample filtering. Example on a locally held, train-only
+source manifest:
+
+```bash
+codeccat-train fit-l3 --manifest /path/to/pinned/manifest.jsonl \
+  --output /path/to/language-l3.json \
+  --report /path/to/l3-training-report.json
+```
+
+The [manual official replay](../../.github/workflows/official-stable23-replay.yml)
+fits the optional L3 twice on the same Runner, then checks its SHA256,
+training fingerprint, trigram counts and serialized bytes against the
+immutable release reference. Only aggregate JSON diagnostics are uploaded,
+not the model with individual trigrams, candidate CCM2 or raw corpus.
+
+L3 parity alone neither approves enabling L3 inference nor establishes data
+rights. A production default-model change still requires a separate,
+source-disjoint release acceptance gate.

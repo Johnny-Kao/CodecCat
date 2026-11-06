@@ -8,11 +8,13 @@ on:
     paths:
       - "native-prototype/training/**"
       - "src/codeccat/vnext_strong_l2.py"
+      - "datasets/official/compare_ccm.py"
       - ".github/workflows/trainer-e2e.yml"
   pull_request:
     paths:
       - "native-prototype/training/**"
       - "src/codeccat/vnext_strong_l2.py"
+      - "datasets/official/compare_ccm.py"
       - ".github/workflows/trainer-e2e.yml"
   workflow_dispatch:
 

@@ -46,6 +46,14 @@ jobs:
             --train-only --residual-focus --precision f32 --seed 20261015 \
             --output replay-results/candidate.ccm \
             --report replay-results/training-report.json
+      - name: Repeat the same source and seed on this Runner (diagnostic)
+        shell: bash
+        run: |
+          python -m codeccat_train fit \
+            --manifest source-data/codeccat-replay-manifest.jsonl \
+            --train-only --residual-focus --precision f32 --seed 20261015 \
+            --output replay-results/repeat.ccm \
+            --report replay-results/repeat-training-report.json
       - name: Verify immutable historical reference
         shell: bash
         run: |
@@ -56,6 +64,13 @@ jobs:
           echo "e3dd654817fb0e3324910b1a39af9bc19185400582d5a066c533d7cc5dd81c8c  /tmp/native-reference-v0.1.0a4.tar.gz" | sha256sum -c -
           tar -xzf /tmp/native-reference-v0.1.0a4.tar.gz -C replay-results/reference
           echo "16073306b5027bf93acc2883f57fbda0cb0cf2d77b9a7bb62cf1b07fcbb9748b  replay-results/reference/default.ccm" | sha256sum -c -
+      - name: Compare CCM2 tensors without exposing vocabulary or model bytes
+        shell: bash
+        run: |
+          python datasets/official/compare_ccm.py \
+            --reference replay-results/reference/default.ccm \
+            --candidate replay-results/candidate.ccm \
+            --report replay-results/numeric-comparison.json
       - name: Compare candidate against the released model without promoting it
         shell: bash
         run: |
@@ -69,6 +84,7 @@ jobs:
           meta=json.loads((root/"reference"/"default.ccm.meta.json").read_text())
           candidate_sha=hashlib.sha256(candidate.read_bytes()).hexdigest()
           expected_sha=hashlib.sha256(ref.read_bytes()).hexdigest()
+          repeat_sha=hashlib.sha256((root/"repeat.ccm").read_bytes()).hexdigest()
           original_fingerprint=meta.get("training_fingerprint")
           comparison={
               "schema":"codeccat-stable23-replay-comparison-v1",
@@ -82,6 +98,8 @@ jobs:
               "candidate_ccm2_sha256":candidate_sha,
               "official_ccm2_sha256":expected_sha,
               "byte_identical_model":candidate_sha==expected_sha,
+              "repeat_ccm2_sha256":repeat_sha,
+              "same_runner_replays_identical":candidate_sha==repeat_sha,
               "candidate_training_fingerprint":report["historical_stable23_fingerprint"],
               "official_training_fingerprint":original_fingerprint,
               "training_inputs_match_reference":(
@@ -102,6 +120,8 @@ jobs:
           path: |
             replay-results/training-report.json
             replay-results/comparison.json
+            replay-results/numeric-comparison.json
+            replay-results/repeat-training-report.json
             source-data/codeccat-replay-manifest.jsonl
           if-no-files-found: ignore
           retention-days: 7

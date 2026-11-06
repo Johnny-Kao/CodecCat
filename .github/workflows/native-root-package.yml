@@ -86,6 +86,7 @@ jobs:
           .root-clean/bin/python native-prototype/api_parity.py verify
           .root-clean/bin/python native-prototype/verify_native.py verify
           .root-clean/bin/python native-prototype/release_reliability.py
+          .root-clean/bin/python native-prototype/stable_contract.py
           .root-clean/bin/python -m pip check
           .root-clean/bin/python - <<'PY'
           import codeccat, importlib.util

@@ -1,6 +1,11 @@
 name: CodecCat staged UTF-8 paired adversarial audit
 on:
   workflow_dispatch:
+  push:
+    branches: [staging/utf8-evidence-v2-20261106]
+    paths:
+      - experiments/staged_utf8_adversarial.py
+      - .github/workflows/staged-utf8-adversarial.yml
 permissions:
   contents: read
   actions: read

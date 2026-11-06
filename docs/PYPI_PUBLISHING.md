@@ -17,13 +17,13 @@ The environment should be restricted to trusted release branches or explicitly a
 ## Procedure for a future release
 
 1. Choose a new semantic version and review compatibility, user-visible changes, rights/provenance, and [Stable policy](STABILITY.md).
-2. Prepare and test the exact Git tag. Build and **install-test** supported Wheels; pin the frozen model and record SHA256 checksums and signed/verified provenance where available.
-3. Publish the matching **GitHub Release** and [release notes](releases/README.md), without replacing past tags or binaries.
-4. In a reviewed PR, update the **currently first-release-specific** tag, commit, model and asset validation in `publish-pypi.yml`; it is deliberately pinned to `v0.1.0` and **cannot be used for v0.1.1 unmodified**. Do not remove integrity checks merely to make a workflow green.
-5. Manually run the workflow from `main` with `publish=false` and inspect the verified-Wheel artifact and Twine metadata check.
+2. Prepare an immutable Git tag. Tag pushes trigger **six-platform Wheels**, **manylinux** and the **sdist round-trip** workflow; collect the three successful run IDs, all built from that exact tag Commit. The source distribution must include the same numeric model and successfully rebuild/install.
+3. Add `docs/releases/vVERSION.md` **before tagging**. Manually run `publish-stable-release.yml` with the tag and three verified run IDs, first with `publish=false` for a no-upload assembly and then `publish=true` to create the matching **GitHub Release**; no replacement of old tags or binaries.
+4. In a reviewed PR, update `pyproject.toml`, `native-prototype/Cargo.toml` and **`release-config.json`** to the same new version; commit approved model SHA256 and full source attribution in the tag. Keep the release configuration immutable after tagging. The historical `v0.1.0` workflow is intentionally not reusable.
+5. Manually run `publish-pypi.yml` from `main` with the new tag and `publish=false`. Its independent verifier checks the Git tag, versioned release configuration, SHA256SUMS, six Wheels, optional sdist, metadata and model SHA256. Do not build replacement Wheels in this step.
 6. Confirm the PyPI Trusted Publisher and protected GitHub `pypi` environment, then manually run `publish=true` for the intended new tag.
 7. Verify PyPI's project/version JSON contains the expected supported Wheels and matching SHA256, and perform a fresh-environment `pip install codeccat==VERSION` import/decoding smoke test.
 
-The initial release contains **six binary Wheels and no source distribution**. A future sdist must be separately tested to include and load the correct model. PyPI filenames and uploaded versions are immutable; do not try to overwrite a published version.
+The initial `v0.1.0` release contains **six binary Wheels and no sdist**. The subsequent-release workflow requires a tested sdist in the GitHub Release. `source-distribution.yml` verifies source -> Wheel round-trip, and a five-version Python compatibility matrix. Original third-party training text is never bundled. Published PyPI artifacts are immutable and cannot be overwritten.
 
 See [MAINTAINING.md](../MAINTAINING.md) and the [GitHub Release history](https://github.com/Johnny-Kao/CodecCat/releases).

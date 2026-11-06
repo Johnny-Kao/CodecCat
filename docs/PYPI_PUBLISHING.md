@@ -1,31 +1,29 @@
-# PyPI release procedure
+# PyPI release and trusted publisher procedure
 
-The initial distribution is the **already verified** GitHub Stable release `v0.1.0`. The PyPI workflow **does not rebuild** or retrain any binaries: it downloads the six existing release Wheels, checks every source SHA256 and bundled model SHA256, validates metadata, and only then grants the separate publishing job OIDC access.
+**Current status:** CodecCat **v0.1.0 is published** on [PyPI](https://pypi.org/project/codeccat/0.1.0/). The first upload used GitHub Actions **OIDC Trusted Publishing**, verified against the six original Stable GitHub Release Wheels with matching SHA256 and frozen-model digest. [Successful publication run](https://github.com/Johnny-Kao/CodecCat/actions/runs/42167721009).
 
-## PyPI configuration (one-time, account owner)
+## Current publisher configuration
 
-Because the PyPI project `codeccat` has not been created, configure a **Pending Trusted Publisher** under your account's **Publishing** page: https://pypi.org/manage/account/publishing/
-
-Use:
 - PyPI project: `codeccat`
-- Publisher: **GitHub**
-- Owner: `Johnny-Kao`
+- GitHub owner: `Johnny-Kao`
 - Repository: `CodecCat`
-- Workflow filename: `publish-pypi.yml` (basename only)
-- GitHub environment: `pypi`
+- Workflow filename: `publish-pypi.yml`
+- Environment: `pypi`
+- Workflow: [`.github/workflows/publish-pypi.yml`](../.github/workflows/publish-pypi.yml)
+- Authentication: environment-scoped OIDC (`id-token: write`) in the **publishing job only**; no API Token in repo secrets.
 
-GitHub workflow: `.github/workflows/publish-pypi.yml`. The `pypi` job requires `id-token: write` and no password or token.
+The environment should be restricted to trusted release branches or explicitly approved deployment. Changes to publish permissions, model provenance and release verification require maintainer review.
 
-The repository's `pypi` environment should be restricted to the `main` branch; add required reviewer protection if available and desired. Do not configure a separate publisher for other workflows.
+## Procedure for a future release
 
-## First release
+1. Choose a new semantic version and review compatibility, user-visible changes, rights/provenance, and [Stable policy](STABILITY.md).
+2. Prepare and test the exact Git tag. Build and **install-test** supported Wheels; pin the frozen model and record SHA256 checksums and signed/verified provenance where available.
+3. Publish the matching **GitHub Release** and [release notes](releases/README.md), without replacing past tags or binaries.
+4. In a reviewed PR, update the **currently first-release-specific** tag, commit, model and asset validation in `publish-pypi.yml`; it is deliberately pinned to `v0.1.0` and **cannot be used for v0.1.1 unmodified**. Do not remove integrity checks merely to make a workflow green.
+5. Manually run the workflow from `main` with `publish=false` and inspect the verified-Wheel artifact and Twine metadata check.
+6. Confirm the PyPI Trusted Publisher and protected GitHub `pypi` environment, then manually run `publish=true` for the intended new tag.
+7. Verify PyPI's project/version JSON contains the expected supported Wheels and matching SHA256, and perform a fresh-environment `pip install codeccat==VERSION` import/decoding smoke test.
 
-1. Run **Publish CodecCat to PyPI** from GitHub Actions, ref `main`, inputs `tag=v0.1.0`, `publish=false`. This verifies all six Wheels without uploading.
-2. After PyPI confirms the Pending Trusted Publisher, rerun the same workflow from `main` with `publish=true`.
-3. Verify https://pypi.org/project/codeccat/0.1.0/ and install with `python -m pip install codeccat==0.1.0` in a fresh supported platform environment.
+The initial release contains **six binary Wheels and no source distribution**. A future sdist must be separately tested to include and load the correct model. PyPI filenames and uploaded versions are immutable; do not try to overwrite a published version.
 
-No source distribution (sdist) is uploaded in this first release. Unsupported architectures and Linux environments below glibc 2.28 cannot install from these six Wheels. Add an sdist only after explicitly validating its model packaging and build-dependency/reproducibility path.
-
-PyPI distribution filenames are **immutable** after upload; to replace a package later, make a new release version instead of trying to overwrite 0.1.0.
-
-Official instructions: https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/
+See [MAINTAINING.md](../MAINTAINING.md) and the [GitHub Release history](https://github.com/Johnny-Kao/CodecCat/releases).

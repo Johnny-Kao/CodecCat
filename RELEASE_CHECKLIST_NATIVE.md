@@ -1,4 +1,7 @@
-# Native 0.1.0a3 release gate (2026-11-06)
+# Historical Native 0.1.0a3 release gate (2026-11-06)
+
+> **Historical research checklist, not the current release procedure.** Stable v0.1.0 has since shipped to GitHub and PyPI. See [MAINTAINING.md](MAINTAINING.md), [docs/PYPI_PUBLISHING.md](docs/PYPI_PUBLISHING.md), and [docs/releases/](docs/releases/README.md) for the current process.
+
 
 This checklist applies to the **same immutable commit** that will be tagged.
 No GitHub Release or PyPI publication is authorized by CI status alone.

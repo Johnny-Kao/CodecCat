@@ -1,11 +1,14 @@
 name: CodecCat source distribution round-trip
 
 on:
+  push:
+    tags: ["v*"]
   pull_request:
     paths:
       - "pyproject.toml"
       - "native-prototype/**"
       - ".github/workflows/source-distribution.yml"
+      - "release-config.json"
   workflow_dispatch:
 
 permissions:
@@ -45,9 +48,12 @@ jobs:
         shell: bash
         run: |
           python - <<'PY'
-          import hashlib,tarfile
+          import hashlib,tarfile,json
           from pathlib import Path
-          files=list(Path("dist").glob("codeccat-0.1.0.tar.gz"))
+          config=json.loads(Path("release-config.json").read_text())
+          version=config["version"]
+          files=list(Path("dist").glob("codeccat-*.tar.gz"))
+          assert files[0].name==f"codeccat-{version}.tar.gz",files
           assert len(files)==1,files
           with tarfile.open(files[0],"r:gz") as archive:
               names=archive.getnames()
@@ -59,10 +65,10 @@ jobs:
                   "pyproject.toml",
                   "LICENSE",
               ):
-                  matches=[n for n in names if n == "codeccat-0.1.0/"+relative]
+                  matches=[n for n in names if n == f"codeccat-{version}/"+relative]
                   assert len(matches)==1,(relative,matches)
               data=archive.extractfile(next(n for n in names if n.endswith("/native-prototype/python/codeccat/models/default.ccm"))).read()
-              assert hashlib.sha256(data).hexdigest()=="16073306b5027bf93acc2883f57fbda0cb0cf2d77b9a7bb62cf1b07fcbb9748b"
+              assert hashlib.sha256(data).hexdigest()==config["model_sha256"]
           print("SDIST_IMMUTABLE_MODEL_AND_SOURCE_PRESENT")
           PY
           python -m twine check --strict dist/*.tar.gz
@@ -71,19 +77,63 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p unpacked rebuilt
-          tar -xzf dist/codeccat-0.1.0.tar.gz -C unpacked
-          python -m build --wheel --outdir rebuilt unpacked/codeccat-0.1.0
+          tar -xzf dist/codeccat-*.tar.gz -C unpacked
+          python -m build --wheel --outdir rebuilt unpacked/codeccat-*
           python native-prototype/audit_release_wheel.py rebuilt/*.whl
           python -m venv .sdist-clean
           .sdist-clean/bin/python -m pip install --no-deps rebuilt/*.whl
           .sdist-clean/bin/python - <<'PY'
-          import hashlib,importlib.resources,importlib.util
+          import hashlib,importlib.resources,importlib.util,json
           import codeccat
           assert all(importlib.util.find_spec(name) is None for name in ("numpy","scipy","sklearn","joblib"))
           assert codeccat.detect(b"hello").text=="hello"
           assert codeccat.decode("日本語".encode())=="日本語"
           with importlib.resources.as_file(importlib.resources.files("codeccat").joinpath("models/default.ccm")) as path:
-              assert hashlib.sha256(path.read_bytes()).hexdigest()=="16073306b5027bf93acc2883f57fbda0cb0cf2d77b9a7bb62cf1b07fcbb9748b"
+              assert hashlib.sha256(path.read_bytes()).hexdigest()==json.load(open("release-config.json"))["model_sha256"]
           print("SDIST_ROUND_TRIP_INSTALL_PASS")
           PY
           .sdist-clean/bin/python -m pip check
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-distribution
+          path: dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist-roundtrip-wheel
+          path: rebuilt/*.whl
+          if-no-files-found: error
+          retention-days: 7
+
+  python-versions:
+    needs: build-and-install
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdist-roundtrip-wheel
+          path: wheel/
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Isolated install of the source-built abi3 wheel
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m venv .clean
+          .clean/bin/python -m pip install --no-deps wheel/*.whl
+          .clean/bin/python - <<'PY'
+          import codeccat, importlib.util, sys
+          assert all(importlib.util.find_spec(n) is None for n in ("numpy","scipy","sklearn","joblib"))
+          assert codeccat.detect(b"hello").text == "hello"
+          assert codeccat.decode("日本語".encode("utf-8")) == "日本語"
+          assert codeccat.decode("bonjour".encode("utf-8")) == "bonjour"
+          print("SDIST_PYTHON_MATRIX_PASS", sys.version.split()[0])
+          PY
+          .clean/bin/python -m pip check

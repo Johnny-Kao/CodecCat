@@ -91,3 +91,24 @@ Use the resulting manifest with `codeccat-train fit --train-only
 automatic Stable replacement. The L3 language model is still trained by
 a separate historical step, and matching official CCM2 file hashes has not
 yet been demonstrated.
+
+## Numeric comparison against the frozen reference
+
+The manual [historical Stable23 replay workflow](../../.github/workflows/official-stable23-replay.yml)
+reconstructs the **L2** model from the pinned source checkout using the
+historical NumPy/SciPy/scikit-learn/joblib versions and the shared Trainer's
+`--train-only --residual-focus --precision f32` options. It checks the
+release reference archive's SHA256 before comparing:
+
+- the exact candidate and released CCM2 file SHA256;
+- the historical order-sensitive training fingerprint;
+- the original/selected sample totals and per-codec removals.
+
+Only aggregate JSON reports and hashed manifest metadata are retained as
+Actions artifacts; the candidate model and raw source corpus are not
+uploaded. A job may **PASS as a diagnostic** even when model hashes differ:
+the report's `byte_identical_model` and
+`training_inputs_match_reference` fields determine those separate results.
+
+This workflow does not recreate the optional L3 language model, establish
+dataset redistribution rights, or authorize a replacement Stable release.

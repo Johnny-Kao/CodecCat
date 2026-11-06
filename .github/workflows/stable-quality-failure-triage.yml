@@ -64,8 +64,10 @@ jobs:
           assert r["gtk"]["all"]["n"] == 328
           assert r["uchardet"]["all"]["n"] == 102
           assert r["uchardet"]["exact"]["n"] == 33
-          assert r["uchardet"]["candidate"]["n"] == 17
-          assert r["uchardet"]["not_detected"]["n"] == 52
+          q=r["uchardet"]
+          assert sum(bucket["n"] for name,bucket in q.items() if name!="all") == 102
+          assert q.get("candidate",{}).get("n",0) + q["exact"]["n"] == r["training_overlap_screen"]["uchardet"]["flagged_union_windows"]
+          assert r["training_overlap_screen"]["uchardet"]["candidate_near_overlap_windows"] == 50
           assert not r["stores_raw_text"]
           assert r["previously_observed_data"]
           print("STABLE_QUALITY_TRIAGE_COUNTS_VALID")

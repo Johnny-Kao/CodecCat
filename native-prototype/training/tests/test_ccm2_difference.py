@@ -42,7 +42,7 @@ class Ccm2NumericDifferenceTests(unittest.TestCase):
             self.assertEqual(result["weights"]["changed_values"],1)
             self.assertAlmostEqual(result["weights"]["max_abs_delta"],0.25)
             self.assertEqual(result["top_classes_by_weight_delta"][0]["encoding"],"utf-8")
-            self.assertNotIn("ab",str(result))
+            self.assertNotIn("\'ab\'",str(result))
 
     def test_mismatched_vocabulary_blocks_numeric_comparison(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -33,7 +33,7 @@ class HoldoutOverlapTests(unittest.TestCase):
             "prefix_sha256": hashlib.sha256(self.raw[:4096]).hexdigest(),
         }]
         self.manifest = self.data / "manifest.jsonl"
-        self.manifest.write_text(json.dumps(manifest) + "\n")
+        self.manifest.write_text("".join(json.dumps(row) + "\n" for row in manifest))
 
     def test_full_and_prefix_exact_hits(self):
         (self.uch / "samples" / "utf-8.txt").write_bytes(self.raw)

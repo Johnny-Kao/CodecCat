@@ -46,6 +46,6 @@ python-source = "native-prototype/python"
 module-name = "codeccat._codeccat_native"
 bindings = "pyo3"
 include = [
-  "native-prototype/python/codeccat/models/*.ccm",
-  "native-prototype/python/codeccat/models/*.json",
+  "codeccat/models/*.ccm",
+  "codeccat/models/*.json",
 ]

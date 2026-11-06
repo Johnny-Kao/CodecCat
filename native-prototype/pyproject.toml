@@ -26,4 +26,4 @@ codeccat = "codeccat.cli:main"
 python-source = "python"
 module-name = "codeccat._codeccat_native"
 bindings = "pyo3"
-include = ["python/codeccat/models/*.ccm", "python/codeccat/models/*.json"]
+include = ["codeccat/models/*.ccm", "codeccat/models/*.json"]

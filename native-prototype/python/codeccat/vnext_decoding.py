@@ -66,7 +66,7 @@ def _strong_utf8_evidence(raw: bytes) -> bool:
             return False
         if code >= 128:
             non_ascii += 1
-    return non_ascii >= 16
+    return non_ascii >= 3
 
 
 def decode(

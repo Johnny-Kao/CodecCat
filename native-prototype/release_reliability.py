@@ -154,6 +154,10 @@ def utf8_evidence_contract() -> None:
     assert not _strong_utf8_evidence(b"\xef\xbb\xbf" + raw)
     assert not _strong_utf8_evidence(("hello " * 200 + "\x01" + text).encode("utf-8"))
     assert not _strong_utf8_evidence(("café " * 2).encode("utf-8"))
+    # Short non-ASCII files should be salvageable without relaxing strict
+    # Unicode validity, BOM precedence, or the minimum total byte length.
+    assert not _strong_utf8_evidence(("ascii " * 30 + "éé").encode("utf-8"))
+    assert _strong_utf8_evidence(("ascii " * 30 + "ééé").encode("utf-8"))
 
     class LatinRanking:
         class classifier:

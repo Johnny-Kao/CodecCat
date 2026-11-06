@@ -1,0 +1,63 @@
+name: Official corpus provenance inventory (non-legal audit)
+
+on:
+  pull_request:
+    paths:
+      - "datasets/official/rights_inventory.py"
+      - "native-prototype/training/tests/test_rights_inventory.py"
+      - ".github/workflows/official-training-rights-inventory.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Synthetic inventory regressions
+        run: python -m unittest discover -s native-prototype/training/tests -p test_rights_inventory.py -v
+      - name: Checkout pinned upstream catalog and corpus ephemerally
+        uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: source-data
+          persist-credentials: false
+      - name: Create original ordered training source list
+        run: python datasets/official/prepare_manifest.py --corpus source-data
+      - name: Reconcile every used training record with pinned upstream catalog
+        run: |
+          python datasets/official/rights_inventory.py \
+            --manifest source-data/codeccat-replay-manifest.jsonl \
+            --catalog source-data/CATALOG.md \
+            --output-dir research-results/rights-inventory
+      - name: Fail on missing evidence or inadvertently authorized sources
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          summary=json.loads(Path("research-results/rights-inventory/rights-inventory-summary.json").read_text())
+          assert summary["training_records"] == 3086
+          assert summary["matched_catalog_records"] == 3086
+          assert summary["training_rights_verified_records"] == 0
+          assert summary["model_distribution_rights_verified_records"] == 0
+          assert summary["rights_review_required_records"] == 3086
+          assert summary["legal_clearance_status"] == "NOT_DETERMINED"
+          assert summary["release_authorized"] is False
+          print("SOURCE_PROVENANCE_INVENTORY_PASS",summary["by_source"],summary["by_catalog_provenance"])
+          PY
+      - name: Upload only the metadata ledger and counts (no original texts)
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-corpus-provenance-non-legal-audit
+          path: research-results/rights-inventory/
+          if-no-files-found: error
+          retention-days: 7

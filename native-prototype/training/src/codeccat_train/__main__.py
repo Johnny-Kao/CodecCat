@@ -4,7 +4,7 @@ No dependency on codeccat's public runtime or internal legacy R21 training.
 Users can install codeccat-train only in their training environment.
 """
 from __future__ import annotations
-import argparse,codecs,hashlib,json,struct
+import argparse,codecs,hashlib,json,struct,sys
 from pathlib import Path
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -109,19 +109,45 @@ def fit(manifest:Path,output:Path,report:Path,seed:int):
         "note":"Validation checks exact encoding LABEL, not full public Runtime text-level detection and not independent external generalization.",
         "manifest_sha256":hashlib.sha256(manifest.read_bytes()).hexdigest(),
         "model_sha256":digest,
-        "model_bytes":size
+        "model_bytes":size,
+        "training_tool_version":"0.1.0a3+source",
+        "python_version":sys.version.split()[0],
+        "numpy_version":np.__version__,
+        "sklearn_version":__import__("sklearn").__version__,
+        "training_config":{"min_df":2,"max_features":45000,"ngram_range":[2,3],
+                           "sublinear_tf":True,"loss":"modified_huber",
+                           "alpha":0.0001,"max_iter":1500,
+                           "byte_limit_per_document":4096}
     }
     report.parent.mkdir(parents=True,exist_ok=True)
     report.write_text(json.dumps(result,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
     return result
 
 def main():
+    import sys
+    args=sys.argv[1:]
+    if args and args[0]=="evaluate":
+        from .evaluate import evaluate
+        p=argparse.ArgumentParser(description="Compare a custom model against the bundled Stable model on labeled bytes")
+        p.add_argument("--manifest",type=Path,required=True)
+        p.add_argument("--model",type=Path,required=True)
+        p.add_argument("--report",type=Path,required=True)
+        p.add_argument("--baseline-model",type=Path,default=None)
+        p.add_argument("--split",choices=("test","validation"),default="test")
+        a=p.parse_args(args[1:])
+        print("CODECCAT_MODEL_COMPARISON",
+              json.dumps(evaluate(a.manifest,a.model,a.report,a.split,a.baseline_model),sort_keys=True),
+              flush=True)
+        return
+    # Preserve the original CLI without subcommands for existing users.
+    if args and args[0]=="fit":
+        args=args[1:]
     p=argparse.ArgumentParser(description="Offline-only CodecCat training; exports numeric CCM1 for Native Runtime")
     p.add_argument("--manifest",type=Path,required=True)
     p.add_argument("--output",type=Path,required=True)
     p.add_argument("--report",type=Path,required=True)
     p.add_argument("--seed",type=int,default=20261015)
-    a=p.parse_args()
+    a=p.parse_args(args)
     print("CODECCAT_TRAIN_RESULT",json.dumps(fit(a.manifest,a.output,a.report,a.seed)),flush=True)
 
 if __name__=="__main__":main()

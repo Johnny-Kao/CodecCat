@@ -111,7 +111,18 @@ jobs:
         run: |
           test "$(git -C benchmark-sources/glib rev-parse HEAD)" = "d34a927488b8b664cbd305dc880e86f34f8ca467"
           python -m venv .native-baseline
-          .native-baseline/bin/python -m pip install --no-deps "https://github.com/Johnny-Kao/CodecCat/releases/download/v0.1.0a4/codeccat-0.1.0a4-cp310-abi3-linux_x86_64.whl"
+          .native-baseline/bin/python -m pip install --no-deps "https://github.com/Johnny-Kao/CodecCat/releases/download/v0.1.0a3/codeccat-0.1.0a3-cp310-abi3-linux_x86_64.whl"
+          python - <<'PY'
+          import subprocess
+          code = ("import hashlib,importlib.metadata as md; from importlib.resources import files; "
+                  "print(md.version('codeccat'),hashlib.sha256("
+                  "files('codeccat').joinpath('models/default.ccm').read_bytes()).hexdigest())")
+          old = subprocess.check_output([".native-baseline/bin/python", "-c", code], text=True).split()
+          new = subprocess.check_output(["python", "-c", code], text=True).split()
+          print("PAIRED_RELEASE_MODEL_IDENTITY",old,new)
+          assert old[0] == "0.1.0a3" and new[0] == "0.1.0a4"
+          assert old[1] == new[1], "Cannot attribute improvement to decoder: model changed"
+          PY
           .native-baseline/bin/python experiments/native_utf8_external_gate.py --engine baseline
           python experiments/native_utf8_external_gate.py --engine candidate
           python experiments/native_utf8_external_gate.py --compare

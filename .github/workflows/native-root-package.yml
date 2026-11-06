@@ -53,7 +53,7 @@ jobs:
               metadata = next(x for x in names if x.endswith(".dist-info/METADATA"))
               data = whl.read(metadata).decode()
               assert "Name: codeccat" in data
-              assert "Version: 0.1.0a5" in data
+              assert "Version: 0.1.0" in data
               assert "Provides-Extra: legacy" in data
               assert "Requires-Dist: scikit-learn" not in data
               assert "Requires-Dist: scipy" not in data
@@ -86,6 +86,7 @@ jobs:
           .root-clean/bin/python native-prototype/api_parity.py verify
           .root-clean/bin/python native-prototype/verify_native.py verify
           .root-clean/bin/python native-prototype/release_reliability.py
+          .root-clean/bin/python native-prototype/stable_contract.py
           .root-clean/bin/python -m pip check
           .root-clean/bin/python - <<'PY'
           import codeccat, importlib.util

@@ -1,95 +1,176 @@
-name: Publish checked Stable GitHub Release
+name: Prepare or publish verified Stable GitHub Release
+
+# Deliberately manual; never publish on PR, push or tag.
 on:
   workflow_dispatch:
     inputs:
       tag:
+        description: "Reviewed immutable Stable tag vMAJOR.MINOR.PATCH"
         required: true
         type: string
-        default: v0.1.0
       linux_run_id:
+        description: "Successful manylinux CI run from this exact tag"
         required: true
         type: string
       platform_run_id:
+        description: "Successful six-platform CI run from this exact tag"
         required: true
         type: string
+      sdist_run_id:
+        description: "Successful source-distribution CI run from this exact tag"
+        required: true
+        type: string
+      publish:
+        description: "Create the GitHub Release (false: verify only)"
+        required: true
+        default: false
+        type: boolean
+
 permissions:
-  contents: write
+  contents: read
   actions: read
+
 concurrency:
   group: stable-release-${{ inputs.tag }}
   cancel-in-progress: false
+
 jobs:
-  publish:
+  verify:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag }}
           path: tagged-source
-      - name: Confirm both workflow runs were built from the exact release Tag commit
-        shell: bash
+          persist-credentials: false
+      - name: Confirm exact tag and successful trusted build workflows
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag }}
           LINUX_RUN: ${{ inputs.linux_run_id }}
           PLATFORM_RUN: ${{ inputs.platform_run_id }}
+          SDIST_RUN: ${{ inputs.sdist_run_id }}
+        shell: bash
         run: |
-          test "$TAG" = "v0.1.0"
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "Johnny-Kao/CodecCat"
+          test "$GITHUB_REF" = "refs/heads/main"
+          [[ "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          test "$TAG" != "v0.1.0"
           tag_sha=$(git -C tagged-source rev-parse HEAD)
-          for run in "$LINUX_RUN" "$PLATFORM_RUN"; do
+          ref_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq '.object.sha')
+          ref_kind=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq '.object.type')
+          if [[ "$ref_kind" == "tag" ]]; then
+            ref_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$ref_sha" --jq '.object.sha')
+          else
+            test "$ref_kind" = "commit"
+          fi
+          test "$ref_sha" = "$tag_sha"
+          for pair in "$LINUX_RUN:.github/workflows/stable-manylinux.yml" \
+                      "$PLATFORM_RUN:.github/workflows/native-platform-matrix.yml" \
+                      "$SDIST_RUN:.github/workflows/source-distribution.yml"; do
+            run="${pair%%:*}"
+            expected="${pair#*:}"
+            [[ "$run" =~ ^[0-9]+$ ]]
             run_sha=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq '.head_sha')
-            test "$run_sha" = "$tag_sha" || { echo "CI run $run is not from tagged commit"; exit 1; }
             result=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq '.conclusion')
-            test "$result" = "success" || { echo "CI run $run was not successful"; exit 1; }
+            run_path=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq '.path')
+            event=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq '.event')
+            test "$run_sha" = "$tag_sha"
+            test "$result" = "success"
+            [[ "$run_path" == "$expected"* ]]
+            test "$event" = "push"
           done
-          echo "TAG_CI_PROVENANCE_PASS $tag_sha"
+          test -f "tagged-source/docs/releases/$TAG.md"
+          echo "THREE_TAG_SCOPED_CI_RUNS_VERIFIED $tag_sha"
       - uses: actions/download-artifact@v4
         with:
           run-id: ${{ inputs.linux_run_id }}
           pattern: stable-manylinux-*
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ github.token }}
           path: downloaded-linux
       - uses: actions/download-artifact@v4
         with:
           run-id: ${{ inputs.platform_run_id }}
           pattern: native-wheel-*
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ github.token }}
           path: downloaded-platform
-      - name: Inspect all six artifact Wheels, model, license, metadata and SHA256
-        shell: bash
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ inputs.sdist_run_id }}
+          pattern: source-distribution
+          github-token: ${{ github.token }}
+          path: downloaded-sdist
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Assemble and independently verify every asset
+        env:
+          TAG: ${{ inputs.tag }}
+          LINUX_RUN: ${{ inputs.linux_run_id }}
+          PLATFORM_RUN: ${{ inputs.platform_run_id }}
+          SDIST_RUN: ${{ inputs.sdist_run_id }}
         run: |
           python scripts/assemble_stable_release.py \
-            --linux downloaded-linux \
-            --platform downloaded-platform \
-            --tagged-source tagged-source \
-            --out release-assets \
-            --linux-run "${{ inputs.linux_run_id }}" \
-            --platform-run "${{ inputs.platform_run_id }}"
-      - name: Publish non-prerelease release from the verified Tag
-        shell: bash
+            --linux downloaded-linux --platform downloaded-platform \
+            --sdist downloaded-sdist --tagged-source tagged-source \
+            --out release-assets --linux-run "$LINUX_RUN" \
+            --platform-run "$PLATFORM_RUN" --sdist-run "$SDIST_RUN"
+          python scripts/verify_release_assets.py \
+            --assets release-assets --tagged-source tagged-source --tag "$TAG"
+          python -m pip install --disable-pip-version-check twine==7.0.0
+          python -m twine check --strict release-assets/*.whl release-assets/*.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: verified-stable-release-assets
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: verify
+    if: ${{ inputs.publish == true && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: verified-stable-release-assets
+          path: release-assets
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+          path: tagged-source
+          persist-credentials: false
+      - name: Create new release from verified packages, never replace old releases
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag }}
+        shell: bash
         run: |
-          test ! -e /tmp/missing-file-for-release
+          set -euo pipefail
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release already exists; refusing to modify it"; exit 1
+            echo "Release already exists; refusing to replace it"; exit 1
           fi
-          gh release create "$TAG" release-assets/* \
-            --repo "$GITHUB_REPOSITORY" --verify-tag \
-            --title "CodecCat v0.1.0 — Stable" \
-            --notes-file docs/releases/v0.1.0.md --latest
+          test -f "tagged-source/docs/releases/$TAG.md"
+          gh release create "$TAG" release-assets/* --repo "$GITHUB_REPOSITORY" \
+            --verify-tag --title "CodecCat $TAG — Stable" \
+            --notes-file "tagged-source/docs/releases/$TAG.md" --latest
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" \
             --json isDraft,isPrerelease,assets,url > release-view.json
           python - <<'PY'
           import json
           x=json.load(open("release-view.json"))
-          assert not x["isDraft"] and not x["isPrerelease"],x
+          assert not x["isDraft"] and not x["isPrerelease"], x
           names=[a["name"] for a in x["assets"]]
-          assert len(names)==8 and len(set(names))==8,names
+          assert len(names)==9 and len(set(names))==9, names
           assert "MODEL_PROVENANCE.json" in names and "SHA256SUMS" in names
           assert sum(name.endswith(".whl") for name in names)==6
-          print("STABLE_GITHUB_RELEASE_PUBLISHED",x["url"],flush=True)
+          assert sum(name.endswith(".tar.gz") for name in names)==1
+          print("STABLE_GITHUB_RELEASE_PUBLISHED",x["url"])
           PY

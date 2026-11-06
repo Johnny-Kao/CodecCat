@@ -1,0 +1,78 @@
+name: CodecCat C1-control fresh external confirmation
+
+on:
+  pull_request:
+    paths:
+      - "experiments/western_c1_fresh_confirmation.py"
+      - "research/WESTERN_C1_FRESH_SOURCE_PROTOCOL_2026-11-07.md"
+      - ".github/workflows/western-c1-fresh-confirmation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: GNOME/evince
+          ref: e822030005f22231052667d51398a84327004924
+          path: external-evince
+          sparse-checkout: po
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: GNOME/epiphany
+          ref: baf23d30acd0ce758632a99aa99f780f45e1802a
+          path: external-epiphany
+          sparse-checkout: po
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: source-data
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Freeze source and dependency versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C external-evince rev-parse HEAD)" = "e822030005f22231052667d51398a84327004924"
+          test "$(git -C external-epiphany rev-parse HEAD)" = "baf23d30acd0ce758632a99aa99f780f45e1802a"
+          test "$(git -C source-data rev-parse HEAD)" = "b0c0d206913ba118ffea2f7d306883e7a4a76db7"
+          python -m pip install --only-binary=:all: --no-deps codeccat==0.1.0
+          python -m pip install polib==1.2.0
+      - name: Validate historical training manifest
+        run: python datasets/official/prepare_manifest.py --corpus source-data
+      - name: Screen both fresh sources before scoring and test paired rule
+        run: python experiments/western_c1_fresh_confirmation.py
+      - name: Verify new-source counts and metadata
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("research-results/western-c1-fresh-confirmation.json").read_text())
+          assert x["status"]=="screen_negative_evaluated"
+          assert x["raw_content_exported"] is False
+          for source in ("evince","epiphany"):
+            assert x["groups"][source+"/natural_utf8"]["n"]>=80
+            assert x["groups"][source+"/western_synthetic"]["n"]>=40
+          print("C1_FRESH_SOURCE_METADATA_VALID")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c1-fresh-external-metadata-only
+          path: research-results/western-c1-fresh-confirmation.json
+          if-no-files-found: warn
+          retention-days: 30

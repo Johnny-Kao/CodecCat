@@ -1,5 +1,20 @@
 # CodecCat accuracy and performance benchmarks
 
+## Stable v0.1.0 published Wheel (2026-11-06)
+
+[Official Stable post-release CI #42163479473](https://github.com/Johnny-Kao/CodecCat/actions/runs/42163479473) installed the **actual published v0.1.0 manylinux_2_28_x86_64 Wheel**, checked its model SHA256, and evaluated the same 843 fixed bytes against chardet 7.7.0 and charset-normalizer 3.5.2.
+
+| Metric | CodecCat Stable | chardet | charset-normalizer |
+|---|---:|---:|---:|
+| Exact correctly decoded Unicode text | 826/843 (97.98%) | **829/843 (98.34%)** | 698/843 (82.80%) |
+| Exact normalized codec label | **787/843 (93.36%)** | 712/843 (84.46%) | 583/843 (69.16%) |
+| Total CPU for timed calls | **779 ms** | 1,008 ms | 1,205 ms |
+| p50 wall time across five corpora | 0.94–1.04 ms | **0.49–0.83 ms** | 0.85–1.16 ms |
+| p95 wall time across five corpora | **1.38–1.65 ms** | 3.23–3.86 ms | 3.55–5.15 ms |
+| Peak process RSS across five processes | 66–69 MiB | 61–64 MiB | **40–44 MiB** |
+
+Fixed source subsets are: chardet/test-data **633** (CodecCat 622 correct), charset-normalizer original labeled tests **15** (CodecCat 14 correct), and previously inspected Vim/Git windows **195** (CodecCat 190 correct). The last source is 97.44% correct for CodecCat, but the full 843-case sample mixes training and development sources. These percentages **cannot be interpreted as blind population accuracy**. Small timing changes across CI runs should not be presented as significant or guaranteed. Exact model and all six release wheel assets were validated in [Stable publication CI #42163214006](https://github.com/Johnny-Kao/CodecCat/actions/runs/42163214006); the Linux manylinux gate itself was [#42162646277](https://github.com/Johnny-Kao/CodecCat/actions/runs/42162646277). Stable denotes supported API and distribution quality, **not 100% encoding-classification correctness**.
+
 ## Five-corpus benchmark (released Native v0.1.0a5)
 
 [Post-release run #42158308518](https://github.com/Johnny-Kao/CodecCat/actions/runs/42158308518) installed the **published v0.1.0a5 Wheel**. The same 843 byte samples across five fixed sets were compared with chardet 7.7.0 and charset-normalizer 3.5.2 on Ubuntu 24.04 / Python 3.12.
@@ -28,7 +43,7 @@ These are **new source repositories**, selected and pinned before running the pu
 
 [GTK five-fold CI #42153394720](https://github.com/Johnny-Kao/CodecCat/actions/runs/42153394720) and [multi-encoding five-fold CI #42153686436](https://github.com/Johnny-Kao/CodecCat/actions/runs/42153686436) both PASS as benchmark executions. The five groups are **document-level partitions**, not five independently collected sources. Files from the same document never cross folds. The multi-encoding source includes short original test files and correlated prefix windows; `viscii` and `euc-tw` were excluded because standard Python lacks those codecs. No model tuning was performed based on these held-out results.
 
-**These checks do not pass a Stable-release quality criterion:** GTK UTF-8 underperforms both competitors; on the multi-encoding source CodecCat is below chardet. A separate external-source regression test passing only proves the test ran, not product accuracy equivalence.
+**Historical a4 results (not the Stable release):** The old GTK UTF-8 evaluation and multi-encoding samples exposed real errors and should not be interpreted as v0.1.0's results. Subsequent corrections in a5 improved GTK to 324/328 and the multi-encoding set to 95/102 in staged same-byte tests without observed regressions. Stable is approved under the explicit public API and deployment gates, not on a requirement to match chardet for every source.
 
 ## Frozen release-model reproducibility
 

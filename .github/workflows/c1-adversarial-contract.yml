@@ -23,7 +23,8 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install exact released Stable
-        run: python -m pip install --only-binary=:all: --no-deps codeccat==0.1.0
+        run: |
+          python -m pip install --only-binary=:all: --no-deps codeccat==0.1.0
       - name: Verify unchanged published model bytes
         run: |
           python - <<'PY'

@@ -46,6 +46,29 @@ def _literal_decode(raw: bytes, predicted: str) -> str:
     return codecs.getincrementaldecoder(decode_codec)("strict").decode(raw, final=True)
 
 
+def _strong_utf8_evidence(raw: bytes) -> bool:
+    """Conservative UTF-8 rescue for non-BOM complete text.
+
+    Valid UTF-8 alone is not conclusive (legacy byte streams can accidentally
+    decode as UTF-8). Require enough actual non-ASCII Unicode evidence and
+    reject unexpected control characters. Never override a byte-order mark.
+    """
+    if len(raw) < 64 or inspect_bom(raw).signature is not None:
+        return False
+    try:
+        text = raw.decode("utf-8", "strict")
+    except UnicodeError:
+        return False
+    non_ascii = 0
+    for char in text:
+        code = ord(char)
+        if (code < 32 and char not in "\t\n\r") or (0x7f <= code < 0xa0):
+            return False
+        if code >= 128:
+            non_ascii += 1
+    return non_ascii >= 16
+
+
 def decode(
     model: TrainableDetector,
     raw: bytes,
@@ -72,6 +95,17 @@ def decode(
     candidates = ranked.candidates
     if l3 is not None and l3.changed:
         candidates = (chosen,) + tuple(c for c in candidates if c != chosen)
+    # Only the default L2 path uses this rescue. Preserve optional L3 behavior
+    # and all BOM decisions; never infer UTF-8 just from byte validity.
+    utf8_rescued = (
+        l3 is None
+        and chosen not in ("utf-8", "utf-8-sig")
+        and "utf-8" in model.classifier.classes_
+        and _strong_utf8_evidence(raw)
+    )
+    if utf8_rescued:
+        chosen = "utf-8"
+        candidates = (chosen,) + tuple(c for c in candidates if c != chosen)[:2]
     attrs = {
         "candidates": candidates,
         "l3_called": l3.called if l3 is not None else False,
@@ -104,5 +138,6 @@ def decode(
                                          reason="textually_ambiguous_ascii", **attrs)
                 except (UnicodeError, LookupError):
                     pass
-    return Detection(str(chosen), decoded, ambiguous=ranked.ambiguous,
-                     reason="selected", **attrs)
+    return Detection(str(chosen), decoded,
+                     ambiguous=ranked.ambiguous or utf8_rescued,
+                     reason="utf8_evidence" if utf8_rescued else "selected", **attrs)

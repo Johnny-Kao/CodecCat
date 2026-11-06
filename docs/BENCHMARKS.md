@@ -1,14 +1,13 @@
 # CodecCat accuracy and performance benchmarks
 
-## Five-corpus benchmark (released Native v0.1.0a3)
+## Five-corpus benchmark (released Native v0.1.0a4)
 
-The latest actual-release, same-corpus three-library benchmark is [the five-corpus report](../research/FIVE_CORPUS_BENCHMARK_FINAL_2026-11-06.md), validated on [GitHub Actions #42136798760](https://github.com/Johnny-Kao/CodecCat/actions/runs/42136798760). It covers correct Unicode decoding, exact encoding-name matches, CPU time, latency and peak RAM on **843 cases**, divided into five fixed sets. **The data has training/development overlap and is not an independent accuracy estimate.** Historical benchmarks below are retained separately for provenance.
+The latest five-corpus comparison used the **v0.1.0a4 candidate wheel**, built from identical native source except the release version field, alongside pinned third-party detectors. [CI #42148882888](https://github.com/Johnny-Kao/CodecCat/actions/runs/42148882888) scored 843 fixed cases. The full [v0.1.0a4 benchmark and external validation](../research/NATIVE_UTF8_FIX_2026-11-06.md) records accuracy, CPU, latency, RAM, and [285 new GLib translation windows](https://github.com/Johnny-Kao/CodecCat/actions/runs/42148882888). The results are from a **pre-release candidate**, not a repeated performance run on downloadable v0.1.0a4 assets. Historical v0.1.0a3 reports below remain available.
+
+**Important:** the 843 examples overlap training/development sources and do not establish real-world accuracy.
 
 
-The README presents **two separate kinds of evidence**. Accuracy results
-are historical, external-source **stable23** evaluations. Speed and memory
-results are measurements of the released Native implementation in a
-development benchmark. They must not be conflated.
+The sections below preserve historical v0.1.0a3 and earlier experimental results. They describe distinct model variants, data and benchmark protocols; do not conflate them with the v0.1.0a4 candidate results above.
 
 ## Accuracy across data sources
 

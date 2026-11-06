@@ -4,10 +4,17 @@ on:
     branches: [research/five-corpus-benchmark-20261106]
     paths:
       - "experiments/five_corpus_benchmark.py"
+      - "experiments/native_utf8_external_gate.py"
       - ".github/workflows/five-corpus-benchmark.yml"
   workflow_dispatch:
+    inputs:
+      candidate_run_id:
+        description: "Native six-platform CI run ID; if omitted, test published release"
+        required: false
+        default: ""
 permissions:
   contents: read
+  actions: read
 jobs:
   benchmark:
     runs-on: ubuntu-24.04
@@ -42,12 +49,32 @@ jobs:
           ref: 0ffa3e35c7c82ab8d0de226149fb03b3f7674d05
           path: benchmark-sources/git
           sparse-checkout: po
+      - uses: actions/checkout@v4
+        if: inputs.candidate_run_id != ''
+        with:
+          repository: GNOME/glib
+          ref: d34a927488b8b664cbd305dc880e86f34f8ca467
+          path: benchmark-sources/glib
+          sparse-checkout: po
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install exactly released Native wheel and competitors
+      - name: Fetch candidate native wheel from validated six-platform CI
+        if: inputs.candidate_run_id != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: native-wheel-linux-x64
+          run-id: ${{ inputs.candidate_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: candidate-wheel
+      - name: Install exact native wheel and pinned competitors
+        shell: bash
         run: |
-          python -m pip install --no-deps "https://github.com/Johnny-Kao/CodecCat/releases/download/v0.1.0a3/codeccat-0.1.0a3-cp310-abi3-linux_x86_64.whl"
+          if [[ -n "${{ inputs.candidate_run_id }}" ]]; then
+            python -m pip install --no-deps candidate-wheel/*.whl
+          else
+            python -m pip install --no-deps "https://github.com/Johnny-Kao/CodecCat/releases/download/v0.1.0a4/codeccat-0.1.0a4-cp310-abi3-linux_x86_64.whl"
+          fi
           python -m pip install "chardet==7.7.0" "charset-normalizer==3.5.2"
       - name: Generate frozen seeded nonoverlapping test groups
         run: python experiments/five_corpus_benchmark.py --prepare
@@ -60,6 +87,34 @@ jobs:
             done
           done
           python experiments/five_corpus_benchmark.py --summary
+      - name: Compare candidate to frozen released-Wheel baseline
+        if: inputs.candidate_run_id != ''
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("research-results/five-corpus/summary.json").read_text())
+          ours=x["overall"]["codeccat"]
+          pools=x["by_source_pool"]
+          print("CANDIDATE_NATIVE_QUALITY",json.dumps({"overall":ours,"by_pool":{k:v["codeccat"] for k,v in pools.items()}}))
+          assert ours["n"]==843, ("dataset not the same",ours["n"])
+          assert ours["correct_text"]>=805, ("overall decoding regression",ours)
+          assert pools["chardet"]["codeccat"]["correct_text"]>=622, "training-source regression"
+          assert pools["charset_normalizer"]["codeccat"]["correct_text"]>=14, "upstream fixture regression"
+          assert pools["codeccat_external"]["codeccat"]["correct_text"]>=169, "external-source regression"
+          print("CANDIDATE_NATIVE_QUALITY_GATE_PASS")
+          PY
+      - name: Compare candidate to released baseline on fresh pinned GLib catalogs
+        if: inputs.candidate_run_id != ''
+        shell: bash
+        run: |
+          test "$(git -C benchmark-sources/glib rev-parse HEAD)" = "d34a927488b8b664cbd305dc880e86f34f8ca467"
+          python -m venv .native-baseline
+          .native-baseline/bin/python -m pip install --no-deps "https://github.com/Johnny-Kao/CodecCat/releases/download/v0.1.0a4/codeccat-0.1.0a4-cp310-abi3-linux_x86_64.whl"
+          .native-baseline/bin/python experiments/native_utf8_external_gate.py --engine baseline
+          python experiments/native_utf8_external_gate.py --engine candidate
+          python experiments/native_utf8_external_gate.py --compare
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -68,5 +123,6 @@ jobs:
             research-results/five-corpus/manifest.json
             research-results/five-corpus/summary.json
             research-results/five-corpus/[1-5]-*.json
+            research-results/five-corpus/glib-*.json
           if-no-files-found: warn
           retention-days: 30

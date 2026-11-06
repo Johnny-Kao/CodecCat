@@ -45,24 +45,20 @@ codeccat --decode file.txt > readable.txt
 
 ## Comparison
 
-The v0.1.0a5 candidate improves UTF-8 recovery versus v0.1.0a4 on separately pinned translation sources, without changing the bundled model. [Paired evidence and remaining limitations](research/UTF8_EVIDENCE_V2_2026-11-06.md).
-
-
-Historical comparison tested with the released **v0.1.0a4 Native Wheel** against chardet and charset-normalizer on the **same 843 samples** across five fixed test sets.
+Published **CodecCat Native v0.1.0a5** compared with chardet and charset-normalizer on the **same 843 text samples** across five fixed test sets (Ubuntu 24.04 / Python 3.12).
 
 | | CodecCat | chardet | charset-normalizer |
 |---|---:|---:|---:|
-| Correctly decoded text | 97.15% | **98.34%** | 82.80% |
-| Exact encoding name | **92.53%** | 84.46% | 69.16% |
-| Total CPU time | **601 ms** | 801 ms | 1,061 ms |
-| Typical latency (p50 range) | 0.75–0.79 ms | **0.43–0.74 ms** | 0.72–1.00 ms |
-| Slower-case latency (p95 range) | **1.11–1.18 ms** | 2.21–2.81 ms | 3.04–4.67 ms |
+| Correctly decoded text | 97.98% | **98.34%** | 82.80% |
+| Exact encoding name | **93.36%** | 84.46% | 69.16% |
+| Total CPU time | **660 ms** | 861 ms | 1,073 ms |
+| Typical latency (p50 range) | 0.78–0.89 ms | **0.46–0.75 ms** | 0.74–1.02 ms |
+| Slower-case latency (p95 range) | **1.20–1.32 ms** | 2.69–3.01 ms | 3.10–4.64 ms |
 | Peak RAM (range) | 66–69 MiB | 61–64 MiB | **40–44 MiB** |
 
-**chardet decoded more text correctly.** CodecCat had lower CPU time and p95 latency in this run, but used more RAM. On 285 separately sourced GLib text samples, v0.1.0a4 decoded 44 more correctly than v0.1.0a3, with zero observed regressions.
+**chardet still decoded slightly more of these samples correctly.** CodecCat used less measured CPU time and had lower p95 latency, but used more RAM.
 
-**About the test:** The 843 samples include training and development data. Results describe these test sets, **not general real-world accuracy**; latency and CPU measurements are from one CI run. [Full methodology and raw test links](docs/BENCHMARKS.md#five-corpus-benchmark-released-native-v010a4).
-
+**Limits:** These test sets include model training and development sources; **97.98% is not a general real-world accuracy estimate**. CPU and timing values come from one hosted CI run. A separately pinned GNOME Software source showed **198/225 → 216/225** correct decodes versus v0.1.0a4, using the identical model and with no observed regressions. [Full methods and caveats](docs/BENCHMARKS.md#five-corpus-benchmark-released-native-v010a5).
 
 ## Notes
 

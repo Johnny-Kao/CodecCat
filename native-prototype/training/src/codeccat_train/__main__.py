@@ -34,15 +34,17 @@ def read_manifest(manifest:Path):
         try:raw.decode(record["encoding"],"strict")
         except UnicodeError as ex:raise ValueError(f"line {number}: label does not decode bytes") from ex
         sha=hashlib.sha256(raw).hexdigest()
-        if sha in digests:
-            old=digests[sha]
-            if old!=(record["encoding"],record["split"]):
-                raise ValueError(f"line {number}: duplicate bytes cross labels/splits")
-            continue
         grp=record["group"];split=record["split"]
+        # Register and validate groups before deduplicating identical content.
+        # A duplicate can introduce a group that later appears in another split.
         if grp in groups and groups[grp]!=split:
             raise ValueError(f"line {number}: source-group leakage")
         groups[grp]=split
+        if sha in digests:
+            old=digests[sha]
+            if old!=(record["encoding"],split):
+                raise ValueError(f"line {number}: duplicate bytes cross labels/splits")
+            continue
         digests[sha]=(record["encoding"],split)
         result.append((raw,record["encoding"],grp,split,sha))
     train=[r for r in result if r[3]=="train"]

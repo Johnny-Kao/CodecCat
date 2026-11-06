@@ -4,6 +4,7 @@ on:
     branches: [research/five-corpus-benchmark-20261106, research/diagnose-native-po-errors-20261106]
     paths:
       - "experiments/five_corpus_benchmark.py"
+      - "experiments/utf8_evidence_sweep.py"
       - ".github/workflows/five-corpus-benchmark.yml"
   workflow_dispatch:
 permissions:
@@ -60,6 +61,8 @@ jobs:
             done
           done
           python experiments/five_corpus_benchmark.py --summary
+      - name: Sweep conservative UTF-8 structural evidence on frozen cases
+        run: python experiments/utf8_evidence_sweep.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -68,5 +71,6 @@ jobs:
             research-results/five-corpus/manifest.json
             research-results/five-corpus/summary.json
             research-results/five-corpus/[1-5]-*.json
+            research-results/five-corpus/utf8-counterfactual.json
           if-no-files-found: warn
           retention-days: 30

@@ -1,9 +1,12 @@
 name: Stable gate - manylinux
 on:
   push:
-    branches: [staging/stable-release-gates-20261106]
+    branches: [main, staging/stable-release-gates-20261106]
+    tags: ["v*"]
     paths:
       - ".github/workflows/stable-manylinux.yml"
+      - "pyproject.toml"
+      - "native-prototype/**"
   workflow_dispatch:
 permissions:
   contents: read
@@ -72,7 +75,7 @@ jobs:
               model=z.read("codeccat/models/default.ccm")
               assert hashlib.sha256(model).hexdigest()=="16073306b5027bf93acc2883f57fbda0cb0cf2d77b9a7bb62cf1b07fcbb9748b"
               md=z.read(next(n for n in z.namelist() if n.endswith(".dist-info/METADATA"))).decode()
-              assert "Version: 0.1.0a5" in md
+              assert "Version: 0.1.0" in md
           print("MANYLINUX_WHEEL_AUDIT_PASS",wheel.name)
           PY
           auditwheel show dist/*.whl

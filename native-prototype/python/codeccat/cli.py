@@ -9,7 +9,7 @@ MAX_BYTES = 16 * 1024 * 1024
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description="Detect text encoding with CodecCat's bundled alpha model")
+    p = argparse.ArgumentParser(description="Detect text encoding with CodecCat's bundled native model")
     p.add_argument("file", nargs="?", default="-", help="input file or - for stdin")
     p.add_argument("--decode", action="store_true", help="write strictly decoded text to stdout")
     p.add_argument("--json", action="store_true", help="write structured detection metadata")

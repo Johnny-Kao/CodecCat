@@ -53,7 +53,7 @@ jobs:
               metadata = next(x for x in names if x.endswith(".dist-info/METADATA"))
               data = whl.read(metadata).decode()
               assert "Name: codeccat" in data
-              assert "Version: 0.1.0a5" in data
+              assert "Version: 0.1.0" in data
               assert "Provides-Extra: legacy" in data
               assert "Requires-Dist: scikit-learn" not in data
               assert "Requires-Dist: scipy" not in data

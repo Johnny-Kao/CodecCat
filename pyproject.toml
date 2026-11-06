@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "codeccat"
-version = "0.1.0a5"
+version = "0.1.0"
 description = "Native character-encoding detection and strict Unicode decoding"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -13,7 +13,7 @@ license-files = ["LICENSE"]
 authors = [{ name = "Johnny Kao" }]
 keywords = ["character-encoding", "charset", "encoding-detection", "unicode", "rust"]
 classifiers = [
-  "Development Status :: 3 - Alpha",
+  "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",

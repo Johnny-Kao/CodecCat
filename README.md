@@ -14,13 +14,13 @@ A Python library for opening text when you don't know its character encoding.
 
 ## Install
 
-Download the wheel for your operating system from [CodecCat v0.1.0a5](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0a5), then install it:
+Download the wheel for your operating system from [CodecCat v0.1.0](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0), then install it:
 
 ```bash
-python -m pip install ./codeccat-0.1.0a5-*.whl
+python -m pip install ./codeccat-0.1.0-*.whl
 ```
 
-Supports **Python 3.10+** on Linux, macOS and Windows. On Windows, use the exact downloaded wheel filename instead of the `*` wildcard. Native detection doesn't require NumPy or scikit-learn. **Not on PyPI yet.**
+Supports **Python 3.10+** on Linux, macOS and Windows. On Windows, use the exact downloaded wheel filename instead of the `*` wildcard. Native detection doesn't require NumPy or scikit-learn. **GitHub Wheels; PyPI publishing is a separate distribution step.**
 
 ## Use it
 
@@ -45,7 +45,7 @@ codeccat --decode file.txt > readable.txt
 
 ## Comparison
 
-Published **CodecCat Native v0.1.0a5** compared with chardet and charset-normalizer on the **same 843 text samples** across five fixed test sets (Ubuntu 24.04 / Python 3.12).
+CodecCat **v0.1.0 stable candidate**, using the same frozen model and decoder code as the verified v0.1.0a5 baseline, compared with chardet and charset-normalizer on the **same 843 text samples** across five fixed test sets (Ubuntu 24.04 / Python 3.12).
 
 | | CodecCat | chardet | charset-normalizer |
 |---|---:|---:|---:|
@@ -62,6 +62,9 @@ Published **CodecCat Native v0.1.0a5** compared with chardet and charset-normali
 
 ## Notes
 
-Encoding isn't always identifiable from bytes alone. Check `result.ambiguous` when the exact encoding matters. Decoding is strict: invalid text is not silently replaced. CodecCat v0.1.0a5 is an **Alpha release**.
+[Public API compatibility contract](docs/STABILITY.md): the 0.1.x stable line preserves the documented public calls and result fields. Encoding inference remains probabilistic and is not guaranteed for arbitrary bytes.
+
+
+Encoding isn't always identifiable from bytes alone. Check `result.ambiguous` when the exact encoding matters. Decoding is strict: invalid text is not silently replaced. CodecCat v0.1.0 is a **stable release**.
 
 [Releases](https://github.com/Johnny-Kao/CodecCat/releases) · [Issues](https://github.com/Johnny-Kao/CodecCat/issues) · [Benchmarks](docs/BENCHMARKS.md) · [MIT License](LICENSE) · [Rights inquiries](RIGHTS_AND_PROVENANCE.md)

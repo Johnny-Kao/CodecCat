@@ -33,6 +33,13 @@ jobs:
           cp ci-fixtures/default.ccm ci-fixtures/default.ccm.meta.json ci-fixtures/language-l3.json native-prototype/python/codeccat/models/
           cp ci-fixtures/stable23-f64.ccm native-prototype/model/stable23.ccm
           cp ci-fixtures/api-parity-goldens.jsonl ci-fixtures/api-model-fingerprint.txt ci-fixtures/l2-numeric-goldens.jsonl native-prototype/
+          # The generated model directory is .gitignored by design.
+          # Register files in the *ephemeral Actions index* so the direct
+          # maturin CLI includes the same assets as the PEP-517 wheel build.
+          # No model bytes are ever committed to Git.
+          git add -f -N native-prototype/python/codeccat/models/default.ccm native-prototype/python/codeccat/models/default.ccm.meta.json native-prototype/python/codeccat/models/language-l3.json
+          git status --short native-prototype/python/codeccat/models/
+
       - name: Build Linux distributions with the manylinux policy
         uses: PyO3/maturin-action@86b9d133d34bc1b40018696f782949dac11bd380
         with:

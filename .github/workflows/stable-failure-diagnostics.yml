@@ -1,0 +1,88 @@
+name: Published Stable failure diagnostics (research only)
+
+on:
+  pull_request:
+    paths:
+      - "experiments/stable_failure_diagnostics.py"
+      - "experiments/stable_utf8_counterfactual.py"
+      - "experiments/utf8_ambiguous_counterexamples.py"
+      - ".github/workflows/stable-failure-diagnostics.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-existing-failures:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install frozen published Runtime and comparator
+        run: |
+          python -m pip install --disable-pip-version-check --only-binary=:all: --no-deps codeccat==0.1.0
+          python -m pip install --disable-pip-version-check chardet==7.7.0 charset-normalizer==3.5.2
+      - name: Pinned GTK source (ephemeral)
+        uses: actions/checkout@v4
+        with:
+          repository: GNOME/gtk
+          ref: 7c578d79eb8347b14a1717bfcc0084674a43c562
+          path: blind-source
+          sparse-checkout: po
+          persist-credentials: false
+      - name: Pinned uchardet source (ephemeral)
+        uses: actions/checkout@v4
+        with:
+          repository: BYVoid/uchardet
+          ref: 4e685757780cb3c652fc6c9ec759f62888969ec9
+          path: external-encoding-source
+          sparse-checkout: test
+          persist-credentials: false
+      - name: Attribute existing 11 failures
+        run: python experiments/stable_failure_diagnostics.py
+      - name: Evaluate paired UTF-8 rescue counterfactuals
+        run: python experiments/stable_utf8_counterfactual.py
+      - name: Evaluate synthetic legacy-encoding ambiguity
+        run: python experiments/utf8_ambiguous_counterexamples.py
+      - name: Check safe diagnostic output
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("research-results/stable-failure-diagnostics.json").read_text())
+          assert r["runtime_version"] == "0.1.0"
+          assert r["previously_observed_data"] and not r["stores_raw_content"]
+          assert len(r["failures"]) == 11
+          assert sum(x["source"]=="gtk" for x in r["failures"]) == 4
+          assert sum(x["source"]=="uchardet" for x in r["failures"]) == 7
+          allowed={"source","source_sha256","raw_size","truth_encoding","runtime_guess",
+                   "chardet_guess","chardet_correct_text",
+                   "runtime_text_matches_own_codec_decode","runtime_text_mismatch_kind",
+                   "own_codec_decode_mismatch_kind","correct_under_truth_codec"}
+          assert all(set(x)==allowed for x in r["failures"])
+          paired=json.loads(Path("research-results/stable-utf8-counterfactual.json").read_text())
+          assert paired["development_only"] and not paired["raw_content_exported"]
+          assert paired["data"]["gtk"]["n"] == 328
+          assert paired["data"]["uchardet"]["n"] == 102
+          synthetic=json.loads(Path("research-results/ambiguous-cp1252-counterexamples.json").read_text())
+          assert synthetic["synthetic"] and not synthetic["representative"]
+          assert synthetic["cases"] == 60
+          assert not synthetic["raw_content_exported"]
+          print("METADATA_ONLY_11_FAILURES_VALID")
+          PY
+      - name: Upload failure metadata only
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stable-failure-diagnostics-metadata
+          path: |
+            research-results/stable-failure-diagnostics.json
+            research-results/stable-utf8-counterfactual.json
+            research-results/ambiguous-cp1252-counterexamples.json
+          if-no-files-found: error
+          retention-days: 7

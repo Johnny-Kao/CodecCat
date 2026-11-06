@@ -9,9 +9,9 @@
 - No model retraining, dependency additions, or Python API removals.
 
 Validation:
-- [Six-platform staging wheel matrix](https://github.com/Johnny-Kao/CodecCat/actions/runs/42148598734) — six PASS.
-- [Five-corpus and GLib external paired gate](https://github.com/Johnny-Kao/CodecCat/actions/runs/42148882888) — PASS.
-- Fixed 843-case test improved from 805 to 819 correct Unicode decodes; previously unexamined GLib translation windows improved 227/285 to 271/285 (44 helps, 0 harms).
+- [Final tagged six-platform wheel matrix](https://github.com/Johnny-Kao/CodecCat/actions/runs/42150439965) — six PASS.
+- [Published a3 vs a4 GLib paired gate](https://github.com/Johnny-Kao/CodecCat/actions/runs/42151536276) — PASS; identical model SHA256.
+- [Post-release 843-case test](https://github.com/Johnny-Kao/CodecCat/actions/runs/42151051728): 819 correct Unicode decodes (a3: 805); previously unexamined GLib translation windows improved 227/285 to 271/285 (44 helps, 0 harms).
 
 Limits: These are specific test sets, not estimates of general population accuracy. CodecCat still trails chardet on decoded-text correctness in the five-corpus test. See [full methodology](research/NATIVE_UTF8_FIX_2026-11-06.md).
 

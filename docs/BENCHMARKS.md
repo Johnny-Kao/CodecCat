@@ -2,12 +2,13 @@
 
 ## Five-corpus benchmark (released Native v0.1.0a4)
 
-The latest five-corpus comparison used the **v0.1.0a4 candidate wheel**, built from identical native source except the release version field, alongside pinned third-party detectors. [CI #42148882888](https://github.com/Johnny-Kao/CodecCat/actions/runs/42148882888) scored 843 fixed cases. The full [v0.1.0a4 benchmark and external validation](../research/NATIVE_UTF8_FIX_2026-11-06.md) records accuracy, CPU, latency, RAM, and [285 new GLib translation windows](https://github.com/Johnny-Kao/CodecCat/actions/runs/42148882888). The results are from a **pre-release candidate**, not a repeated performance run on downloadable v0.1.0a4 assets. Historical v0.1.0a3 reports below remain available.
+The latest measurement installed the **actual GitHub Release v0.1.0a4 Wheel**, not a development build. [Post-release five-corpus CI #42151051728](https://github.com/Johnny-Kao/CodecCat/actions/runs/42151051728) completed on 843 fixed byte inputs, comparing correct Unicode decoding, encoding labels, CPU, p50/p95 and RSS with chardet 7.7.0 and charset-normalizer 3.5.2.
 
-**Important:** the 843 examples overlap training/development sources and do not establish real-world accuracy.
+[Paired release validation #42151536276](https://github.com/Johnny-Kao/CodecCat/actions/runs/42151536276) installed **both published v0.1.0a3 and v0.1.0a4** and asserted identical embedded model SHA256 (`16073306b5027bf93acc2883f57fbda0cb0cf2d77b9a7bb62cf1b07fcbb9748b`). On the same 285 previously unexamined GNOME GLib translation windows, correctly decoded Unicode text improved **227 → 271**, with **44 helps and 0 observed harms**. This attributes the paired change to decoding logic rather than retraining.
 
+The [full source-stratified report](../research/NATIVE_UTF8_FIX_2026-11-06.md) also documents the difference between provisional staging results and the shipped release. Training and prior research overlap in the 843-case test; **97.15% is not general real-world accuracy**. Hosted-runner CPU/latency values are one-run observations.
 
-The sections below preserve historical v0.1.0a3 and earlier experimental results. They describe distinct model variants, data and benchmark protocols; do not conflate them with the v0.1.0a4 candidate results above.
+Historical stable23/v0.1.0a3 measurements remain below for provenance, not for the current release.
 
 ## Accuracy across data sources
 

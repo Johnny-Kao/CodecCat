@@ -20,7 +20,7 @@ Download the wheel for your operating system from [CodecCat v0.1.0a4](https://gi
 python -m pip install ./codeccat-0.1.0a4-*.whl
 ```
 
-Supports **Python 3.10+** on Linux, macOS and Windows. Native detection doesn't require NumPy or scikit-learn. **Not on PyPI yet.**
+Supports **Python 3.10+** on Linux, macOS and Windows. On Windows, use the exact downloaded wheel filename instead of the `*` wildcard. Native detection doesn't require NumPy or scikit-learn. **Not on PyPI yet.**
 
 ## Use it
 
@@ -50,15 +50,15 @@ Tested with the released **v0.1.0a4 Native Wheel** against chardet and charset-n
 | | CodecCat | chardet | charset-normalizer |
 |---|---:|---:|---:|
 | Correctly decoded text | 97.15% | **98.34%** | 82.80% |
-| Exact encoding name | **92.65%** | 84.46% | 69.16% |
-| Total CPU time | **453 ms** | 482 ms | 667 ms |
-| Typical latency (p50 range) | 0.57–0.61 ms | **0.25–0.43 ms** | 0.46–0.62 ms |
-| Slower-case latency (p95 range) | **0.84–0.89 ms** | 1.39–1.79 ms | 1.90–2.87 ms |
+| Exact encoding name | **92.53%** | 84.46% | 69.16% |
+| Total CPU time | **601 ms** | 801 ms | 1,061 ms |
+| Typical latency (p50 range) | 0.75–0.79 ms | **0.43–0.74 ms** | 0.72–1.00 ms |
+| Slower-case latency (p95 range) | **1.11–1.18 ms** | 2.21–2.81 ms | 3.04–4.67 ms |
 | Peak RAM (range) | 66–69 MiB | 61–64 MiB | **40–44 MiB** |
 
-**chardet decoded more text correctly.** CodecCat used slightly less measured CPU time and had lower p95 latency, but used more RAM. A follow-up test on 285 previously unexamined GLib translation windows found 44 additional correct decodes and no regressions versus v0.1.0a3.
+**chardet decoded more text correctly.** CodecCat had lower CPU time and p95 latency in this run, but used more RAM. On 285 separately sourced GLib text samples, v0.1.0a4 decoded 44 more correctly than v0.1.0a3, with zero observed regressions.
 
-**About the test:** The 843-sample benchmark includes training and previously examined files; its accuracy is **not** an independent real-world estimate. The separate GLib test is source-specific, not a general accuracy claim. [Full methodology and five-corpus results](docs/BENCHMARKS.md#five-corpus-benchmark-released-native-v010a4).
+**About the test:** The 843 samples include training and development data. Results describe these test sets, **not general real-world accuracy**; latency and CPU measurements are from one CI run. [Full methodology and raw test links](docs/BENCHMARKS.md#five-corpus-benchmark-released-native-v010a4).
 
 
 ## Notes

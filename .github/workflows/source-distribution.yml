@@ -1,0 +1,223 @@
+name: CodecCat source distribution round-trip
+
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+    paths:
+      - "pyproject.toml"
+      - "native-prototype/**"
+      - ".github/workflows/source-distribution.yml"
+      - "release-config.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-install:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Restore pinned released numeric model without retraining
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 -o /tmp/native-reference.tar.gz \
+            https://github.com/Johnny-Kao/CodecCat/releases/download/v0.1.0a4/native-reference-v0.1.0a4.tar.gz
+          echo "e3dd654817fb0e3324910b1a39af9bc19185400582d5a066c533d7cc5dd81c8c  /tmp/native-reference.tar.gz" | sha256sum -c -
+          mkdir -p ci-fixtures native-prototype/python/codeccat/models
+          tar -xzf /tmp/native-reference.tar.gz -C ci-fixtures
+          echo "16073306b5027bf93acc2883f57fbda0cb0cf2d77b9a7bb62cf1b07fcbb9748b  ci-fixtures/default.ccm" | sha256sum -c -
+          cp ci-fixtures/default.ccm ci-fixtures/default.ccm.meta.json ci-fixtures/language-l3.json native-prototype/python/codeccat/models/
+          git add -f -N native-prototype/python/codeccat/models/default.ccm \
+            native-prototype/python/codeccat/models/default.ccm.meta.json \
+            native-prototype/python/codeccat/models/language-l3.json
+      - name: Build the source distribution using the real backend
+        run: |
+          python -m pip install --disable-pip-version-check build==1.3.0 maturin==1.9.4 twine==7.0.0
+          python -m build --no-isolation --sdist --outdir dist .
+      - name: Confirm sdist contains immutable model and Rust package
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib,tarfile,json
+          from pathlib import Path
+          config=json.loads(Path("release-config.json").read_text())
+          version=config["version"]
+          files=list(Path("dist").glob("codeccat-*.tar.gz"))
+          assert files[0].name==f"codeccat-{version}.tar.gz",files
+          assert len(files)==1,files
+          with tarfile.open(files[0],"r:gz") as archive:
+              names=archive.getnames()
+              for relative in (
+                  "native-prototype/python/codeccat/models/default.ccm",
+                  "native-prototype/python/codeccat/models/default.ccm.meta.json",
+                  "native-prototype/python/codeccat/models/language-l3.json",
+                  "native-prototype/src/lib.rs",
+                  "pyproject.toml",
+                  "LICENSE",
+              ):
+                  matches=[n for n in names if n == f"codeccat-{version}/"+relative]
+                  assert len(matches)==1,(relative,matches)
+              data=archive.extractfile(next(n for n in names if n.endswith("/native-prototype/python/codeccat/models/default.ccm"))).read()
+              assert hashlib.sha256(data).hexdigest()==config["model_sha256"]
+          print("SDIST_IMMUTABLE_MODEL_AND_SOURCE_PRESENT")
+          PY
+          python -m twine check --strict dist/*.tar.gz
+      - name: Build and install wheel from sdist in a fresh environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p unpacked rebuilt
+          tar -xzf dist/codeccat-*.tar.gz -C unpacked
+          python -m build --wheel --outdir rebuilt unpacked/codeccat-*
+          python native-prototype/audit_release_wheel.py rebuilt/*.whl
+          python -m venv .sdist-clean
+          .sdist-clean/bin/python -m pip install --no-deps rebuilt/*.whl
+          .sdist-clean/bin/python - <<'PY'
+          import hashlib,importlib.resources,importlib.util,json
+          import codeccat
+          assert all(importlib.util.find_spec(name) is None for name in ("numpy","scipy","sklearn","joblib"))
+          assert codeccat.detect(b"hello").text=="hello"
+          assert codeccat.decode("日本語".encode())=="日本語"
+          with importlib.resources.as_file(importlib.resources.files("codeccat").joinpath("models/default.ccm")) as path:
+              assert hashlib.sha256(path.read_bytes()).hexdigest()==json.load(open("release-config.json"))["model_sha256"]
+          print("SDIST_ROUND_TRIP_INSTALL_PASS")
+          PY
+          .sdist-clean/bin/python -m pip check
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-distribution
+          path: dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist-roundtrip-wheel
+          path: rebuilt/*.whl
+          if-no-files-found: error
+          retention-days: 7
+
+  python-versions:
+    needs: build-and-install
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdist-roundtrip-wheel
+          path: wheel/
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Isolated install of the source-built abi3 wheel
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m venv .clean
+          .clean/bin/python -m pip install --no-deps wheel/*.whl
+          .clean/bin/python - <<'PY'
+          import codeccat, importlib.util, sys
+          assert all(importlib.util.find_spec(n) is None for n in ("numpy","scipy","sklearn","joblib"))
+          assert codeccat.detect(b"hello").text == "hello"
+          assert codeccat.decode("日本語".encode("utf-8")) == "日本語"
+          assert codeccat.decode("bonjour".encode("utf-8")) == "bonjour"
+          print("SDIST_PYTHON_MATRIX_PASS", sys.version.split()[0])
+          PY
+          .clean/bin/python -m pip check
+
+  release-assembly-dry-run:
+    needs: build-and-install
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: v0.1.0
+          path: tagged-source
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: source-distribution
+          path: downloaded-sdist
+      - name: Prepare read-only historical reference for next-release assembly dry-run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The old immutable tag predates release-config.json. Inject current
+          # configuration into this *ephemeral checkout* for simulation only.
+          cp release-config.json tagged-source/release-config.json
+          mkdir -p original-dist sample-linux sample-platform
+          gh release download v0.1.0 --repo "$GITHUB_REPOSITORY" --dir original-dist
+          cp original-dist/*.whl sample-platform/
+          cp original-dist/*manylinux*.whl sample-linux/
+      - name: Assemble six authentic historical Wheels with newly built sdist
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/assemble_stable_release.py \
+            --linux sample-linux --platform sample-platform \
+            --sdist downloaded-sdist --tagged-source tagged-source \
+            --out dry-release --linux-run 0 --platform-run 0 --sdist-run 0
+          python scripts/verify_release_assets.py \
+            --assets dry-release --tagged-source tagged-source --tag v0.1.0
+          python -m pip install --disable-pip-version-check twine==7.0.0
+          python -m twine check --strict dry-release/*.whl dry-release/*.tar.gz
+          echo "FUTURE_RELEASE_ASSEMBLY_DRY_RUN_PASS"
+
+  release-workflow-static-validation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Lint future release workflow expressions, job permissions and shell
+        shell: bash
+        run: |
+          set -euo pipefail
+          go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 -oneline \
+            .github/workflows/source-distribution.yml \
+            .github/workflows/publish-pypi.yml \
+            .github/workflows/publish-stable-release.yml \
+            .github/workflows/native-platform-matrix.yml \
+            .github/workflows/stable-manylinux.yml
+          python -m py_compile scripts/assemble_stable_release.py \
+            scripts/verify_release_assets.py native-prototype/release_reliability.py
+          python - <<'PY'
+          import json,tomllib
+          from pathlib import Path
+          c=json.loads(Path("release-config.json").read_text())
+          py=tomllib.loads(Path("pyproject.toml").read_text())
+          rust=tomllib.loads(Path("native-prototype/Cargo.toml").read_text())
+          assert c["version"]==py["project"]["version"]==rust["package"]["version"]
+          print("RELEASE_WORKFLOWS_AND_VERSION_CONFIG_VALID")
+          PY

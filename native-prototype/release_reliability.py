@@ -13,6 +13,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -99,7 +100,9 @@ def api_contract() -> None:
     dist = importlib.metadata.distribution("codeccat")
     requirements = dist.requires or []
     assert all("extra == " in r and "legacy" in r for r in requirements), requirements
-    assert dist.version == "0.1.0", dist.version
+    version_match = re.search(r'(?m)^version\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"\s*$', pathlib.Path("pyproject.toml").read_text())
+    assert version_match is not None, "missing project version"
+    assert dist.version == version_match.group(1), (dist.version, version_match.group(1))
     assert CodecCat.__module__ == "codeccat.usable"
     assert detect(b"hello").text == "hello"
     assert decode(b"hello") == "hello"

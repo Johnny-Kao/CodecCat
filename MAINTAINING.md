@@ -37,7 +37,7 @@ The maintainer may close stale or out-of-scope proposals with a reason, and can 
 - Regular contributions target `main` through a PR, not a rewritten tag.
 - A release requires a chosen version, an immutable verified tag, supported-platform install checks, model SHA256 matching the expected frozen reference, and documented release notes.
 - PyPI publication uses the `pypi` GitHub environment and **OIDC Trusted Publishing**. Publishing is manually initiated, not automatic on PR or push.
-- For future versions, update the currently `v0.1.0`-specific guards in [`publish-pypi.yml`](.github/workflows/publish-pypi.yml) in a reviewed release PR, not by bypassing them.
+- For subsequent versions, bump and review `pyproject.toml`, `native-prototype/Cargo.toml` and [`release-config.json`](release-config.json) together. The [PyPI publisher](.github/workflows/publish-pypi.yml) and [GitHub Release publisher](.github/workflows/publish-stable-release.yml) verify the immutable tag, its exact CI assets and frozen model before manual publication. The first `v0.1.0` release cannot be published again.
 - Release notes live in [`docs/releases/`](docs/releases/README.md) and public GitHub Releases. Do not erase historical Alpha limitations in older notes.
 - See [docs/PYPI_PUBLISHING.md](docs/PYPI_PUBLISHING.md) and [RIGHTS_AND_PROVENANCE.md](RIGHTS_AND_PROVENANCE.md).
 

@@ -75,7 +75,10 @@ jobs:
               model=z.read("codeccat/models/default.ccm")
               assert hashlib.sha256(model).hexdigest()=="16073306b5027bf93acc2883f57fbda0cb0cf2d77b9a7bb62cf1b07fcbb9748b"
               md=z.read(next(n for n in z.namelist() if n.endswith(".dist-info/METADATA"))).decode()
-              assert "Version: 0.1.0" in md
+              import json
+              from pathlib import Path
+              version=json.loads(Path("release-config.json").read_text())["version"]
+              assert f"Version: {version}" in md
           print("MANYLINUX_WHEEL_AUDIT_PASS",wheel.name)
           PY
           auditwheel show dist/*.whl

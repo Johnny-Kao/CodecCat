@@ -20,7 +20,7 @@ The public `codeccat` Runtime and the experimental source-only `codeccat-train` 
 | Phase | Scope | Status |
 | --- | --- | --- |
 | P0 | Train a custom CCM1 model from a grouped manifest and load/decode it with published Stable `codeccat==0.1.0`; isolated CI, deterministic same-env smoke, safe manifest failures | **Source-level E2E tests implemented; CI verified** |
-| P1 | Official dataset sources and rights manifest, pinned dependencies/profile, test/holdout isolation and text-level model comparison | **Comparison and provenance metadata implemented; official reproducibility and dataset clearance still pending** |
+| P1 | Official dataset sources and rights manifest, pinned dependencies/profile, test/holdout isolation and text-level model comparison | **Official L2 and optional L3 exact replay passed; provenance and comparison implemented; source-rights risk documented and accepted by maintainer** |
 | P2 | Community model submission checks, review criteria, independent candidate release and automated rollback/compatibility tests | **Model proposal/review rules added; independent model-release automation still planned** |
 
 [Training guide](native-prototype/training/docs/GETTING_STARTED.md) · [Trainer source](native-prototype/training/) · [model provenance](RIGHTS_AND_PROVENANCE.md).
@@ -29,8 +29,8 @@ The public `codeccat` Runtime and the experimental source-only `codeccat-train` 
 
 | Workstream | Why it matters | Acceptance evidence |
 | --- | --- | --- |
-| Source distribution (sdist) and unsupported architectures | PyPI currently provides six binary Wheels; source installs are not a tested fallback | Reproducible source build that includes/verifies the frozen model; isolated install on a non-Wheel target |
-| Future-release PyPI automation | First-run publisher currently pins `v0.1.0` and an exact commit | Reviewed parameterized tag/model/asset verification without weakening OIDC, SHA256 or manual approval |
+| Source distribution (sdist) and unsupported architectures | v0.1.0 has six Wheels only; new sdist round-trip CI is implemented for future releases | Source -> Wheel round-trip and clean Python 3.10–3.14 installation checks; unsupported architectures need their own Rust/PyO3 compilation evidence |
+| Future-release PyPI automation | Manual next-version GitHub Release and PyPI flows are version-parameterized and tag/model-bound | Dry-run release assembly with SHA256, model integrity, exact-tag CI and manual OIDC; no automated upload |
 | Documentation and contributor experience | Make first contribution and bug reporting low-friction | Working examples, issue/PR templates, community docs, and docs-link CI |
 | Packaging compatibility | Avoid installing an incompatible Wheel or silently missing model data | Tested supported Python/platform matrix, model hash and actual import/decoding |
 

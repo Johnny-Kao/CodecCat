@@ -160,7 +160,7 @@ def build_fixtures():
     pools = [chardet_records(), charset_normalizer_records(), po_records()]
     print("SOURCES_COLLECTED", json.dumps({x[0]["pool"]: len(x) for x in pools if x}), flush=True)
     for pool in pools:
-        if len(pool) < 10:
+        if len(pool) < N:
             raise ValueError(f"source pool too small: {pool[0]['pool'] if pool else 'empty'}")
     all_rows = [r for pool in pools for r in pool]
     # Global byte dedup, then group by source doc. Assign each document to

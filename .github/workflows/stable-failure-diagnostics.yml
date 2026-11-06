@@ -5,6 +5,7 @@ on:
     paths:
       - "experiments/stable_failure_diagnostics.py"
       - "experiments/stable_utf8_counterfactual.py"
+      - "experiments/utf8_ambiguous_counterexamples.py"
       - ".github/workflows/stable-failure-diagnostics.yml"
   workflow_dispatch:
 
@@ -46,6 +47,8 @@ jobs:
         run: python experiments/stable_failure_diagnostics.py
       - name: Evaluate paired UTF-8 rescue counterfactuals
         run: python experiments/stable_utf8_counterfactual.py
+      - name: Evaluate synthetic legacy-encoding ambiguity
+        run: python experiments/utf8_ambiguous_counterexamples.py
       - name: Check safe diagnostic output
         run: |
           python - <<'PY'
@@ -66,6 +69,10 @@ jobs:
           assert paired["development_only"] and not paired["raw_content_exported"]
           assert paired["data"]["gtk"]["n"] == 328
           assert paired["data"]["uchardet"]["n"] == 102
+          synthetic=json.loads(Path("research-results/ambiguous-cp1252-counterexamples.json").read_text())
+          assert synthetic["synthetic"] and not synthetic["representative"]
+          assert synthetic["cases"] == 60
+          assert not synthetic["raw_content_exported"]
           print("METADATA_ONLY_11_FAILURES_VALID")
           PY
       - name: Upload failure metadata only
@@ -76,5 +83,6 @@ jobs:
           path: |
             research-results/stable-failure-diagnostics.json
             research-results/stable-utf8-counterfactual.json
+            research-results/ambiguous-cp1252-counterexamples.json
           if-no-files-found: error
           retention-days: 7

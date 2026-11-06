@@ -46,7 +46,7 @@ To pin the initial Stable release:
 python -m pip install codeccat==0.1.0
 ```
 
-CodecCat ships binary Wheels for Python **3.10–3.14** on supported Linux (glibc 2.28+, x86-64/ARM64), macOS (Intel/Apple Silicon) and Windows (x86-64/ARM64). The first PyPI release has **no sdist**, so unsupported platforms cannot fall back to building it from source.
+CodecCat ships binary Wheels for Python **3.10–3.14** on supported Linux (glibc 2.28+, x86-64/ARM64), macOS (Intel/Apple Silicon) and Windows (x86-64/ARM64). The first PyPI release has **no sdist**, so unsupported platforms cannot fall back to building it from source. **Future Stable releases** now have a source-distribution round-trip CI (source archive → native Wheel → clean install, Python 3.10–3.14) and a reviewed manual GitHub Release / PyPI OIDC publication pipeline. This future release pipeline has passed its dry-run; it does not retroactively add an sdist to v0.1.0.
 
 For offline installs and artifact SHA256 checks, use [GitHub Stable v0.1.0](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0).
 
@@ -107,13 +107,24 @@ In this benchmark, `chardet` correctly decoded 3 more samples, while CodecCat id
 
 These measurements were collected on a shared CI runner. Small timing differences should not be interpreted as statistical guarantees.
 
-### Accuracy limitation
+### Independent-source confirmation (published Stable 0.1.0)
 
-The 843-sample benchmark includes training and previously examined source texts. The reported 97.98% result is therefore an engineering benchmark, **not an independently estimated real-world accuracy rate**.
+An additional [pinned external-source benchmark](https://github.com/Johnny-Kao/CodecCat/actions/runs/42261649964) tested the **published Stable Wheel**, not a development build. It screened every eligible byte input against the historical training corpus before scoring (no raw-byte/prefix/sampled-block overlap indicators triggered). Ground truth was strict Unicode text, and all three detectors received the same input bytes.
+
+| External source | CodecCat | chardet 7.7.0 | charset-normalizer 3.5.2 |
+| --- | ---: | ---: | ---: |
+| GNOME Nautilus UTF-8 PO (124 original files) | 122/124 (98.39%) | **124/124 (100%)** | **124/124 (100%)** |
+| CPython CJK fixture pairs (30 original files) | 26/30 (86.67%) | **29/30 (96.67%)** | 25/30 (83.33%) |
+
+Nautilus is a **new external source** for this evaluation. CPython is a previously examined, preregistered confirmation source, not a newly blind sample. The Nautilus group is UTF-8-only, and the CPython set is small and CJK-focused. Neither source represents the real-world mix of encodings; **do not pool the groups into a claimed production accuracy rate**. A negative raw-byte overlap screen is not proof of semantic independence.
+
+### Historical development benchmark limitation
+
+The 843-sample benchmark above includes **633 samples from the model's training source**, plus previously examined development texts. Its 97.98% figure is therefore an **engineering regression benchmark**, not an independent estimate of real-world accuracy. The external-source findings also show that CodecCat can underperform chardet on unseen source families.
 
 A source-level paired GNOME Software test showed 18 additional correct decodes with the same frozen model without observed regressions in that test set.
 
-See [benchmark methodology and limitations](docs/BENCHMARKS.md) for the reproducible test setup and interpretation.
+See [full benchmark methodology and limitations](docs/BENCHMARKS.md) and the [frozen external-source protocol](research/SOURCE_DISJOINT_BENCHMARK_PROTOCOL_2026-11-07.md).
 
 ## Detection semantics
 
@@ -151,7 +162,7 @@ See [Rights and Provenance](RIGHTS_AND_PROVENANCE.md).
 
 ## Train your own model (experimental)
 
-The offline `codeccat-train` source package can train a numeric model from your own labeled text samples. It is **not a production dependency**, is **not yet published separately on PyPI**, and does not yet reproduce the entire official Stable training recipe. Models can be loaded with `CodecCat.from_files("custom.ccm")` without replacing the bundled model.
+The offline `codeccat-train` source package can train a numeric model from your own labeled text samples. It is **not a production dependency**, is **not yet published separately on PyPI**, and has been verified to reproduce both historical official L2 and optional L3 model artifacts byte-for-byte with pinned source data and the historical environment. This does not automatically approve a new official model. Models can be loaded with `CodecCat.from_files("custom.ccm")` without replacing the bundled model.
 
 See the [offline training guide](native-prototype/training/docs/GETTING_STARTED.md), [Trainer README](native-prototype/training/README.md), [model contribution rules](docs/MODEL_SUBMISSIONS.md) and [roadmap](ROADMAP.md).
 

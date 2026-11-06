@@ -1,5 +1,18 @@
 # CodecCat accuracy and performance benchmarks
 
+## External-source three-detector confirmation (2026-11-07)
+
+[CI #42261649964](https://github.com/Johnny-Kao/CodecCat/actions/runs/42261649964) installed the **actual published CodecCat Stable 0.1.0 Wheel** (pinned numeric-model hash), chardet 7.7.0 and charset-normalizer 3.5.2. [Selection and scoring protocol](../research/SOURCE_DISJOINT_BENCHMARK_PROTOCOL_2026-11-07.md) was committed before scoring GNOME Nautilus. All 154 selected complete files passed the raw-byte overlap screen against the pinned 3,086 historical training inputs, with **zero** exact whole-file, first-4096-byte or sampled-block candidate flags. No PO files were excluded by the predetermined strict UTF-8/declaration checks.
+
+| Source | Files | CodecCat correct Unicode | chardet correct Unicode | charset-normalizer correct Unicode |
+|---|---:|---:|---:|---:|
+| GNOME Nautilus PO, new source (UTF-8) | 124 | 122 (**98.39%**) | **124 (100%)** | **124 (100%)** |
+| CPython CJK reference pairs, already examined | 30 | 26 (**86.67%**) | **29 (96.67%)** | 25 (83.33%) |
+
+The CPython set has 15 original legacy-codec files (CodecCat 11, chardet 14, charset-normalizer 11 correct) and 15 paired UTF-8 reference files (CodecCat 15, chardet 15, charset-normalizer 14 correct). These paired files are not independent documents. Nautilus consists of translation catalog files from **one project and one encoding**; the source balance is strongly non-representative. The CPython fixtures are no longer newly blind, having been analyzed previously. The 154 files must **not** be converted into a universal accuracy percentage or a confidence interval for production traffic.
+
+The original 843-case benchmark below remains useful for engineering regressions and timing comparisons, but its 97.98% result is **not** an independent production-accuracy estimate due to source/training overlap. These new external checks do not measure latency or RAM; they test correctness only. Negative raw-byte screens cannot rule out semantically shared text, transformations or content encoded differently. Sources are pinned, raw files are fetched ephemerally, and uploaded reports contain metadata and scores only.
+
 ## Stable v0.1.0 published Wheel (2026-11-06)
 
 [Official Stable post-release CI #42163479473](https://github.com/Johnny-Kao/CodecCat/actions/runs/42163479473) installed the **actual published v0.1.0 manylinux_2_28_x86_64 Wheel**, checked its model SHA256, and evaluated the same 843 fixed bytes against chardet 7.7.0 and charset-normalizer 3.5.2.

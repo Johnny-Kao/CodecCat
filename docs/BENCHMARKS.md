@@ -1,5 +1,10 @@
 # CodecCat accuracy and performance benchmarks
 
+## Five-corpus benchmark (released Native v0.1.0a3)
+
+The latest actual-release, same-corpus three-library benchmark is [the five-corpus report](../research/FIVE_CORPUS_BENCHMARK_FINAL_2026-11-06.md), validated on [GitHub Actions #42136798760](https://github.com/Johnny-Kao/CodecCat/actions/runs/42136798760). It covers correct Unicode decoding, exact encoding-name matches, CPU time, latency and peak RAM on **843 cases**, divided into five fixed sets. **The data has training/development overlap and is not an independent accuracy estimate.** Historical benchmarks below are retained separately for provenance.
+
+
 The README presents **two separate kinds of evidence**. Accuracy results
 are historical, external-source **stable23** evaluations. Speed and memory
 results are measurements of the released Native implementation in a

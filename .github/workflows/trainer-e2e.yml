@@ -116,7 +116,7 @@ jobs:
           retention-days: 7
 
   model-portability:
-    name: Load one trained CCM on ${{ matrix.os }}
+    name: Check custom CCM portability
     needs: train-and-run
     strategy:
       fail-fast: false

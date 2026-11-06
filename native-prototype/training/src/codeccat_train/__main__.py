@@ -100,6 +100,15 @@ def fit(manifest:Path,output:Path,report:Path,seed:int,precision:str="f64"):
     xval=vec.transform([r[0][:4096].decode("latin1") for r in validation])
     pred=model.predict(xval)
     accuracy=accuracy_score([r[1] for r in validation],pred)
+    # Bind the report to the actual input bytes and split/group assignments,
+    # not just the manifest's path strings (whose referenced files can change).
+    source_rows = [
+        {"sha256": row[4], "encoding": row[1], "group": row[2], "split": row[3]}
+        for row in (train + validation)
+    ]
+    data_fingerprint = hashlib.sha256(json.dumps(
+        source_rows, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")).hexdigest()
     digest,size=export_ccm(output,vec,model,precision=precision)
     result={
         "schema":"codeccat-offline-train-v1",
@@ -114,6 +123,8 @@ def fit(manifest:Path,output:Path,report:Path,seed:int,precision:str="f64"):
         "validation_codec_label_accuracy":float(accuracy),
         "note":"Validation checks exact encoding LABEL, not full public Runtime text-level detection and not independent external generalization.",
         "manifest_sha256":hashlib.sha256(manifest.read_bytes()).hexdigest(),
+        "dataset_content_fingerprint_sha256":data_fingerprint,
+        "dataset_fingerprint_scope":"SHA256 of ordered accepted bytes SHA256, encoding, group and split; no raw text",
         "model_sha256":digest,
         "model_bytes":size,
         "training_tool_version":"0.1.0a3+source",

@@ -74,6 +74,18 @@ def fingerprint_dataset(rows):
         source_rows, sort_keys=True, separators=(",", ":"), ensure_ascii=False
     ).encode("utf-8")).hexdigest()
 
+def historical_stable23_fingerprint(rows):
+    """Match the original TrainableDetector fingerprint on 4KB corpus prefixes.
+
+    This fingerprint is an audit value, not a trust or license certificate.
+    """
+    digest=hashlib.sha256()
+    for row in rows:
+        raw,encoding,group=row[:3]
+        prefix_hash=hashlib.sha256(raw[:4096]).hexdigest()
+        digest.update(prefix_hash.encode()+b"\\0"+encoding.encode()+b"\\0"+group.encode()+b"\\0")
+    return digest.hexdigest()
+
 def write_string(parts,s):
     payload=s.encode("utf-8")
     if not 0<len(payload)<=256:raise ValueError("invalid model string length")
@@ -158,6 +170,7 @@ def fit(manifest:Path,output:Path,report:Path,seed:int,precision:str="f64",resid
         "manifest_sha256":hashlib.sha256(manifest.read_bytes()).hexdigest(),
         "dataset_content_fingerprint_sha256":source_fingerprint,
         "effective_training_fingerprint_sha256":effective_fingerprint,
+        "historical_stable23_fingerprint":historical_stable23_fingerprint(train),
         "dataset_fingerprint_scope":"SHA256 of ordered accepted bytes SHA256, encoding, group and split; no raw text",
         "model_sha256":digest,
         "model_bytes":size,

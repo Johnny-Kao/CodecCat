@@ -64,8 +64,8 @@ jobs:
           r=json.loads(Path("research-results/overlap-screen.json").read_text())
           assert r["training_records"] == 3086
           assert r["training_manifest_sha256"] == "8ec3007dbd59336cee6018cfa44aeded39cca205e93f5fc9f24ee5ecf87f3ca9"
-          assert r["source_results"]["gtk"]["screened_windows"] > 150
-          assert r["source_results"]["uchardet"]["screened_windows"] > 75
+          assert r["source_results"]["gtk"]["screened_windows"] == 328
+          assert r["source_results"]["uchardet"]["screened_windows"] == 102
           assert r["contains_original_text"] is False
           for source, stats in r["source_results"].items():
               print("OVERLAP_AUDIT_COUNTS",source,stats["screened_windows"],stats["exact_full_matches"],stats["exact_prefix_matches"],stats["candidate_near_overlap_windows"])

@@ -100,7 +100,7 @@ def api_contract() -> None:
     dist = importlib.metadata.distribution("codeccat")
     requirements = dist.requires or []
     assert all("extra == " in r and "legacy" in r for r in requirements), requirements
-    version_match = re.search(r'(?m)^version\\s*=\\s*"([0-9]+\\.[0-9]+\\.[0-9]+)"\\s*$', pathlib.Path("pyproject.toml").read_text())
+    version_match = re.search(r'(?m)^version\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"\s*$', pathlib.Path("pyproject.toml").read_text())
     assert version_match is not None, "missing project version"
     assert dist.version == version_match.group(1), (dist.version, version_match.group(1))
     assert CodecCat.__module__ == "codeccat.usable"

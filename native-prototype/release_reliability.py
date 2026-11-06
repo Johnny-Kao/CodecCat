@@ -99,7 +99,7 @@ def api_contract() -> None:
     dist = importlib.metadata.distribution("codeccat")
     requirements = dist.requires or []
     assert all("extra == " in r and "legacy" in r for r in requirements), requirements
-    assert dist.version == "0.1.0a3", dist.version
+    assert dist.version == "0.1.0a4", dist.version
     assert CodecCat.__module__ == "codeccat.usable"
     assert detect(b"hello").text == "hello"
     assert decode(b"hello") == "hello"

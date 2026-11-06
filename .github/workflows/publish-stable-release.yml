@@ -1,0 +1,95 @@
+name: Publish checked Stable GitHub Release
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        required: true
+        type: string
+        default: v0.1.0
+      linux_run_id:
+        required: true
+        type: string
+      platform_run_id:
+        required: true
+        type: string
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: stable-release-${{ inputs.tag }}
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+          path: tagged-source
+      - name: Confirm both workflow runs were built from the exact release Tag commit
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag }}
+          LINUX_RUN: ${{ inputs.linux_run_id }}
+          PLATFORM_RUN: ${{ inputs.platform_run_id }}
+        run: |
+          test "$TAG" = "v0.1.0"
+          tag_sha=$(git -C tagged-source rev-parse HEAD)
+          for run in "$LINUX_RUN" "$PLATFORM_RUN"; do
+            run_sha=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq '.head_sha')
+            test "$run_sha" = "$tag_sha" || { echo "CI run $run is not from tagged commit"; exit 1; }
+            result=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq '.conclusion')
+            test "$result" = "success" || { echo "CI run $run was not successful"; exit 1; }
+          done
+          echo "TAG_CI_PROVENANCE_PASS $tag_sha"
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ inputs.linux_run_id }}
+          pattern: stable-manylinux-*
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: downloaded-linux
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ inputs.platform_run_id }}
+          pattern: native-wheel-*
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: downloaded-platform
+      - name: Inspect all six artifact Wheels, model, license, metadata and SHA256
+        shell: bash
+        run: |
+          python scripts/assemble_stable_release.py \
+            --linux downloaded-linux \
+            --platform downloaded-platform \
+            --tagged-source tagged-source \
+            --out release-assets \
+            --linux-run "${{ inputs.linux_run_id }}" \
+            --platform-run "${{ inputs.platform_run_id }}"
+      - name: Publish non-prerelease release from the verified Tag
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          test ! -e /tmp/missing-file-for-release
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release already exists; refusing to modify it"; exit 1
+          fi
+          gh release create "$TAG" release-assets/* \
+            --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "CodecCat v0.1.0 — Stable" \
+            --notes-file RELEASE_NOTES_v0.1.0.md --latest
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --json isDraft,isPrerelease,assets,url > release-view.json
+          python - <<'PY'
+          import json
+          x=json.load(open("release-view.json"))
+          assert not x["isDraft"] and not x["isPrerelease"],x
+          names=[a["name"] for a in x["assets"]]
+          assert len(names)==8 and len(set(names))==8,names
+          assert "MODEL_PROVENANCE.json" in names and "SHA256SUMS" in names
+          assert sum(name.endswith(".whl") for name in names)==6
+          print("STABLE_GITHUB_RELEASE_PUBLISHED",x["url"],flush=True)
+          PY

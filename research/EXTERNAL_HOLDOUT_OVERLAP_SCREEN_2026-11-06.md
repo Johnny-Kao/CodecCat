@@ -29,6 +29,19 @@ Known observed quality limitations remain: GTK: CodecCat 296/328 vs chardet
 been analyzed and may be used as regression diagnostics, **not** as pristine
 blind tests for subsequent model modifications.
 
-Result status and run URL are recorded only after actual Actions execution.
-Official release approval still requires independent new-source quality
-confirmation and a separate legal/provenance review.
+## Reproduced screening results
+
+[Audit CI #42235598046](https://github.com/Johnny-Kao/CodecCat/actions/runs/42235598046) completed successfully, using the same source-window extraction as the historical benchmark (GTK 328, uchardet 102).
+
+| Source | Benchmark windows | Exact full-byte overlap | Exact 4096-byte-prefix overlap | Candidate near-overlap by sampled blocks |
+|---|---:|---:|---:|---:|
+| GNOME/gtk | 328 | 0 | 0 | 0 |
+| BYVoid/uchardet | 102 | **33** | **33** | **50** |
+
+The near-overlap count is inclusive of exact matches; it is **not** an additional 50 windows. The remaining 17 flagged windows are candidates requiring source review, not proven duplicates. In this screen, at least 33 of the 102 uchardet evaluation windows directly reuse bytes from the historical L2 training corpus. That means the published 94/102 CodecCat result **must not** be described as performance on 102 independent, untouched examples. Scoring only non-exact windows would still not make that subset blind: the results have already been observed and the near-overlap candidates remain unresolved.
+
+GTK had no detected raw-byte/prefix/sample-span overlaps against the pinned L2 input. This does not prove true semantic or source-level independence.
+
+The screen stores the external input SHA256 and source paths, plus candidate counts, without raw text. It does not test semantic paraphrases or canonicalized cross-encoding Unicode matches. Source rights remain unreviewed.
+
+**Next quality work:** prioritize previously identified decoding failures as development regressions, then acquire a new, independently sourced and preregistered confirmation set. This audit does not authorize an official model promotion or release.

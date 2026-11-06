@@ -108,7 +108,7 @@ jobs:
               "reference_gram_count":len(second["grams"]),
               "optional_l3_remains_disabled_by_default":True,
           }
-          (root/"l3-comparison.json").write_text(json.dumps(result,indent=2,sort_keys=True)+"\\n",encoding="utf-8")
+          (root/"l3-comparison.json").write_text(json.dumps(result,indent=2,sort_keys=True)+"\n",encoding="utf-8")
           print("L3_REPLAY_DIAGNOSTIC",json.dumps(result,sort_keys=True))
           PY
       - name: Compare candidate against the released model without promoting it

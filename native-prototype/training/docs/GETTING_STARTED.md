@@ -73,3 +73,14 @@ The `evaluation` command compares candidate and bundled Stable on identical byte
 The evaluator scans all manifest splits, rejecting identical bytes and source groups reused across train, validation and test. This prevents exact within-manifest leakage, but it cannot identify near-duplicates or overlap with a separate training manifest. See the [official dataset provenance status](../../../datasets/official/README.md) before claiming official-model reproducibility.
 
 The evaluation manifest uses the same JSONL keys with `"split":"test"` (or explicitly `--split validation` for development tests). Never present validation or previously used training sources as blind independent test data. Results are descriptive, not an automatic official-model upgrade.
+
+## Compact numeric model output
+
+By default, `codeccat-train fit` writes `CCM1` (float64 weights). Supply `--precision f32` to write a `CCM2` model with float32 weights, compatible with the published Runtime:
+
+```bash
+codeccat-train fit --manifest my-data/manifest.jsonl --output custom-f32.ccm \\
+  --report training-f32.json --precision f32
+```
+
+This does not change training data or the learned model; it changes stored weight precision and may introduce minor numerical differences. It does not reproduce the official default model, which requires its own complete dataset and training recipe.

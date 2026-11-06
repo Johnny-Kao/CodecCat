@@ -38,10 +38,24 @@ blind tests for subsequent model modifications.
 | GNOME/gtk | 328 | 0 | 0 | 0 |
 | BYVoid/uchardet | 102 | **33** | **33** | **50** |
 
-The near-overlap count is inclusive of exact matches; it is **not** an additional 50 windows. The remaining 17 flagged windows are candidates requiring source review, not proven duplicates. In this screen, at least 33 of the 102 uchardet evaluation windows directly reuse bytes from the historical L2 training corpus. That means the published 94/102 CodecCat result **must not** be described as performance on 102 independent, untouched examples. Scoring only non-exact windows would still not make that subset blind: the results have already been observed and the near-overlap candidates remain unresolved.
+**Correction after cross-tabulating the actual matching windows:** the sets are *not* nested. Of the 33 exact matches and 50 sampled-span candidates, **26 are in both sets**, **7 are exact-only**, and **24 are candidate-only**. The union is **57/102 flagged windows**, leaving 45 with no overlap detected by this screen. Prior text incorrectly assumed all 33 exact matches were included in the sampled-span set. The 24 candidate-only windows need review; their shared blocks do not prove duplicate content. No-flag windows are not proven semantically independent. The original Alpha 94/102 and current Stable 95/102 scores must **not** be described as performance on 102 pristine, independent examples.
 
 GTK had no detected raw-byte/prefix/sample-span overlaps against the pinned L2 input. This does not prove true semantic or source-level independence.
 
 The screen stores the external input SHA256 and source paths, plus candidate counts, without raw text. It does not test semantic paraphrases or canonicalized cross-encoding Unicode matches. Source rights remain unreviewed.
 
 **Next quality work:** prioritize previously identified decoding failures as development regressions, then acquire a new, independently sourced and preregistered confirmation set. This audit does not authorize an official model promotion or release.
+
+## Current published Stable 0.1.0 quality attribution
+
+[Current Runtime triage CI #42238721457](https://github.com/Johnny-Kao/CodecCat/actions/runs/42238721457) evaluated the same fixed samples with **published codeccat==0.1.0** and chardet==7.7.0 (the earlier 296/328 and 94/102 figures describe the **Alpha 0.1.0a4** comparison and must not be silently applied to the current release).
+
+| Corpus/bucket | Windows | Stable 0.1.0 correct text | chardet 7.7.0 correct text |
+|---|---:|---:|---:|
+| GTK, no raw overlap detected | 328 | **324** | **328** |
+| uchardet, exact train duplicates | 33 | 30 | 31 |
+| uchardet, sampled-span candidate only | 24 | 21 | 22 |
+| uchardet, no raw overlap detected | 45 | 44 | 43 |
+| **uchardet total (contaminated source)** | **102** | **95** | **96** |
+
+The 45 unflagged uchardet cases are not a new blind holdout. These data have already been analyzed, raw-byte similarity detection is incomplete, and the sample distribution was not independently preregistered for Stable 0.1.0. Use all these results for engineering triage only.

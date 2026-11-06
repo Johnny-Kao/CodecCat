@@ -36,7 +36,7 @@ def summarize_case_rows(rows: list[tuple[str, str, bool, bool, str]]) -> dict:
             "n": len(members),
             "codeccat_correct": sum(item[1] for item in members),
             "chardet_correct": sum(item[2] for item in members),
-            "codeccat_abstained": sum(item[4] == "abstained" for item in members),
+            "codeccat_abstained": sum(item[3] == "abstained" for item in members),
         }
         for encoding, ours, other, outcome in members:
             metrics=per[encoding]

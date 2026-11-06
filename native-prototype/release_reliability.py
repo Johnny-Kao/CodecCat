@@ -142,6 +142,41 @@ def api_contract() -> None:
     print("RELEASE_API_BASE_PASS")
 
 
+def utf8_evidence_contract() -> None:
+    from codeccat.vnext_decoding import _strong_utf8_evidence, decode as decode_raw
+    from codeccat.vnext_strong_l2 import Ranked
+
+    text = "こんにちは café résumé " * 15
+    raw = text.encode("utf-8")
+    assert len(raw) > 64 and _strong_utf8_evidence(raw)
+    assert not _strong_utf8_evidence(b"hello ASCII" * 30)
+    assert not _strong_utf8_evidence(raw + b"\\xff")
+    assert not _strong_utf8_evidence(b"\\xef\\xbb\\xbf" + raw)
+    assert not _strong_utf8_evidence(("hello " * 200 + "\\x01" + text).encode("utf-8"))
+    assert not _strong_utf8_evidence(("café " * 2).encode("utf-8"))
+
+    class LatinRanking:
+        class classifier:
+            classes_ = ("iso8859-1", "utf-8")
+        def rank(self, value, *, final=True, structural_first=False):
+            return Ranked("iso8859-1", ("iso8859-1", "utf-8"),
+                          (1.0, 0.5), None, False)
+
+    result = decode_raw(LatinRanking(), raw)
+    assert result.text == text
+    assert result.encoding == "utf-8"
+    assert result.reason == "utf8_evidence"
+    assert result.ambiguous and result.candidates[0] == "utf-8"
+
+    class NoUnicode(LatinRanking):
+        class classifier:
+            classes_ = ("iso8859-1",)
+
+    no_unicode = decode_raw(NoUnicode(), raw)
+    assert no_unicode.encoding == "iso8859-1"
+    assert no_unicode.reason == "selected"
+    print("UTF8_EVIDENCE_CONTRACT_PASS")
+
 def thread_safety() -> None:
     model = CodecCat()
     raw_items = [
@@ -198,6 +233,7 @@ def cli_contract() -> None:
 
 if __name__ == "__main__":
     api_contract()
+    utf8_evidence_contract()
     model_security()
     thread_safety()
     cli_contract()

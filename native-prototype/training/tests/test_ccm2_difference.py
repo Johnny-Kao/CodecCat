@@ -51,8 +51,25 @@ class Ccm2NumericDifferenceTests(unittest.TestCase):
             make_ccm(b,[1.0]*6,vocabulary=("ab","cd"))
             result=module.compare(a,b)
             self.assertFalse(result["same_vocabulary"])
+            self.assertFalse(result["same_vocabulary_set"])
+            self.assertEqual(result["shared_features"],1)
+            self.assertEqual(result["reference_only_features"],1)
+            self.assertEqual(result["candidate_only_features"],1)
             self.assertFalse(result["aligned_for_numeric_comparison"])
+            self.assertEqual(result["idf_on_shared_features"]["changed_values"],0)
             self.assertNotIn("weights",result)
+
+    def test_index_permutation_aligns_same_grams(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            a,b=Path(tmp)/"a.ccm",Path(tmp)/"b.ccm"
+            make_ccm(a,[1.0,2.0,3.0,4.0,5.0,6.0],vocabulary=("ab","bc"))
+            make_ccm(b,[2.0,1.0,4.0,3.0,6.0,5.0],vocabulary=("bc","ab"))
+            result=module.compare(a,b)
+            self.assertTrue(result["same_vocabulary_set"])
+            self.assertFalse(result["same_vocabulary"])
+            self.assertEqual(result["shared_features_with_different_index"],2)
+            self.assertEqual(result["weights_on_shared_features"]["changed_values"],0)
+            self.assertEqual(result["idf_on_shared_features"]["changed_values"],0)
 
     def test_binary_classifier_one_weight_row(self):
         with tempfile.TemporaryDirectory() as tmp:

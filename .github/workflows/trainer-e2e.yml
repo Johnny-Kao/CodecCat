@@ -56,6 +56,26 @@ jobs:
           .runtime-env/bin/python -m pip install --disable-pip-version-check --only-binary=:all: --no-deps codeccat==0.1.0
       - name: Test the model with the actual Stable Runtime API
         run: .runtime-env/bin/python native-prototype/training/tests/check_runtime_e2e.py
+      - name: Compare candidate with published default on labeled validation bytes
+        shell: bash
+        run: |
+          .runtime-env/bin/python - <<'PY'
+          import sys
+          from pathlib import Path
+          # Evaluation module has no training/NumPy imports.
+          sys.path.insert(0, str(Path("native-prototype/training/src").resolve()))
+          from codeccat_train.evaluate import evaluate
+          x=evaluate(
+              Path("native-prototype/training/smoke-data/manifest.jsonl"),
+              Path("trainer-results/custom.ccm"),
+              Path("trainer-results/comparison.json"),
+              split="validation",
+          )
+          assert x["results"]["candidate"]["n"] == 12
+          assert x["paired"]["helps"] + x["paired"]["harms"] + x["paired"]["both_correct"] + x["paired"]["both_wrong"] == 12
+          assert sum(v["n"] for v in x["by_codec"].values()) == 12
+          print("TRAINER_MODEL_COMPARISON_PASS", x["paired"])
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -63,5 +83,6 @@ jobs:
           path: |
             trainer-results/training-report.json
             trainer-results/repeat-report.json
+            trainer-results/comparison.json
           if-no-files-found: ignore
           retention-days: 7

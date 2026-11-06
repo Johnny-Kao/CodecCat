@@ -55,3 +55,19 @@ Use bytes with independently known encodings and valid redistribution/training r
 - **P2:** Model comparison and contributor submission gate, independent candidate model release, and release process separated from Stable inference.
 
 See [RIGHTS_AND_PROVENANCE.md](../../RIGHTS_AND_PROVENANCE.md), [ROADMAP.md](../../ROADMAP.md), and [CONTRIBUTING.md](../../CONTRIBUTING.md).
+
+## Compare your model against official Stable
+
+Install the public Runtime in the **evaluation environment** (not required for the training-only environment), then run:
+
+```bash
+codeccat-train evaluate \
+  --model custom.ccm \
+  --manifest my-data/test-manifest.jsonl \
+  --split test \
+  --report comparison.json
+```
+
+The `evaluation` command compares candidate and bundled Stable on identical bytes, reporting **correct decoded Unicode text**, correct codec labels, per-codec accuracy, and how many examples improve or regress. No sample text or raw bytes appear in the output. Optionally use `--baseline-model /path/to/another.ccm`.
+
+The evaluation manifest uses the same JSONL keys with `"split":"test"` (or explicitly `--split validation` for development tests). Never present validation or previously used training sources as blind independent test data. Results are descriptive, not an automatic official-model upgrade.

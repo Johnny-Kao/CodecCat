@@ -46,6 +46,24 @@ python -m codeccat_train evaluate --model custom.ccm \
 
 This compares decoded Unicode text (primary) and exact codec labels (secondary), with per-codec results and paired improves/regressions. `--split validation` can be used for development, but **do not call it an independent holdout**. The command does not replace or update the official model.
 
+## Optional L3 and historical reproducibility
+
+For the optional L3 Unicode-trigram artifact, the **same offline Trainer**
+supports a train-only manifest. Unlike the L2 `--residual-focus` replay,
+L3 uses every eligible unfiltered input record:
+
+```bash
+codeccat-train fit-l3 --manifest dataset/train-only.jsonl \
+  --output language-l3.json --report l3-report.json
+```
+
+L3 stays disabled by default. The pinned historical L2 CCM2 and L3 JSON
+have both been reproduced byte-for-byte in GitHub Actions; see
+[official source and reproducibility status](../../datasets/official/README.md).
+The manual strict replay gate fails when required hashes, source
+fingerprints or numeric identity evidence differ. This is **not** rights
+clearance or authorization to replace a production model.
+
 See [quick start](docs/GETTING_STARTED.md). The legacy `python -m codeccat_train --manifest ...` training command remains supported.
 
 ## Compact CCM2 export

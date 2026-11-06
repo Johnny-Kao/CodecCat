@@ -54,6 +54,18 @@ jobs:
             --train-only --residual-focus --precision f32 --seed 20261015 \
             --output replay-results/repeat.ccm \
             --report replay-results/repeat-training-report.json
+      - name: Replay optional L3 from the full unfiltered historical corpus
+        shell: bash
+        run: |
+          python -m codeccat_train fit-l3 \
+            --manifest source-data/codeccat-replay-manifest.jsonl \
+            --output replay-results/language-l3.json \
+            --report replay-results/l3-report.json
+          python -m codeccat_train fit-l3 \
+            --manifest source-data/codeccat-replay-manifest.jsonl \
+            --output replay-results/language-l3-repeat.json \
+            --report replay-results/l3-repeat-report.json
+          cmp replay-results/language-l3.json replay-results/language-l3-repeat.json
       - name: Verify immutable historical reference
         shell: bash
         run: |
@@ -71,6 +83,34 @@ jobs:
             --reference replay-results/reference/default.ccm \
             --candidate replay-results/candidate.ccm \
             --report replay-results/numeric-comparison.json
+      - name: Compare optional L3 JSON to released reference without uploading text trigrams
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          root=Path("replay-results")
+          a=root/"language-l3.json"
+          b=root/"reference"/"language-l3.json"
+          first=json.loads(a.read_text(encoding="utf-8"))
+          second=json.loads(b.read_text(encoding="utf-8"))
+          sha=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
+          result={
+              "schema":"codeccat-l3-replay-comparison-v1",
+              "candidate_sha256":sha(a),
+              "reference_sha256":sha(b),
+              "byte_identical_model":sha(a)==sha(b),
+              "same_fingerprint":first["fingerprint"]==second["fingerprint"],
+              "same_total":first["total"]==second["total"],
+              "same_alpha":first["alpha"]==second["alpha"],
+              "same_trigram_counts":first["grams"]==second["grams"],
+              "candidate_gram_count":len(first["grams"]),
+              "reference_gram_count":len(second["grams"]),
+              "optional_l3_remains_disabled_by_default":True,
+          }
+          (root/"l3-comparison.json").write_text(json.dumps(result,indent=2,sort_keys=True)+"\n",encoding="utf-8")
+          print("L3_REPLAY_DIAGNOSTIC",json.dumps(result,sort_keys=True))
+          PY
       - name: Compare candidate against the released model without promoting it
         shell: bash
         run: |
@@ -107,11 +147,15 @@ jobs:
                   if original_fingerprint is not None else None
               ),
               "runtime_release_unchanged":True,
-              "limitation":"This comparison covers the L2 CCM2 model, not separately fitted L3 statistics.",
+              "limitation":"L2 details are reported here; optional L3 has an independent report and stays disabled by default.",
           }
           (root/"comparison.json").write_text(json.dumps(comparison,indent=2,sort_keys=True)+"\n")
           print("STABLE23_REPLAY_DIAGNOSTIC",json.dumps(comparison,sort_keys=True))
           PY
+      - name: Strict L2 and L3 reproduction gate (fail on any mismatch)
+        shell: bash
+        run: |
+          python datasets/official/replay_gate.py --reports replay-results
       - name: Upload reports and manifest metadata only
         uses: actions/upload-artifact@v4
         if: always()
@@ -121,6 +165,9 @@ jobs:
             replay-results/training-report.json
             replay-results/comparison.json
             replay-results/numeric-comparison.json
+            replay-results/l3-report.json
+            replay-results/l3-repeat-report.json
+            replay-results/l3-comparison.json
             replay-results/repeat-training-report.json
             source-data/codeccat-replay-manifest.jsonl
           if-no-files-found: ignore

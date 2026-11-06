@@ -190,6 +190,25 @@ def fit(manifest:Path,output:Path,report:Path,seed:int,precision:str="f64",resid
 def main():
     import sys
     args=sys.argv[1:]
+    if args and args[0]=="fit-l3":
+        from .l3 import save_l3
+        p=argparse.ArgumentParser(description="Fit optional Unicode trigram L3 from the unfiltered training corpus")
+        p.add_argument("--manifest",type=Path,required=True)
+        p.add_argument("--output",type=Path,required=True)
+        p.add_argument("--report",type=Path,required=True)
+        p.add_argument("--max-features",type=int,default=30000)
+        a=p.parse_args(args[1:])
+        train,validation=read_manifest(a.manifest,require_validation=False)
+        if validation:
+            raise ValueError("fit-l3 requires a train-only manifest; no validation rows may be used")
+        result=save_l3(train,a.output,max_features=a.max_features)
+        result["input_manifest_sha256"]=hashlib.sha256(a.manifest.read_bytes()).hexdigest()
+        result["input_content_fingerprint_sha256"]=fingerprint_dataset(train)
+        result["input_n"]=len(train)
+        a.report.parent.mkdir(parents=True,exist_ok=True)
+        a.report.write_text(json.dumps(result,sort_keys=True,indent=2)+"\n",encoding="utf-8")
+        print("CODECCAT_L3_TRAIN_RESULT",json.dumps(result,sort_keys=True),flush=True)
+        return
     if args and args[0]=="evaluate":
         from .evaluate import evaluate
         p=argparse.ArgumentParser(description="Compare a custom model against the bundled Stable model on labeled bytes")

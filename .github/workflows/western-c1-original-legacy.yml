@@ -1,0 +1,58 @@
+name: CodecCat C1 guard original Legacy regression
+
+on:
+  pull_request:
+    paths:
+      - "experiments/western_c1_original_legacy.py"
+      - "experiments/western_c1_counterfactual.py"
+      - ".github/workflows/western-c1-original-legacy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  legacy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: BYVoid/uchardet
+          ref: 4e685757780cb3c652fc6c9ec759f62888969ec9
+          path: external-encoding-source
+          sparse-checkout: test
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install published Stable runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C external-encoding-source rev-parse HEAD)" = "4e685757780cb3c652fc6c9ec759f62888969ec9"
+          python -m pip install --only-binary=:all: --no-deps codeccat==0.1.0
+          python -m pip install chardet==7.7.0 charset-normalizer==3.5.2
+      - name: Paired original-legacy quality and harm screen
+        run: python experiments/western_c1_original_legacy.py
+      - name: Metadata integrity
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("research-results/western-c1-original-legacy-check.json").read_text())
+          assert x["totals"]["n"] == 102
+          assert x["raw_content_exported"] is False
+          print("ORIGINAL_LEGACY_REGRESSION_VALID",x["totals"])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c1-original-legacy-metadata-only
+          path: research-results/western-c1-original-legacy-check.json
+          if-no-files-found: warn
+          retention-days: 30

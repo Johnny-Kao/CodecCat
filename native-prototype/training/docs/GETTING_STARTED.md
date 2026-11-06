@@ -70,4 +70,8 @@ codeccat-train evaluate \
 
 The `evaluation` command compares candidate and bundled Stable on identical bytes, reporting **correct decoded Unicode text**, correct codec labels, per-codec accuracy, and how many examples improve or regress. No sample text or raw bytes appear in the output. Optionally use `--baseline-model /path/to/another.ccm`.
 
+The evaluator scans **all manifest splits**, including train, validation and test, and rejects repeated bytes or source groups across splits. This prevents exact leakage within the supplied manifest, but cannot detect near-duplicates or examples from separately maintained training manifests. Use an independent holdout for release decisions.
+
+See the [official source and reproducibility status](OFFICIAL_DATASET.md) before claiming an official model can be rebuilt.
+
 The evaluation manifest uses the same JSONL keys with `"split":"test"` (or explicitly `--split validation` for development tests). Never present validation or previously used training sources as blind independent test data. Results are descriptive, not an automatic official-model upgrade.

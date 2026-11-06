@@ -137,3 +137,52 @@ jobs:
           print("SDIST_PYTHON_MATRIX_PASS", sys.version.split()[0])
           PY
           .clean/bin/python -m pip check
+
+  release-assembly-dry-run:
+    needs: build-and-install
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: v0.1.0
+          path: tagged-source
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: source-distribution
+          path: downloaded-sdist
+      - name: Prepare read-only historical reference for next-release assembly dry-run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The old immutable tag predates release-config.json. Inject current
+          # configuration into this *ephemeral checkout* for simulation only.
+          cp release-config.json tagged-source/release-config.json
+          mkdir -p original-dist sample-linux sample-platform
+          gh release download v0.1.0 --repo "$GITHUB_REPOSITORY" --dir original-dist
+          cp original-dist/*.whl sample-platform/
+          cp original-dist/*manylinux*.whl sample-linux/
+      - name: Assemble six authentic historical Wheels with newly built sdist
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/assemble_stable_release.py \
+            --linux sample-linux --platform sample-platform \
+            --sdist downloaded-sdist --tagged-source tagged-source \
+            --out dry-release --linux-run 0 --platform-run 0 --sdist-run 0
+          python scripts/verify_release_assets.py \
+            --assets dry-release --tagged-source tagged-source --tag v0.1.0
+          python -m pip install --disable-pip-version-check twine==7.0.0
+          python -m twine check --strict dry-release/*.whl dry-release/*.tar.gz
+          echo "FUTURE_RELEASE_ASSEMBLY_DRY_RUN_PASS"

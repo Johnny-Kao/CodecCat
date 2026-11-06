@@ -1,0 +1,144 @@
+name: Publish CodecCat to PyPI
+
+# Intentional manual release: no publishing on pushes, pull requests or tags.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Exact pre-verified GitHub Stable tag"
+        required: true
+        default: v0.1.0
+        type: string
+      publish:
+        description: "Upload verified Wheels to PyPI (requires Trusted Publisher)"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pypi-publish-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify already released Wheels without rebuilding
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      target: ${{ steps.confirm.outputs.target }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm exact first Stable release and immutable GitHub tag
+        id: confirm
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # First PyPI release is intentionally limited to 0.1.0.
+          # Change this in a reviewed release PR for future versions.
+          test "$TAG" = "v0.1.0"
+          test "$GITHUB_REPOSITORY" = "Johnny-Kao/CodecCat"
+          tag_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq '.object.sha')
+          # Annotated tag: verify exact target commit.
+          commit_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$tag_sha" --jq '.object.sha')
+          test "$commit_sha" = "867850dd9efd4c3275670db6e74cd57d23877a83"
+          release=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq '[.draft,.prerelease] | @json')
+          test "$release" = "[false,false]"
+          echo "target=$TAG" >> "$GITHUB_OUTPUT"
+          echo "PYPI_SOURCE_TAG_VERIFIED $TAG $commit_sha"
+      - name: Download exactly the existing GitHub Stable release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p original-dist dist
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir original-dist \
+            --pattern '*.whl' --pattern 'SHA256SUMS' --pattern 'MODEL_PROVENANCE.json'
+      - name: Check full release checksums, Wheel metadata, tags and pinned model
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd original-dist
+          sha256sum --check --strict SHA256SUMS
+          cd ..
+          python - <<'PY'
+          import hashlib
+          import json
+          import re
+          import shutil
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          release=Path("original-dist")
+          manifest=json.loads((release/"MODEL_PROVENANCE.json").read_text())
+          assert manifest["tag"]=="v0.1.0", manifest
+          assert manifest["version"]=="0.1.0", manifest
+          frozen="16073306b5027bf93acc2883f57fbda0cb0cf2d77b9a7bb62cf1b07fcbb9748b"
+          assert manifest["model_sha256"]==frozen
+          expected={
+              "macosx_10_12_x86_64", "macosx_11_0_arm64",
+              "manylinux_2_28_x86_64", "manylinux_2_28_aarch64",
+              "win_amd64", "win_arm64",
+          }
+          wheels=sorted(release.glob("*.whl"))
+          assert len(wheels)==6, wheels
+          seen=set()
+          for wheel in wheels:
+              match=re.fullmatch(r"codeccat-0\.1\.0-cp310-abi3-(.+)\.whl",wheel.name)
+              assert match,wheel.name
+              seen.add(match.group(1))
+              with ZipFile(wheel) as z:
+                  assert z.testzip() is None,wheel.name
+                  names=z.namelist()
+                  assert "codeccat/models/default.ccm" in names,wheel.name
+                  assert "codeccat/models/language-l3.json" in names,wheel.name
+                  assert "codeccat/models/default.ccm.meta.json" in names,wheel.name
+                  assert hashlib.sha256(z.read("codeccat/models/default.ccm")).hexdigest()==frozen
+                  metadata=z.read(next(n for n in names if n.endswith(".dist-info/METADATA"))).decode()
+                  assert re.search(r"(?m)^Name: codeccat$",metadata)
+                  assert re.search(r"(?m)^Version: 0\.1\.0$",metadata)
+                  assert "Development Status :: 5 - Production/Stable" in metadata
+                  assert any(n.endswith("/LICENSE") for n in names),wheel.name
+              shutil.copy2(wheel,Path("dist")/wheel.name)
+          assert seen==expected,(seen,expected)
+          assert {p.name for p in release.iterdir()} == {x.name for x in wheels}|{"SHA256SUMS","MODEL_PROVENANCE.json"}
+          print("PYPI_DISTRIBUTIONS_VERIFIED",len(wheels),"model:",frozen,flush=True)
+          PY
+      - name: Validate package metadata with Twine (no upload)
+        run: |
+          python -m pip install --disable-pip-version-check "twine==6.2.0"
+          python -m twine check --strict dist/*.whl
+      - uses: actions/upload-artifact@v4
+        with:
+          name: verified-pypi-codeccat-0.1.0
+          path: dist/*.whl
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish verified Wheels using PyPI OIDC
+    needs: verify
+    if: ${{ inputs.publish == true && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    environment:
+      name: pypi
+      url: https://pypi.org/project/codeccat/0.1.0/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: verified-pypi-codeccat-0.1.0
+          path: dist/
+      # Exactly this job receives OIDC permission. No API token is stored.
+      - name: Publish to PyPI and generate publish attestations
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3

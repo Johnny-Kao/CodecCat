@@ -1,0 +1,73 @@
+name: Preregistered CPython encoding confirmation (research only)
+
+on:
+  pull_request:
+    paths:
+      - "experiments/cpython_encoding_confirmation.py"
+      - "research/CPYTHON_ENCODING_CONFIRMATION_PROTOCOL_2026-11-07.md"
+      - ".github/workflows/cpython-encoding-confirmation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  screen-and-compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install published Stable and pinned comparator
+        run: |
+          python -m pip install --disable-pip-version-check --only-binary=:all: --no-deps codeccat==0.1.0
+          python -m pip install --disable-pip-version-check chardet==7.7.0
+      - name: Checkout pinned historical training corpus (ephemeral)
+        uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: source-data
+          persist-credentials: false
+      - name: Checkout preregistered new CPython source (ephemeral)
+        uses: actions/checkout@v4
+        with:
+          repository: python/cpython
+          ref: f64e51563a85667446793ad61ea521d005ceb171
+          path: cpython-confirmation
+          sparse-checkout: |
+            Lib/test/cjkencodings
+            LICENSE
+          persist-credentials: false
+      - name: Rebuild and verify pinned training manifest
+        run: python datasets/official/prepare_manifest.py --corpus source-data
+      - name: Screen new sources before scoring; fail on overlap
+        run: python experiments/cpython_encoding_confirmation.py
+      - name: Verify metadata-only result
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path("research-results/cpython-encoding-confirmation.json").read_text())
+          assert not report["raw_content_exported"]
+          assert report["status"] == "screen_negative_evaluated"
+          assert len(report["source_entries"]) == 30
+          assert report["scores"] and report["by_codec"]
+          assert not any(
+              e["exact_full"] or e["exact_prefix"] or e["sampled_near_candidate"]
+              for e in report["source_entries"]
+          )
+          print("PREREGISTERED_CONFIRMATION_METADATA_VALID")
+          PY
+      - name: Upload metadata report only; no source text or model
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpython-encoding-confirmation-metadata
+          path: research-results/cpython-encoding-confirmation.json
+          if-no-files-found: warn
+          retention-days: 7

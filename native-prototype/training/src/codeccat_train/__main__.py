@@ -206,7 +206,7 @@ def main():
         result["input_content_fingerprint_sha256"]=fingerprint_dataset(train)
         result["input_n"]=len(train)
         a.report.parent.mkdir(parents=True,exist_ok=True)
-        a.report.write_text(json.dumps(result,sort_keys=True,indent=2)+"\\n",encoding="utf-8")
+        a.report.write_text(json.dumps(result,sort_keys=True,indent=2)+"\n",encoding="utf-8")
         print("CODECCAT_L3_TRAIN_RESULT",json.dumps(result,sort_keys=True),flush=True)
         return
     if args and args[0]=="evaluate":

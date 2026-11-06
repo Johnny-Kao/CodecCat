@@ -1,0 +1,80 @@
+name: Historical training versus external holdout overlap screening
+
+on:
+  pull_request:
+    paths:
+      - "datasets/official/audit_holdout_overlap.py"
+      - "native-prototype/training/tests/test_holdout_overlap.py"
+      - ".github/workflows/official-holdout-overlap-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run synthetic privacy and overlap regressions
+        run: python -m unittest discover -s native-prototype/training/tests -p test_holdout_overlap.py -v
+      - name: Checkout pinned historical training inputs (ephemeral)
+        uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: source-data
+          persist-credentials: false
+      - name: Checkout pinned GTK external corpus (ephemeral)
+        uses: actions/checkout@v4
+        with:
+          repository: GNOME/gtk
+          ref: 7c578d79eb8347b14a1717bfcc0084674a43c562
+          path: blind-source
+          sparse-checkout: po
+          persist-credentials: false
+      - name: Checkout pinned uchardet external corpus (ephemeral)
+        uses: actions/checkout@v4
+        with:
+          repository: BYVoid/uchardet
+          ref: 4e685757780cb3c652fc6c9ec759f62888969ec9
+          path: external-encoding-source
+          sparse-checkout: test
+          persist-credentials: false
+      - name: Prepare exact source manifest and validate commit
+        run: python datasets/official/prepare_manifest.py --corpus source-data
+      - name: Screen historical training prefixes against both external corpora
+        run: |
+          python datasets/official/audit_holdout_overlap.py \
+            --training-manifest source-data/codeccat-replay-manifest.jsonl \
+            --gtk-root blind-source/po \
+            --uchardet-root external-encoding-source/test \
+            --report research-results/overlap-screen.json
+      - name: Assert source checks and nonempty outputs
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("research-results/overlap-screen.json").read_text())
+          assert r["training_records"] == 3086
+          assert r["training_manifest_sha256"] == "8ec3007dbd59336cee6018cfa44aeded39cca205e93f5fc9f24ee5ecf87f3ca9"
+          assert r["source_results"]["gtk"]["screened_windows"] == 328
+          assert r["source_results"]["uchardet"]["screened_windows"] == 102
+          assert r["contains_original_text"] is False
+          for source, stats in r["source_results"].items():
+              print("OVERLAP_AUDIT_COUNTS",source,stats["screened_windows"],stats["exact_full_matches"],stats["exact_prefix_matches"],stats["candidate_near_overlap_windows"])
+          PY
+      - name: Upload counts/hashes only, never training or external corpus files
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: historical-holdout-overlap-screen-metadata
+          path: research-results/overlap-screen.json
+          retention-days: 7
+          if-no-files-found: error

@@ -32,8 +32,19 @@ for k in range(1,6):
         true=b.decode(r["encoding"],"strict").lstrip("\ufeff")
         n=utf8_evidence(b)
         rows.append(dict(pool=r["pool"],encoding=r["encoding"],sha256=r["sha256"],
-                         current=d.text==true,changed=d.encoding!="utf-8",
+                         current=d.text==true,changed=d.encoding!="utf-8", predicted=d.encoding,
                          chars=n,txt=d.text,expected=true,raw=b))
+# Inspect which codec families make a naive UTF-8 override dangerous.
+risk=[]
+for row in rows:
+    if row["changed"] and row["chars"] is not None and row["chars"]>=8:
+        raw=row["raw"]
+        risk.append({"sha256":row["sha256"],"pool":row["pool"],"truth":row["encoding"],
+                     "predicted":row["predicted"],"helps":not row["current"] and raw.decode("utf-8")==row["expected"],
+                     "harms":row["current"] and raw.decode("utf-8")!=row["expected"],
+                     "utf8_non_ascii":row["chars"],"size":len(raw)})
+(ROOT/"utf8-counterfactual-cases.json").write_text(json.dumps(risk,indent=2)+"\\n")
+print("UTF8_EVIDENCE_RISK",json.dumps(risk),flush=True)
 results={}
 for t in THRESHOLDS:
     outcome={"threshold":t,"n":len(rows),"invoked":0,"helps":0,"harms":0,"by_pool":{}}

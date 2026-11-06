@@ -165,3 +165,52 @@ jobs:
           python native-prototype/training/make_smoke_data.py
           python native-prototype/training/tests/check_runtime_e2e.py
           python native-prototype/training/tests/check_ccm2_e2e.py
+
+  arm64-native-trainer:
+    name: Train and load CCM on Linux ARM64
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Train CCM1 and CCM2 natively on ARM64
+        shell: bash
+        run: |
+          test "$(uname -m)" = "aarch64"
+          python -m venv .train-env
+          .train-env/bin/python -m pip install --disable-pip-version-check ./native-prototype/training
+          .train-env/bin/python native-prototype/training/make_smoke_data.py
+          mkdir -p trainer-results
+          .train-env/bin/python -m codeccat_train fit \
+            --manifest native-prototype/training/smoke-data/manifest.jsonl \
+            --output trainer-results/custom.ccm \
+            --report trainer-results/training-report.json
+          .train-env/bin/python -m codeccat_train fit \
+            --manifest native-prototype/training/smoke-data/manifest.jsonl \
+            --output trainer-results/custom-f32.ccm \
+            --report trainer-results/training-report-f32.json \
+            --precision f32
+      - name: Validate native ARM64 models with isolated published Runtime
+        shell: bash
+        run: |
+          python -m venv .runtime-env
+          .runtime-env/bin/python -m pip install --disable-pip-version-check --only-binary=:all: --no-deps codeccat==0.1.0
+          .runtime-env/bin/python native-prototype/training/tests/check_runtime_e2e.py
+          .runtime-env/bin/python native-prototype/training/tests/check_ccm2_e2e.py
+      - name: Report ARM64 coverage without publishing model artifacts
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json,platform
+          from pathlib import Path
+          assert platform.machine() in ("aarch64","arm64")
+          a=json.loads(Path("trainer-results/training-report.json").read_text())
+          b=json.loads(Path("trainer-results/training-report-f32.json").read_text())
+          assert a["model_schema"] == "CCM1"
+          assert b["model_schema"] == "CCM2"
+          print("TRAINER_NATIVE_LINUX_ARM64_PASS", a["model_sha256"], b["model_sha256"])
+          PY

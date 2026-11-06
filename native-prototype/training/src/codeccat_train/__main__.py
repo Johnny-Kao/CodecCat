@@ -83,7 +83,7 @@ def historical_stable23_fingerprint(rows):
     for row in rows:
         raw,encoding,group=row[:3]
         prefix_hash=hashlib.sha256(raw[:4096]).hexdigest()
-        digest.update(prefix_hash.encode()+b"\\0"+encoding.encode()+b"\\0"+group.encode()+b"\\0")
+        digest.update(prefix_hash.encode()+b"\0"+encoding.encode()+b"\0"+group.encode()+b"\0")
     return digest.hexdigest()
 
 def write_string(parts,s):

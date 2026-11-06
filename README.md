@@ -153,7 +153,7 @@ See [Rights and Provenance](RIGHTS_AND_PROVENANCE.md).
 
 The offline `codeccat-train` source package can train a numeric model from your own labeled text samples. It is **not a production dependency**, is **not yet published separately on PyPI**, and does not yet reproduce the entire official Stable training recipe. Models can be loaded with `CodecCat.from_files("custom.ccm")` without replacing the bundled model.
 
-See the [offline training guide](native-prototype/training/docs/GETTING_STARTED.md), [Trainer README](native-prototype/training/README.md) and [roadmap](ROADMAP.md).
+See the [offline training guide](native-prototype/training/docs/GETTING_STARTED.md), [Trainer README](native-prototype/training/README.md), [model contribution rules](docs/MODEL_SUBMISSIONS.md) and [roadmap](ROADMAP.md).
 
 ## Contributing and maintenance
 

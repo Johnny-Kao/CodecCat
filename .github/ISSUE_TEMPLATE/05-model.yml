@@ -1,0 +1,45 @@
+name: Model contribution proposal
+description: Propose a custom-model research result or potential official model improvement.
+title: "[Model] "
+body:
+  - type: markdown
+    attributes:
+      value: "Read docs/MODEL_SUBMISSIONS.md. Please do not upload private corpora, copyrighted training texts, or unreviewed binary models."
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Proposal type
+      options:
+        - Custom-model research and feedback
+        - Candidate for a future official model
+        - Training or evaluation pipeline improvement
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: What improves and for whom?
+      description: Which language or encoding cases are affected? Show a non-sensitive example if possible.
+    validations:
+      required: true
+  - type: textarea
+    id: recipe
+    attributes:
+      label: Training recipe and model provenance
+      description: Tool revision, feature profile, versions, seed, model SHA256, dataset sources and permissions. Avoid private paths or raw corpus content.
+    validations:
+      required: true
+  - type: textarea
+    id: quality
+    attributes:
+      label: Baseline versus candidate evidence
+      description: Correct Unicode text, codec labels, paired improvements/regressions, per-codec results, source-disjoint validation and commands.
+    validations:
+      required: true
+  - type: textarea
+    id: tradeoffs
+    attributes:
+      label: Runtime compatibility and limitations
+      description: Model format, API parity, CPU, RAM, model size, platforms and known unresolved failures.
+    validations:
+      required: false

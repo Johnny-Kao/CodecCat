@@ -1,7 +1,7 @@
 name: CodecCat five-corpus three-detector benchmark
 on:
   push:
-    branches: [research/five-corpus-benchmark-20261106]
+    branches: [research/five-corpus-benchmark-20261106, research/diagnose-native-po-errors-20261106]
     paths:
       - "experiments/five_corpus_benchmark.py"
       - ".github/workflows/five-corpus-benchmark.yml"

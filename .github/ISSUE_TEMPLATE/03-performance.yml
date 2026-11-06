@@ -1,0 +1,35 @@
+name: Performance or accuracy investigation
+description: Share a reproducible speed, memory, or decoding-accuracy issue.
+title: "[Research] "
+body:
+  - type: markdown
+    attributes:
+      value: "Please distinguish observed facts from hypotheses. Do not call development data a blind benchmark or upload restricted corpora."
+  - type: textarea
+    id: hypothesis
+    attributes:
+      label: Observed problem
+      description: Which metric or behavior fails, and what is the user-visible effect?
+    validations:
+      required: true
+  - type: textarea
+    id: data
+    attributes:
+      label: Dataset, provenance, and correctness ground truth
+      description: Identify source, revision, known overlaps, labels and permissions; avoid raw private content.
+    validations:
+      required: true
+  - type: textarea
+    id: commands
+    attributes:
+      label: Reproduction and environment
+      description: Same-byte baseline and candidate commands, versions, hardware, repetitions, warmup and measured statistics.
+    validations:
+      required: true
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks and negative controls
+      description: Which encodings, platforms or correct cases might regress?
+    validations:
+      required: false

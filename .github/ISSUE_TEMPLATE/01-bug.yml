@@ -1,0 +1,51 @@
+name: Bug report
+description: Report an incorrect result, error, crash, or compatibility problem.
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: "Please avoid uploading private files or proprietary text. For vulnerabilities, follow SECURITY.md instead."
+  - type: input
+    id: version
+    attributes:
+      label: CodecCat version
+      description: Run python -m pip show codeccat.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Platform and Python version
+      placeholder: "Python 3.12 / Ubuntu 24.04 x86-64"
+    validations:
+      required: true
+  - type: textarea
+    id: reproducer
+    attributes:
+      label: Minimal reproduction
+      description: Share safe, minimized byte input or code that reproduces the problem.
+      render: python
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior and why
+      description: If reporting an encoding mistake, how was the correct encoding/text independently verified?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include errors, detected encoding, decoded text or logs where safe.
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Input size, BOM, file origin or prior versions that worked (optional).
+    validations:
+      required: false

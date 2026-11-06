@@ -1,0 +1,32 @@
+name: Feature proposal
+description: Suggest a scoped feature, API or documentation improvement.
+title: "[Feature] "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and user impact
+      description: Describe the actual use case rather than only the proposed implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Describe the smallest useful change and how a user would interact with it.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and trade-offs
+      description: Existing workarounds, compatibility, package size, runtime dependencies or maintenance cost.
+    validations:
+      required: false
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Verification or acceptance criteria
+      description: How could a reviewer know the change works?
+    validations:
+      required: false

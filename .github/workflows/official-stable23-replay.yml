@@ -1,0 +1,107 @@
+name: Historical Stable23 model replay (research only)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Checkout historical source without publishing input corpus
+        uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: source-data
+          persist-credentials: false
+      - name: Use exact historical model training dependencies
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check \
+            numpy==2.5.3 scipy==1.18.1 scikit-learn==1.9.1 joblib==1.6.0
+          python -m pip install --disable-pip-version-check --no-deps ./native-prototype/training
+          python -m pip check
+      - name: Prepare the pinned metadata-only source manifest
+        run: python datasets/official/prepare_manifest.py --corpus source-data
+      - name: Replay historical residual L2 training (candidate only)
+        shell: bash
+        run: |
+          mkdir -p replay-results
+          python -m codeccat_train fit \
+            --manifest source-data/codeccat-replay-manifest.jsonl \
+            --train-only --residual-focus --precision f32 --seed 20261015 \
+            --output replay-results/candidate.ccm \
+            --report replay-results/training-report.json
+      - name: Verify immutable historical reference
+        shell: bash
+        run: |
+          mkdir -p replay-results/reference
+          curl -fsSL --retry 3 \
+            -o /tmp/native-reference-v0.1.0a4.tar.gz \
+            https://github.com/Johnny-Kao/CodecCat/releases/download/v0.1.0a4/native-reference-v0.1.0a4.tar.gz
+          echo "e3dd654817fb0e3324910b1a39af9bc19185400582d5a066c533d7cc5dd81c8c  /tmp/native-reference-v0.1.0a4.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/native-reference-v0.1.0a4.tar.gz -C replay-results/reference
+          echo "16073306b5027bf93acc2883f57fbda0cb0cf2d77b9a7bb62cf1b07fcbb9748b  replay-results/reference/default.ccm" | sha256sum -c -
+      - name: Compare candidate against the released model without promoting it
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          root=Path("replay-results")
+          report=json.loads((root/"training-report.json").read_text())
+          candidate=root/"candidate.ccm"
+          ref=root/"reference"/"default.ccm"
+          meta=json.loads((root/"reference"/"default.ccm.meta.json").read_text())
+          candidate_sha=hashlib.sha256(candidate.read_bytes()).hexdigest()
+          expected_sha=hashlib.sha256(ref.read_bytes()).hexdigest()
+          original_fingerprint=meta.get("training_fingerprint")
+          comparison={
+              "schema":"codeccat-stable23-replay-comparison-v1",
+              "status":"research-only; no official model modification",
+              "source_commit":"b0c0d206913ba118ffea2f7d306883e7a4a76db7",
+              "input_manifest_sha256":report["manifest_sha256"],
+              "source_content_fingerprint":report["dataset_content_fingerprint_sha256"],
+              "training_original_n":report["training_original_n"],
+              "training_effective_n":report["training_n"],
+              "removed_by_label":report["training_removed_by_label"],
+              "candidate_ccm2_sha256":candidate_sha,
+              "official_ccm2_sha256":expected_sha,
+              "byte_identical_model":candidate_sha==expected_sha,
+              "candidate_training_fingerprint":report["historical_stable23_fingerprint"],
+              "official_training_fingerprint":original_fingerprint,
+              "training_inputs_match_reference":(
+                  report["historical_stable23_fingerprint"]==original_fingerprint
+                  if original_fingerprint is not None else None
+              ),
+              "runtime_release_unchanged":True,
+              "limitation":"This comparison covers the L2 CCM2 model, not separately fitted L3 statistics.",
+          }
+          (root/"comparison.json").write_text(json.dumps(comparison,indent=2,sort_keys=True)+"\n")
+          print("STABLE23_REPLAY_DIAGNOSTIC",json.dumps(comparison,sort_keys=True))
+          PY
+      - name: Upload reports and manifest metadata only
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: stable23-replay-diagnostics-no-model
+          path: |
+            replay-results/training-report.json
+            replay-results/comparison.json
+            source-data/codeccat-replay-manifest.jsonl
+          if-no-files-found: ignore
+          retention-days: 7

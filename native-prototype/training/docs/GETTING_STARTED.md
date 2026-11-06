@@ -2,7 +2,7 @@
 
 CodecCat offers **one** offline training tool for anyone's dataset. The CLI and model format are shared; official and user-owned datasets differ in provenance and what is allowed to ship as an official release.
 
-**Status:** Source-distributed trainer prototype `codeccat-train==0.1.0a3`. It is **not yet published on PyPI**, and does not yet reproduce the entire official Stable training pipeline. Public Native `codeccat==0.1.0` remains unchanged.
+**Status:** Source-distributed trainer prototype `codeccat-train==0.1.0a3`. It is **not yet published on PyPI**, and has reproduced the published L2 CCM2 and optional L3 reference artifacts byte-for-byte in the pinned historical CI environment. This does not establish data licensing or grant permission to promote new models. Public Native `codeccat==0.1.0` remains unchanged.
 
 ## Quick local example
 
@@ -33,7 +33,7 @@ print(result.encoding, result.text, result.ambiguous)
 PY
 ```
 
-The model output uses `CCM1`; the current official bundled model uses `CCM2`. The ability to load a newly trained CCM1 model is **not** a guarantee of identical inference quality or reproducibility of the official model.
+The default custom-model output is `CCM1`; use `--precision f32` for official-compatible `CCM2`. The pinned historical recipe has matched the official CCM2 bytes, but arbitrary custom datasets or versions do not guarantee that result.
 
 ## Manifest format
 
@@ -51,8 +51,8 @@ Use bytes with independently known encodings and valid redistribution/training r
 ## Acceptance and next steps
 
 - **P0:** [Trainer E2E CI](../../../.github/workflows/trainer-e2e.yml) installs Trainer separately, trains twice and checks same-env reproducibility, then loads the resulting model with an independent **PyPI `codeccat==0.1.0`** Runtime environment; it also tests some unsafe manifest cases. No model is promoted by this check.
-- **P1:** Add official dataset source manifest and explicit license/provenance assessment, holdout/evaluation by exact decoded text, per-codec deltas, and frozen training parameters. No claim that every source can legally be mirrored in this repo.
-- **P2:** Model comparison and contributor submission gate, independent candidate model release, and release process separated from Stable inference.
+- **P1:** Pinned historical input manifest, exact L2 residual training, and optional unfiltered L3 replay are implemented and have matched frozen reference artifacts. Third-party corpus rights review and independent source-overlap assurance are not complete.
+- **P2:** Candidate-vs-Stable comparison and model submission checks exist; exact historical reproduction is guarded separately from any future model-quality or release approval. No independent candidate release is implied.
 
 See [RIGHTS_AND_PROVENANCE.md](../../../RIGHTS_AND_PROVENANCE.md), [ROADMAP.md](../../../ROADMAP.md), and [CONTRIBUTING.md](../../../CONTRIBUTING.md).
 
@@ -83,7 +83,7 @@ codeccat-train fit --manifest my-data/manifest.jsonl --output custom-f32.ccm \\
   --report training-f32.json --precision f32
 ```
 
-This does not change training data or the learned model; it changes stored weight precision and may introduce minor numerical differences. It does not reproduce the official default model, which requires its own complete dataset and training recipe.
+This changes only stored weight precision and may introduce minor numerical differences. Reproducing the official model additionally requires the pinned dataset manifest, `--train-only`, `--residual-focus` and verified environment, as shown by the historical research workflow.
 
 ## Replaying historical residual-focused training (research only)
 
@@ -105,7 +105,17 @@ size, selected training size, removed counts per codec and dataset
 fingerprints before and after filtering. The default community path still
 **requires** validation records and does not filter samples.
 
-These switches are necessary but **not sufficient** to reproduce the
-published official model. The old source parser, exact ordered and
-deduplicated byte prefixes, pinned environment and separate L3 model must
-also be handled; see [official reconstruction status](../../../datasets/official/README.md).
+The full pinned-source replay has reproduced the existing L2 model exactly. The separate `fit-l3` command handles the optional, unfiltered L3 model and also matched the frozen reference. See [official reconstruction status](../../../datasets/official/README.md).
+
+
+## Training optional L3 (off by default)
+
+`fit-l3` uses the full, unfiltered training rows (not the residual L2 subset), preserving the historical Unicode-trigram statistics:
+
+```bash
+codeccat-train fit-l3 --manifest /path/to/train-only.jsonl \
+  --output /path/to/language-l3.json \
+  --report /path/to/l3-report.json
+```
+
+The [manual L2 + L3 reproduction gate](../../../.github/workflows/official-stable23-replay.yml) compares both generated artifacts against pinned released reference SHA256 values and fails if a required identity check differs. L3 stays disabled by default. Reproduction does **not** establish rights clearance or production accuracy improvements.

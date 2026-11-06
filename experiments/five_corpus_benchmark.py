@@ -104,16 +104,40 @@ def chardet_records():
 
 def charset_normalizer_records():
     root = ROOT / "charset_normalizer" / "data"
+    # Fixed original ground-truth labels from the upstream project's own
+    # tests/test_full_detection.py at the pinned source revision. Do not
+    # assume that all .txt fixtures are UTF-8.
+    labels = {
+        "sample-arabic-1.txt": "cp1256",
+        "sample-french-1.txt": "cp1252",
+        "sample-arabic.txt": "utf-8",
+        "sample-russian-3.txt": "utf-8",
+        "sample-french.txt": "utf-8",
+        "sample-chinese.txt": "big5",
+        "sample-greek.txt": "cp1253",
+        "sample-greek-2.txt": "cp1253",
+        "sample-hebrew-2.txt": "cp1255",
+        "sample-hebrew-3.txt": "cp1255",
+        "sample-bulgarian.txt": "utf-8",
+        "sample-english.bom.txt": "utf-8",
+        "sample-spanish.txt": "utf-8",
+        "sample-korean.txt": "cp949",
+        "sample-turkish.txt": "cp1254",
+        "sample-russian-2.txt": "utf-8",
+        "sample-russian.txt": "mac_cyrillic",
+        "sample-polish.txt": "utf-8",
+    }
+    actual = {p.name for p in root.glob("sample-*.txt")}
+    assert set(labels) == actual, ("upstream fixture manifest changed", sorted(actual ^ set(labels)))
     rows = []
-    for p in sorted(root.glob("sample-*.txt")):
-        b = p.read_bytes()
-        # Original fixture files, no synthetic alternate labels.
-        # A UTF-8 strict-decodable sample may still be ASCII-ambiguous.
-        item = record("charset_normalizer", p.name, b, "utf-8-sig" if b.startswith(b"\xef\xbb\xbf") else "utf-8", p.name, "external_published_fixture")
-        if item:
-            rows.append(item)
+    for filename, label in sorted(labels.items()):
+        p = root / filename
+        raw = p.read_bytes()
+        item = record("charset_normalizer", filename, raw, label, filename,
+                      "upstream_labeled_fixture")
+        assert item is not None, ("invalid authoritative upstream fixture", filename, label)
+        rows.append(item)
     return rows
-
 
 def po_records():
     rows = []
@@ -309,7 +333,7 @@ def summary():
             "overall":totals,
             "limitations":["chardet/test-data is CodecCat training data: accuracy is contaminated for that pool",
                            "Vim/Git sources were previously investigated, not fresh unseen blind data",
-                           "charset-normalizer text fixture labels assume strict UTF-8 (or UTF-8-SIG for BOM)",
+                           "charset-normalizer labels originate in the pinned upstream tests/test_full_detection.py fixture table",
                            "Source documents grouped but near-duplicate content between upstream repositories not exhaustively checked",
                            "Each detector runs separately on same Linux GitHub-hosted runner hardware; memory is process-wide RSS",
                            "Correct decoded Unicode text, not historical codec-name match, is primary metric",

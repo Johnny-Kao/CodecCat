@@ -25,37 +25,53 @@ def evaluate(manifest: Path, candidate: Path, report: Path,
     if split not in ("test", "validation"):
         raise ValueError("evaluation split must be 'test' or 'validation'")
     base = manifest.resolve().parent
-    records=[]
-    hashes=set()
-    for index,line in enumerate(manifest.read_text(encoding="utf-8").splitlines(),1):
+    records = []
+    selected_hashes = set()
+    # Audit the full manifest, not just the requested evaluation split.
+    # Otherwise an example can occur in train and test while appearing unique
+    # in the filtered evaluation subset.
+    seen_content = {}
+    group_splits = {}
+    for index, line in enumerate(manifest.read_text(encoding="utf-8").splitlines(), 1):
         if not line.strip():
             continue
         try:
-            r=json.loads(line)
+            r = json.loads(line)
         except json.JSONDecodeError as ex:
             raise ValueError(f"manifest line {index}: invalid JSON") from ex
-        if r.get("split") != split:
-            continue
-        for key in ("path","encoding","group"):
-            if not isinstance(r.get(key),str) or not r[key]:
+        for key in ("path", "encoding", "group", "split"):
+            if not isinstance(r.get(key), str) or not r[key]:
                 raise ValueError(f"line {index}: missing {key}")
-        rel=Path(r["path"])
-        path=(base/rel).resolve()
+        record_split = r["split"]
+        if record_split not in ("train", "validation", "test"):
+            raise ValueError(f"line {index}: unsupported split")
+        rel = Path(r["path"])
+        path = (base / rel).resolve()
         if rel.is_absolute() or not path.is_relative_to(base):
             raise ValueError(f"line {index}: path escapes manifest directory")
-        raw=path.read_bytes()
+        raw = path.read_bytes()
         if not raw:
             raise ValueError(f"line {index}: empty input")
         try:
-            truth=raw.decode(r["encoding"],"strict")
-        except (UnicodeError,LookupError) as ex:
+            canonical = codecs.lookup(r["encoding"]).name
+            truth = raw.decode(r["encoding"], "strict")
+        except (UnicodeError, LookupError) as ex:
             raise ValueError(f"line {index}: invalid encoding or ground truth") from ex
-        canonical=codecs.lookup(r["encoding"]).name
-        digest=hashlib.sha256(raw).hexdigest()
-        if digest in hashes:
-            raise ValueError(f"line {index}: duplicated evaluation content")
-        hashes.add(digest)
-        records.append((raw,canonical,truth))
+        group = r["group"]
+        previous_split = group_splits.setdefault(group, record_split)
+        if previous_split != record_split:
+            raise ValueError(f"line {index}: source-group leakage across splits")
+        digest = hashlib.sha256(raw).hexdigest()
+        previous = seen_content.setdefault(digest, (canonical, record_split))
+        if previous[1] != record_split:
+            raise ValueError(f"line {index}: duplicated bytes across splits")
+        if previous[0] != canonical:
+            raise ValueError(f"line {index}: conflicting labels for identical bytes")
+        if record_split == split:
+            if digest in selected_hashes:
+                raise ValueError(f"line {index}: duplicated evaluation content")
+            selected_hashes.add(digest)
+            records.append((raw, canonical, truth))
     if not records:
         raise ValueError(f"manifest has no '{split}' examples")
 
@@ -91,7 +107,7 @@ def evaluate(manifest: Path, candidate: Path, report: Path,
     output={
         "schema":"codeccat-model-comparison-v1",
         "evaluation_split":split,
-        "warning":"Only a held-out source-disjoint test manifest is independent. This tool cannot prove absence of near-duplicate or training-source overlap.",
+        "warning":"Only a held-out source-disjoint test manifest is independent. Exact cross-split byte and group reuse is rejected; this tool cannot prove absence of near-duplicate or external training-source overlap.",
         "manifest_sha256":hashlib.sha256(manifest.read_bytes()).hexdigest(),
         "candidate_model_sha256":hashlib.sha256(candidate.read_bytes()).hexdigest(),
         "candidate_fingerprint":new.model_fingerprint,

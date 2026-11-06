@@ -150,9 +150,9 @@ def utf8_evidence_contract() -> None:
     raw = text.encode("utf-8")
     assert len(raw) > 64 and _strong_utf8_evidence(raw)
     assert not _strong_utf8_evidence(b"hello ASCII" * 30)
-    assert not _strong_utf8_evidence(raw + b"\\xff")
-    assert not _strong_utf8_evidence(b"\\xef\\xbb\\xbf" + raw)
-    assert not _strong_utf8_evidence(("hello " * 200 + "\\x01" + text).encode("utf-8"))
+    assert not _strong_utf8_evidence(raw + b"\${x}")
+    assert not _strong_utf8_evidence(b"\${x}\${x}\${x}" + raw)
+    assert not _strong_utf8_evidence(("hello " * 200 + "\${x}" + text).encode("utf-8"))
     assert not _strong_utf8_evidence(("café " * 2).encode("utf-8"))
 
     class LatinRanking:

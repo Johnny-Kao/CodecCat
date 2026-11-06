@@ -186,3 +186,38 @@ jobs:
           python -m pip install --disable-pip-version-check twine==7.0.0
           python -m twine check --strict dry-release/*.whl dry-release/*.tar.gz
           echo "FUTURE_RELEASE_ASSEMBLY_DRY_RUN_PASS"
+
+  release-workflow-static-validation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Lint future release workflow expressions, job permissions and shell
+        shell: bash
+        run: |
+          set -euo pipefail
+          go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 -oneline \
+            .github/workflows/source-distribution.yml \
+            .github/workflows/publish-pypi.yml \
+            .github/workflows/publish-stable-release.yml \
+            .github/workflows/native-platform-matrix.yml \
+            .github/workflows/stable-manylinux.yml
+          python -m py_compile scripts/assemble_stable_release.py \
+            scripts/verify_release_assets.py native-prototype/release_reliability.py
+          python - <<'PY'
+          import json,tomllib
+          from pathlib import Path
+          c=json.loads(Path("release-config.json").read_text())
+          py=tomllib.loads(Path("pyproject.toml").read_text())
+          rust=tomllib.loads(Path("native-prototype/Cargo.toml").read_text())
+          assert c["version"]==py["project"]["version"]==rust["package"]["version"]
+          print("RELEASE_WORKFLOWS_AND_VERSION_CONFIG_VALID")
+          PY

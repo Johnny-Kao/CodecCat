@@ -3,6 +3,7 @@
 **Fast character-encoding detection for Python, backed by native inference and strict decoding.**
 
 [![Release](https://img.shields.io/github/v/release/Johnny-Kao/CodecCat)](https://github.com/Johnny-Kao/CodecCat/releases)
+[![PyPI](https://img.shields.io/pypi/v/codeccat)](https://pypi.org/project/codeccat/)
 [![Python](https://img.shields.io/badge/Python-3.10--3.14-blue)](https://github.com/Johnny-Kao/CodecCat)
 [![License](https://img.shields.io/github/license/Johnny-Kao/CodecCat)](LICENSE)
 
@@ -33,23 +34,22 @@ Encoding detection is inherently probabilistic: some byte sequences can validly 
 
 ## Install
 
-CodecCat v0.1.0 is currently distributed through GitHub Releases.
-
-Download the wheel for your operating system and Python version from:
-
-[CodecCat v0.1.0 — Stable](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0)
-
-Then install it:
+Install the latest Stable release from [PyPI](https://pypi.org/project/codeccat/):
 
 ```bash
-python -m pip install ./codeccat-0.1.0-*.whl
+python -m pip install codeccat
 ```
 
-CodecCat supports Python 3.10–3.14 on the published Linux (`manylinux_2_28+`), macOS, and Windows targets.
+To pin the initial Stable release:
 
-On Windows, use the exact downloaded wheel filename instead of the `*` wildcard.
+```bash
+python -m pip install codeccat==0.1.0
+```
 
-PyPI publishing is a separate distribution step and is not currently claimed here.
+CodecCat ships binary Wheels for Python **3.10–3.14** on supported Linux (glibc 2.28+, x86-64/ARM64), macOS (Intel/Apple Silicon) and Windows (x86-64/ARM64). The first PyPI release has **no sdist**, so unsupported platforms cannot fall back to building it from source.
+
+For offline installs and artifact SHA256 checks, use [GitHub Stable v0.1.0](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0).
+
 
 ## Usage
 
@@ -149,10 +149,24 @@ Model and source provenance, including third-party rights considerations, are do
 
 See [Rights and Provenance](RIGHTS_AND_PROVENANCE.md).
 
+## Contributing and maintenance
+
+CodecCat is maintained in public. Contributions are welcome, including concise bug reports, documentation, tests, native packaging fixes, source-aware accuracy studies and reproducible performance work.
+
+- **Start contributing:** [CONTRIBUTING.md](CONTRIBUTING.md) and [Issue templates](https://github.com/Johnny-Kao/CodecCat/issues/new/choose).
+- **Roadmap:** [ROADMAP.md](ROADMAP.md) — shipped work, near-term priorities and longer-term research; no fixed delivery promises.
+- **Review and release decisions:** [MAINTAINING.md](MAINTAINING.md), [API stability contract](docs/STABILITY.md), and [Release notes](docs/releases/README.md).
+- **Help and conduct:** [SUPPORT.md](SUPPORT.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Please [report security problems privately](SECURITY.md).
+
+You can submit small documentation fixes directly as PRs. Discuss larger API, model, dependency or release changes in an Issue before implementation. CI covers supported platforms; contributors are not expected to reproduce the entire six-platform matrix locally.
+
 ## Links
 
-[Releases](https://github.com/Johnny-Kao/CodecCat/releases) ·
+[PyPI](https://pypi.org/project/codeccat/) ·
+[GitHub Releases](https://github.com/Johnny-Kao/CodecCat/releases) ·
+[Release notes](docs/releases/README.md) ·
 [Issues](https://github.com/Johnny-Kao/CodecCat/issues) ·
+[Roadmap](ROADMAP.md) ·
 [Benchmarks](docs/BENCHMARKS.md) ·
 [Stability](docs/STABILITY.md) ·
 [License](LICENSE)

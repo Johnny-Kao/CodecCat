@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Read the contributing guide
+    url: https://github.com/Johnny-Kao/CodecCat/blob/main/CONTRIBUTING.md
+    about: Guidance for sending useful reports and focused pull requests.
+  - name: Security reporting
+    url: https://github.com/Johnny-Kao/CodecCat/blob/main/SECURITY.md
+    about: Please do not disclose sensitive vulnerabilities in public issues.

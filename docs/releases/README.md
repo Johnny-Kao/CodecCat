@@ -1,0 +1,13 @@
+# Release notes
+
+Release notes are kept here so the repository root stays focused on usage and contribution. These notes document the **state at each release**; historical Alpha statements about PyPI and availability are preserved as originally written.
+
+| Version | Status | Notes | Published artifacts |
+| --- | --- | --- | --- |
+| [v0.1.0](v0.1.0.md) | Stable | First stable API and manylinux Wheels | [GitHub](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0) · [PyPI](https://pypi.org/project/codeccat/0.1.0/) |
+| [v0.1.0a5](v0.1.0a5.md) | Alpha | Short-text UTF-8 evidence improvements | [GitHub](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0a5) |
+| [v0.1.0a4](v0.1.0a4.md) | Alpha | Conservative UTF-8 recovery | [GitHub](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0a4) |
+| [v0.1.0a3](v0.1.0a3.md) | Alpha | Native Rust inference and six-platform Wheels | [GitHub](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0a3) |
+| [v0.1.0a2](v0.1.0a2.md) | Alpha | Original model-bearing Python API and CLI | [GitHub](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0a2) |
+
+For current support and release procedures, refer to [MAINTAINING.md](../../MAINTAINING.md), [docs/STABILITY.md](../STABILITY.md), and [docs/PYPI_PUBLISHING.md](../PYPI_PUBLISHING.md). The public release pages hold the authoritative downloadable artifact history; do not alter published Wheels or tags.

@@ -80,7 +80,7 @@ jobs:
           gh release create "$TAG" release-assets/* \
             --repo "$GITHUB_REPOSITORY" --verify-tag \
             --title "CodecCat v0.1.0 — Stable" \
-            --notes-file RELEASE_NOTES_v0.1.0.md --latest
+            --notes-file docs/releases/v0.1.0.md --latest
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" \
             --json isDraft,isPrerelease,assets,url > release-view.json
           python - <<'PY'

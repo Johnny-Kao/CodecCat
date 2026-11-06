@@ -1,0 +1,80 @@
+name: Released Stable quality failure attribution (research only)
+
+on:
+  pull_request:
+    paths:
+      - "experiments/stable_quality_failure_triage.py"
+      - ".github/workflows/stable-quality-failure-triage.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze-published-runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install published Stable Runtime and pinned comparator
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check --only-binary=:all: --no-deps codeccat==0.1.0
+          python -m pip install --disable-pip-version-check chardet==7.7.0 charset-normalizer==3.5.2
+      - name: Checkout training provenance
+        uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: source-data
+          persist-credentials: false
+      - name: Checkout fixed prior GTK development source
+        uses: actions/checkout@v4
+        with:
+          repository: GNOME/gtk
+          ref: 7c578d79eb8347b14a1717bfcc0084674a43c562
+          path: blind-source
+          sparse-checkout: po
+          persist-credentials: false
+      - name: Checkout fixed prior uchardet development source
+        uses: actions/checkout@v4
+        with:
+          repository: BYVoid/uchardet
+          ref: 4e685757780cb3c652fc6c9ec759f62888969ec9
+          path: external-encoding-source
+          sparse-checkout: test
+          persist-credentials: false
+      - name: Recreate pinned training-source fingerprint
+        run: python datasets/official/prepare_manifest.py --corpus source-data
+      - name: Attribute decoded-text failures against overlap categories
+        run: python experiments/stable_quality_failure_triage.py
+      - name: Validate only aggregate result leaves the job
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("research-results/stable-quality-triage.json").read_text())
+          assert r["runtime_version"] == "0.1.0"
+          assert r["gtk"]["all"]["n"] == 328
+          assert r["uchardet"]["all"]["n"] == 102
+          assert r["uchardet"]["exact"]["n"] == 33
+          assert r["uchardet"]["candidate"]["n"] == 17
+          assert r["uchardet"]["not_detected"]["n"] == 52
+          assert not r["stores_raw_text"]
+          assert r["previously_observed_data"]
+          print("STABLE_QUALITY_TRIAGE_COUNTS_VALID")
+          PY
+      - name: Upload aggregate data only; no source texts or models
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stable-quality-triage-aggregate
+          path: research-results/stable-quality-triage.json
+          if-no-files-found: error
+          retention-days: 7

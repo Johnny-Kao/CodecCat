@@ -58,7 +58,9 @@ def write_string(parts,s):
     if not 0<len(payload)<=256:raise ValueError("invalid model string length")
     parts.extend((struct.pack("<H",len(payload)),payload))
 
-def export_ccm(path,vectorizer,classifier):
+def export_ccm(path,vectorizer,classifier,precision="f64"):
+    if precision not in ("f64", "f32"):
+        raise ValueError("unsupported weight precision")
     vocab=vectorizer.vocabulary_
     width=len(vectorizer.idf_)
     classes=[str(x) for x in classifier.classes_]
@@ -70,20 +72,23 @@ def export_ccm(path,vectorizer,classifier):
     if width>200_000 or len(classes)>256:raise ValueError("model exceeds native limit")
     low,high=vectorizer.ngram_range
     flags=int(vectorizer.binary)|2*int(vectorizer.sublinear_tf)
-    parts=[struct.pack("<4sIIBBBB",b"CCM1",width,len(classes),low,high,flags,0)]
+    schema=b"CCM2" if precision=="f32" else b"CCM1"
+    parts=[struct.pack("<4sIIBBBB",schema,width,len(classes),low,high,flags,0)]
     for c in classes:write_string(parts,c)
     for gram,index in sorted(vocab.items(),key=lambda item:item[1]):
         parts.append(struct.pack("<I",index))
         write_string(parts,gram)
-    for tensor in (vectorizer.idf_,classifier.intercept_,classifier.coef_):
+    for tensor in (vectorizer.idf_, classifier.intercept_):
         parts.append(np.asarray(tensor,dtype="<f8").tobytes(order="C"))
+    weights_dtype="<f4" if precision=="f32" else "<f8"
+    parts.append(np.asarray(classifier.coef_,dtype=weights_dtype).tobytes(order="C"))
     data=b"".join(parts)
     data+=hashlib.sha256(data).digest()
     path.parent.mkdir(parents=True,exist_ok=True)
     path.write_bytes(data)
     return hashlib.sha256(data).hexdigest(),len(data)
 
-def fit(manifest:Path,output:Path,report:Path,seed:int):
+def fit(manifest:Path,output:Path,report:Path,seed:int,precision:str="f64"):
     train,validation=read_manifest(manifest)
     vec=TfidfVectorizer(analyzer="char",ngram_range=(2,3),
         min_df=2,max_features=45000,sublinear_tf=True)
@@ -95,11 +100,12 @@ def fit(manifest:Path,output:Path,report:Path,seed:int):
     xval=vec.transform([r[0][:4096].decode("latin1") for r in validation])
     pred=model.predict(xval)
     accuracy=accuracy_score([r[1] for r in validation],pred)
-    digest,size=export_ccm(output,vec,model)
+    digest,size=export_ccm(output,vec,model,precision=precision)
     result={
         "schema":"codeccat-offline-train-v1",
         "feature_profile":"stable23-equivalent",
-        "model_schema":"CCM1",
+        "model_schema":"CCM2" if precision=="f32" else "CCM1",
+        "weight_precision":precision,
         "seed":seed,
         "training_n":len(train),"validation_n":len(validation),
         "training_groups":len({r[2] for r in train}),
@@ -142,12 +148,14 @@ def main():
     # Preserve the original CLI without subcommands for existing users.
     if args and args[0]=="fit":
         args=args[1:]
-    p=argparse.ArgumentParser(description="Offline-only CodecCat training; exports numeric CCM1 for Native Runtime")
+    p=argparse.ArgumentParser(description="Offline-only CodecCat training; exports numeric CCM1/CCM2 for Native Runtime")
     p.add_argument("--manifest",type=Path,required=True)
     p.add_argument("--output",type=Path,required=True)
     p.add_argument("--report",type=Path,required=True)
     p.add_argument("--seed",type=int,default=20261015)
+    p.add_argument("--precision",choices=("f64","f32"),default="f64",
+                   help="f64 exports CCM1 (default); f32 exports compact CCM2 weights")
     a=p.parse_args(args)
-    print("CODECCAT_TRAIN_RESULT",json.dumps(fit(a.manifest,a.output,a.report,a.seed)),flush=True)
+    print("CODECCAT_TRAIN_RESULT",json.dumps(fit(a.manifest,a.output,a.report,a.seed,precision=a.precision)),flush=True)
 
 if __name__=="__main__":main()

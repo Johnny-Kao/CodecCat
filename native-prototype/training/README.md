@@ -40,3 +40,14 @@ python -m codeccat_train evaluate --model custom.ccm \
 This compares decoded Unicode text (primary) and exact codec labels (secondary), with per-codec results and paired improves/regressions. `--split validation` can be used for development, but **do not call it an independent holdout**. The command does not replace or update the official model.
 
 See [quick start](docs/GETTING_STARTED.md). The legacy `python -m codeccat_train --manifest ...` training command remains supported.
+
+## Compact CCM2 export
+
+The same trainer can export `CCM2` float32 weights instead of the default `CCM1` float64 weights:
+
+```bash
+codeccat-train fit --manifest dataset/manifest.jsonl --output custom-f32.ccm \\
+  --report train-f32.json --precision f32
+```
+
+`--precision f64` remains the default for compatibility. CCM2 stores IDF and bias as float64 while compressing the weight matrix to float32. A smaller model does not imply better accuracy; compare both models on independently held-out bytes before choosing one. This is a format option for custom models, **not** reproduction of the published official CCM2 model.

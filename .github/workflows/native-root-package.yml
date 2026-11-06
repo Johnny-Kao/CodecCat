@@ -29,7 +29,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p ci-fixtures native-prototype/model native-prototype/python/codeccat/models
-          curl -fsSL --retry 3 -o /tmp/native-reference.tar.gz "https://github.com/Johnny-Kao/CodecCat/releases/download/v0.1.0a5/native-reference-v0.1.0a5.tar.gz"
+          curl -fsSL --retry 3 -o /tmp/native-reference.tar.gz "https://github.com/Johnny-Kao/CodecCat/releases/download/v0.1.0a4/native-reference-v0.1.0a4.tar.gz"
           echo "e3dd654817fb0e3324910b1a39af9bc19185400582d5a066c533d7cc5dd81c8c  /tmp/native-reference.tar.gz" | sha256sum -c -
           tar -xzf /tmp/native-reference.tar.gz -C ci-fixtures
           echo "16073306b5027bf93acc2883f57fbda0cb0cf2d77b9a7bb62cf1b07fcbb9748b  ci-fixtures/default.ccm" | sha256sum -c -

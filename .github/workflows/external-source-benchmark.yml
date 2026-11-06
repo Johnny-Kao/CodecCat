@@ -1,0 +1,90 @@
+name: Independent-source Stable decoder confirmation
+
+on:
+  pull_request:
+    paths:
+      - "experiments/external_source_benchmark.py"
+      - "research/SOURCE_DISJOINT_BENCHMARK_PROTOCOL_2026-11-07.md"
+      - ".github/workflows/external-source-benchmark.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: source-data
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: GNOME/nautilus
+          ref: 6412aa2752fa91309b4d6e25addb8ed11afd6e69
+          path: nautilus-confirmation
+          sparse-checkout: po
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: python/cpython
+          ref: f64e51563a85667446793ad61ea521d005ceb171
+          path: cpython-confirmation
+          sparse-checkout: Lib/test/cjkencodings
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install immutable published Stable Wheel and fixed comparators
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --only-binary=:all: --no-deps codeccat==0.1.0
+          python -m pip install chardet==7.7.0 charset-normalizer==3.5.2
+          python - <<'PY'
+          import hashlib
+          from importlib.resources import files
+          model=files("codeccat").joinpath("models/default.ccm").read_bytes()
+          assert hashlib.sha256(model).hexdigest()=="16073306b5027bf93acc2883f57fbda0cb0cf2d77b9a7bb62cf1b07fcbb9748b"
+          print("PUBLISHED_MODEL_FROZEN")
+          PY
+      - name: Check source revisions and reconstruct historical manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C source-data rev-parse HEAD)" = "b0c0d206913ba118ffea2f7d306883e7a4a76db7"
+          test "$(git -C nautilus-confirmation rev-parse HEAD)" = "6412aa2752fa91309b4d6e25addb8ed11afd6e69"
+          test "$(git -C cpython-confirmation rev-parse HEAD)" = "f64e51563a85667446793ad61ea521d005ceb171"
+          python datasets/official/prepare_manifest.py --corpus source-data
+      - name: Screen train overlap BEFORE scoring, then run all three detectors
+        run: python experiments/external_source_benchmark.py
+      - name: Check metadata-only report
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("research-results/external-source-benchmark.json").read_text())
+          assert x["status"]=="screen_negative_evaluated",x["status"]
+          assert x["raw_content_exported"] is False
+          assert x["eligible"] >= 130
+          assert x["groups"]["cpython_cjk_legacy"]["n"]==15
+          assert x["groups"]["cpython_cjk_utf8"]["n"]==15
+          assert all(not row["exact_full"] and not row["exact_prefix"] and not row["sampled_near_candidate"]
+                     for row in x["inputs_metadata_only"])
+          print("EXTERNAL_BENCHMARK_METADATA_VALID")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: external-source-benchmark-metadata
+          path: research-results/external-source-benchmark.json
+          if-no-files-found: warn
+          retention-days: 30

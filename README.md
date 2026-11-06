@@ -43,33 +43,22 @@ codeccat file.txt
 codeccat --decode file.txt > readable.txt
 ```
 
-## Accuracy
+## Comparison
 
-Previous **stable23 model** evaluations used text from sources outside its training corpus. The numbers below count **correctly decoded text**, not necessarily an exact encoding-name match.
+Tested with the released **v0.1.0a3 Native Wheel** against chardet and charset-normalizer on the **same 843 samples** across five fixed test sets.
 
-| Test source | CodecCat | chardet | charset-normalizer |
+| | CodecCat | chardet | charset-normalizer |
 |---|---:|---:|---:|
-| Vim translation files (159 samples) | 155/159 | **159/159** | 143/159 |
-| Git translation files (76 samples) | 76/76 | 76/76 | 76/76 |
-| Tatoeba CC0 text, re-encoded (560 samples) | 524/560 | **554/560** | 498/560 |
+| Correctly decoded text | 95.49% | **98.34%** | 82.80% |
+| Exact encoding name | **90.87%** | 84.46% | 69.16% |
+| Total CPU time | **598 ms** | 732 ms | 881 ms |
+| Typical detection time (p50 range) | 0.73–0.80 ms | **0.36–0.61 ms** | 0.63–0.84 ms |
+| Peak RAM (range) | 66–69 MiB | 61–64 MiB | **40–44 MiB** |
 
-These are **historical stable23 tests**, not a fresh independent evaluation of the downloaded Native wheel. The Tatoeba test uses synthetically re-encoded text; the Vim and Git samples contain related windows from the same files. Results vary by source, and chardet performed better on two of these tests.
+**chardet decoded more text correctly.** CodecCat used less CPU overall and had a better slower-case (p95) latency, but used more RAM.
 
-[Accuracy test details and original CI evidence](docs/BENCHMARKS.md#accuracy-across-data-sources)
+**About the test:** The data includes CodecCat training sources and previously examined files. These figures describe this **specific benchmark**, not independent real-world accuracy. [See the five test sets, sources and full results](docs/BENCHMARKS.md#five-corpus-benchmark-released-native-v010a3).
 
-## Speed and resources
-
-A separate Linux/Python 3.12 benchmark measured 304 development samples:
-
-| | CodecCat Native | chardet | charset-normalizer |
-|---|---:|---:|---:|
-| Median detection time | **0.47 ms** | 0.54 ms | 0.89 ms |
-| Peak process memory | 55 MiB | 52 MiB | **26 MiB** |
-| Installed environment size | 30 MB | 16 MB | **14 MB** |
-
-CodecCat was faster on this workload, but used more memory and disk space. Different libraries also perform different work during their API calls. **The 304 development samples are not an independent accuracy benchmark.**
-
-[Full performance results and methodology](docs/BENCHMARKS.md#performance-and-resources)
 
 ## Notes
 

@@ -47,7 +47,7 @@ class HoldoutOverlapTests(unittest.TestCase):
 
     def test_shared_blocks_screen_overlap_on_shifted_window(self):
         (self.uch / "samples" / "utf-8.txt").write_bytes(
-            b"Preface to independent sample " * 4 + self.raw[250:2600]
+            b"Preface to independent sample " * 4 + self.raw[:2400]
         )
         result = module.audit(self.manifest, self.gtk, self.uch)
         stats = result["source_results"]["uchardet"]

@@ -277,6 +277,24 @@ def variant_worker(engine, corpus):
     count_correct=sum(txt==ref for (_,txt),ref in zip(results,expected))
     label_correct=sum(enc==norm(name) for (enc,_),(_,name) in zip(results,samples))
     null_count=sum(txt is None for _,txt in results)
+    failures=[]
+    for i, ((prediction, txt), ref) in enumerate(zip(results, expected)):
+        if txt != ref and rows[i]["pool"] == "codeccat_external":
+            item = {
+                "source": rows[i]["source"], "corpus": corpus,
+                "sha256": rows[i]["sha256"], "size": len(samples[i][0]),
+                "truth": samples[i][1], "predicted": prediction,
+                "predicted_text_none": txt is None,
+                "truth_utf8": samples[i][1] == "utf-8",
+                "prefix_utf8_valid": get_text(samples[i][0], "utf-8") is not None,
+                "input_ascii": samples[i][0].isascii(),
+            }
+            if engine == "codeccat":
+                detail = detector.detect(samples[i][0])
+                item.update(candidates=list(detail.candidates), reason=detail.reason,
+                            ambiguous=detail.ambiguous, bom=detail.bom_encoding)
+            failures.append(item)
+    (OUT / f"{corpus}-{engine}-failures.json").write_text(json.dumps(failures,indent=2)+"\n")
     per_pool={}
     for pool in ("chardet","charset_normalizer","codeccat_external"):
         ix=[i for i,row in enumerate(rows) if row["pool"]==pool]

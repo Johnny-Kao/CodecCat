@@ -1,0 +1,60 @@
+name: CodecCat fresh-source released-vs-staging gate
+on:
+  workflow_dispatch:
+  push:
+    branches: [staging/utf8-evidence-v2-20261106]
+    paths:
+      - experiments/fresh_source_utf8_pair.py
+      - .github/workflows/fresh-source-utf8-pair.yml
+permissions:
+  contents: read
+  actions: read
+jobs:
+  paired:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: GNOME/gnome-software
+          ref: d693edda74a6ae3a5360a6d19ab558c2fd3ac8cb
+          path: fresh-source
+          sparse-checkout: po
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-wheel-linux-x64
+          run-id: 42156575255
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: candidate-wheel
+      - name: Install isolated actual a4 baseline and staged wheel
+        run: |
+          python -m venv .old
+          .old/bin/python -m pip install --no-deps https://github.com/Johnny-Kao/CodecCat/releases/download/v0.1.0a4/codeccat-0.1.0a4-cp310-abi3-linux_x86_64.whl
+          python -m pip install --no-deps candidate-wheel/*.whl
+      - name: Verify exact same model bytes in both wheels
+        run: |
+          python - <<'PY'
+          import subprocess
+          from hashlib import sha256
+          q="from importlib.resources import files;import hashlib;print(hashlib.sha256(files('codeccat').joinpath('models/default.ccm').read_bytes()).hexdigest())"
+          old=subprocess.check_output([".old/bin/python","-c",q],text=True).strip()
+          new=subprocess.check_output(["python","-c",q],text=True).strip()
+          assert old==new=="16073306b5027bf93acc2883f57fbda0cb0cf2d77b9a7bb62cf1b07fcbb9748b",(old,new)
+          print("SAME_RELEASE_MODEL_PASS",new)
+          PY
+      - name: Score both versions on same frozen source bytes
+        run: |
+          test "$(git -C fresh-source rev-parse HEAD)" = "d693edda74a6ae3a5360a6d19ab558c2fd3ac8cb"
+          .old/bin/python experiments/fresh_source_utf8_pair.py --tag a4
+          python experiments/fresh_source_utf8_pair.py --tag candidate
+          python experiments/fresh_source_utf8_pair.py --compare
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fresh-source-paired-results
+          path: research-results/gnome-software-utf8/
+          retention-days: 90

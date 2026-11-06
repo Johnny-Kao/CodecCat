@@ -99,7 +99,7 @@ def api_contract() -> None:
     dist = importlib.metadata.distribution("codeccat")
     requirements = dist.requires or []
     assert all("extra == " in r and "legacy" in r for r in requirements), requirements
-    assert dist.version == "0.1.0a4", dist.version
+    assert dist.version == "0.1.0a5", dist.version
     assert CodecCat.__module__ == "codeccat.usable"
     assert detect(b"hello").text == "hello"
     assert decode(b"hello") == "hello"
@@ -154,6 +154,10 @@ def utf8_evidence_contract() -> None:
     assert not _strong_utf8_evidence(b"\xef\xbb\xbf" + raw)
     assert not _strong_utf8_evidence(("hello " * 200 + "\x01" + text).encode("utf-8"))
     assert not _strong_utf8_evidence(("café " * 2).encode("utf-8"))
+    # Short non-ASCII files should be salvageable without relaxing strict
+    # Unicode validity, BOM precedence, or the minimum total byte length.
+    assert not _strong_utf8_evidence(("ascii " * 30 + "éé").encode("utf-8"))
+    assert _strong_utf8_evidence(("ascii " * 30 + "ééé").encode("utf-8"))
 
     class LatinRanking:
         class classifier:

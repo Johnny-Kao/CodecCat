@@ -76,6 +76,24 @@ jobs:
           assert sum(v["n"] for v in x["by_codec"].values()) == 12
           print("TRAINER_MODEL_COMPARISON_PASS", x["paired"])
           PY
+      - name: Verify CLI evaluation with official runtime installed in trainer environment
+        shell: bash
+        run: |
+          .train-env/bin/python -m pip install --disable-pip-version-check --only-binary=:all: --no-deps codeccat==0.1.0
+          .train-env/bin/python -m codeccat_train evaluate \
+            --model trainer-results/custom.ccm \
+            --manifest native-prototype/training/smoke-data/manifest.jsonl \
+            --split validation \
+            --report trainer-results/comparison-cli.json
+          .train-env/bin/python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path("trainer-results/comparison-cli.json").read_text())
+          b=json.loads(Path("trainer-results/comparison.json").read_text())
+          assert a==b
+          assert a["results"]["candidate"]["correct_text"]==12
+          print("TRAINER_COMPARE_CLI_AND_API_PASS")
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -84,5 +102,6 @@ jobs:
             trainer-results/training-report.json
             trainer-results/repeat-report.json
             trainer-results/comparison.json
+            trainer-results/comparison-cli.json
           if-no-files-found: ignore
           retention-days: 7

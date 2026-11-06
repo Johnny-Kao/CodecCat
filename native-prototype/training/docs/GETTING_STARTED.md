@@ -50,11 +50,11 @@ Use bytes with independently known encodings and valid redistribution/training r
 
 ## Acceptance and next steps
 
-- **P0:** [Trainer E2E CI](../../.github/workflows/trainer-e2e.yml) installs Trainer separately, trains twice and checks same-env reproducibility, then loads the resulting model with an independent **PyPI `codeccat==0.1.0`** Runtime environment; it also tests some unsafe manifest cases. No model is promoted by this check.
+- **P0:** [Trainer E2E CI](../../../.github/workflows/trainer-e2e.yml) installs Trainer separately, trains twice and checks same-env reproducibility, then loads the resulting model with an independent **PyPI `codeccat==0.1.0`** Runtime environment; it also tests some unsafe manifest cases. No model is promoted by this check.
 - **P1:** Add official dataset source manifest and explicit license/provenance assessment, holdout/evaluation by exact decoded text, per-codec deltas, and frozen training parameters. No claim that every source can legally be mirrored in this repo.
 - **P2:** Model comparison and contributor submission gate, independent candidate model release, and release process separated from Stable inference.
 
-See [RIGHTS_AND_PROVENANCE.md](../../RIGHTS_AND_PROVENANCE.md), [ROADMAP.md](../../ROADMAP.md), and [CONTRIBUTING.md](../../CONTRIBUTING.md).
+See [RIGHTS_AND_PROVENANCE.md](../../../RIGHTS_AND_PROVENANCE.md), [ROADMAP.md](../../../ROADMAP.md), and [CONTRIBUTING.md](../../../CONTRIBUTING.md).
 
 ## Compare your model against official Stable
 

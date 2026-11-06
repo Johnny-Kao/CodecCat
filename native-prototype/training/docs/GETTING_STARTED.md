@@ -84,3 +84,28 @@ codeccat-train fit --manifest my-data/manifest.jsonl --output custom-f32.ccm \\
 ```
 
 This does not change training data or the learned model; it changes stored weight precision and may introduce minor numerical differences. It does not reproduce the official default model, which requires its own complete dataset and training recipe.
+
+## Replaying historical residual-focused training (research only)
+
+For investigations that need to match the old Stable23 data-selection
+method, `--residual-focus` applies the historical sample filter before the
+**same** L2 fitting core. `--train-only` accepts a manifest with only
+`"split":"train"` records, which matches the old release-building choice
+to fit on every eligible example:
+
+```bash
+codeccat-train fit --manifest local/training.jsonl --train-only \
+  --residual-focus --precision f32 --output candidate.ccm \
+  --report candidate-report.json
+```
+
+In train-only mode, `validation_codec_label_accuracy` is `null` and no
+independent accuracy claim is made. The report records original training
+size, selected training size, removed counts per codec and dataset
+fingerprints before and after filtering. The default community path still
+**requires** validation records and does not filter samples.
+
+These switches are necessary but **not sufficient** to reproduce the
+published official model. The old source parser, exact ordered and
+deduplicated byte prefixes, pinned environment and separate L3 model must
+also be handled; see [official reconstruction status](../../../datasets/official/README.md).

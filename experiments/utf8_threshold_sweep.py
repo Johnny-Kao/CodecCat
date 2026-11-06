@@ -4,11 +4,13 @@ Records helps/harms before any code change. The two sources have already
 been inspected and are development diagnostics, NOT untouched holdouts.
 """
 from __future__ import annotations
-import json,sys,collections
+import json,sys,collections,base64
 from pathlib import Path
 sys.path.insert(0,"experiments")
 import gtk_blind_holdout as gtk
 import uchardet_blind_holdout as multi
+import five_corpus_benchmark as five
+import native_utf8_external_gate as glib
 from codeccat import CodecCat
 import codeccat.vnext_decoding as decoding
 
@@ -18,6 +20,14 @@ for x in gtk.cases():
 ms,_=multi.source_samples()
 for x in ms:
     cases.append(dict(pool="multicodec",raw=x["raw"],truth=x["expected"],label=x["truth"],source=x["source"]))
+five.build_fixtures()
+for n in range(1,6):
+    for x in json.loads((five.OUT/f"corpus-{n}.json").read_text()):
+        raw=base64.b64decode(x["data"])
+        cases.append(dict(pool="five_corpus",raw=raw,truth=five.get_text(raw,x["encoding"]),
+                          label=x["encoding"],source=x["source"]))
+for x in glib.cases():
+    cases.append(dict(pool="glib",raw=x["raw"],truth=x["expected"],label=x["truth"],source=x["name"]))
 print("SOURCE_COUNTS",dict(collections.Counter(x["pool"] for x in cases)),flush=True)
 
 def evidence(raw,threshold):
@@ -38,7 +48,7 @@ try:
         decoding._strong_utf8_evidence=lambda raw,t=threshold:evidence(raw,t)
         new=[det.detect(x["raw"]).text==x["truth"] for x in cases]
         per={}
-        for group in ("gtk","multicodec"):
+        for group in ("gtk","multicodec","five_corpus","glib"):
             indices=[i for i,x in enumerate(cases) if x["pool"]==group]
             helps=[i for i in indices if not original[i] and new[i]]
             harms=[i for i in indices if original[i] and not new[i]]

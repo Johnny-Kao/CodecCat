@@ -1,4 +1,4 @@
-# UTF-8 Evidence v2 — Candidate v0.1.0a5
+# UTF-8 Evidence v2 — Released v0.1.0a5
 
 ## Root cause
 
@@ -29,3 +29,12 @@ All tests use the same shipped v0.1.0a4 model bytes and original source bytes, w
 - The new GNOME Software source tests a translation-file domain; genuine messy real-world files and source independence still need ongoing evaluation.
 - No retraining or re-tuning of the shipped model occurred.
 - This result is an **experimental Alpha improvement**, not a Stable signoff.
+
+## Confirmed published release
+
+[v0.1.0a5 six-platform Tag CI #42157726285](https://github.com/Johnny-Kao/CodecCat/actions/runs/42157726285) passed on Linux, macOS and Windows, both x86-64 and ARM64. All Wheels contain the exact same frozen model SHA256 `16073306b5027bf93acc2883f57fbda0cb0cf2d77b9a7bb62cf1b07fcbb9748b`.
+
+[Post-release published-Wheel benchmark #42158308518](https://github.com/Johnny-Kao/CodecCat/actions/runs/42158308518) passed: a5 decoded **826/843** text samples correctly (**97.98%**), versus chardet **829/843 (98.34%)** and charset-normalizer **698/843 (82.80%)**. CodecCat exact encoding labels: **787/843 (93.36%)**.
+
+These numbers are specific to this development benchmark; they do **not** certify general real-world accuracy or Stable readiness. The five-corpus source mix includes 633 training-source samples. The newly pinned GNOME Software paired evaluation remains the stronger source-specific confirmation of improvement, but not representative population proof.
+

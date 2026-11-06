@@ -46,6 +46,10 @@ Western silent errors: fresh total **111 → 21**. Natural UTF-8: **210/211** be
 
 **Interpretation:** A principled C1-character anomaly explains a substantial share of the previously observed Western misclassifications, and this exact rule replicated its benefit across two additional source projects with no observed regressions. This is stronger than a one-file fix or retuning to the 29 original errors.
 
+## Original Legacy bytes regression (previously inspected source)
+
+[Original-file regression CI #42269753746](https://github.com/Johnny-Kao/CodecCat/actions/runs/42269753746) PASS on pinned original `BYVoid/uchardet` test bytes (the established 102-case extraction): **95/102 → 97/102**, helped 2, harmed 0; the candidate changed 3 outputs. This source is **not blind or clean of training overlap**, so it only checks that the C1 hypothesis is not limited to synthetically recoded PO text. It also provides no guarantee against legitimate C1 characters or other unseen Legacy source families.
+
 ## Why this is not ready for main Runtime
 
 - A C1 control character **may be intentionally present** in genuine ISO-8859-1 text. Reranking could corrupt intended text in cases not represented by these samples. Negative results on 728+ samples cannot establish universal zero-harm.

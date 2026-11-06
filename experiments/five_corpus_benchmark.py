@@ -253,8 +253,17 @@ def variant_worker(engine, corpus):
     count_correct=sum(txt==ref for (_,txt),ref in zip(results,expected))
     label_correct=sum(enc==norm(name) for (enc,_),(_,name) in zip(results,samples))
     null_count=sum(txt is None for _,txt in results)
+    per_pool={}
+    for pool in ("chardet","charset_normalizer","codeccat_external"):
+        ix=[i for i,row in enumerate(rows) if row["pool"]==pool]
+        if not ix:
+            continue
+        per_pool[pool]={"n":len(ix),
+                        "correct_text":sum(results[i][1]==expected[i] for i in ix),
+                        "correct_label":sum(results[i][0]==norm(samples[i][1]) for i in ix),
+                        "cpu_ms":round(sum(cpu[i] for i in ix),3)}
     output={
-        "engine":engine,"corpus":corpus, "n":len(samples),
+        "engine":engine,"corpus":corpus, "n":len(samples), "per_pool":per_pool,
         "correct_text":count_correct, "correct_label":label_correct,
         "abstained":null_count, "accuracy_text_pct":round(count_correct/len(samples)*100,3),
         "accuracy_label_pct":round(label_correct/len(samples)*100,3),
@@ -286,7 +295,17 @@ def summary():
                    "cpu_total_ms":round(sum(x["cpu_total_ms"] for x in docs),3),
                    "wall_p50_by_corpus_ms":[x["wall_p50_ms"] for x in docs],
                    "rss_mib_by_corpus":[x["peak_rss_mib"] for x in docs]}
-    result={"schema":"codeccat-five-corpus-v1","manifest":manifest,"per_corpus":matrix,
+    pooled={}
+    for pool in ("chardet","charset_normalizer","codeccat_external"):
+        pooled[pool]={}
+        for e in ENGINES:
+            parts=[matrix[str(n)][e]["per_pool"].get(pool,{"n":0,"correct_text":0,"correct_label":0,"cpu_ms":0}) for n in range(1,6)]
+            count=sum(p["n"] for p in parts)
+            pooled[pool][e]={"n":count,"correct_text":sum(p["correct_text"] for p in parts),
+                             "correct_label":sum(p["correct_label"] for p in parts),
+                             "text_pct":round(100*sum(p["correct_text"] for p in parts)/count,3) if count else None,
+                             "cpu_total_ms":round(sum(p["cpu_ms"] for p in parts),3)}
+    result={"schema":"codeccat-five-corpus-v1","manifest":manifest,"per_corpus":matrix,"by_source_pool":pooled,
             "overall":totals,
             "limitations":["chardet/test-data is CodecCat training data: accuracy is contaminated for that pool",
                            "Vim/Git sources were previously investigated, not fresh unseen blind data",
@@ -296,7 +315,7 @@ def summary():
                            "Correct decoded Unicode text, not historical codec-name match, is primary metric",
                            "This is an internal comparative benchmark, not a statistically representative real-world accuracy estimate"]}
     (OUT/"summary.json").write_text(json.dumps(result,indent=2)+"\n")
-    print("FIVE_CORPUS_SUMMARY",json.dumps({"manifest":manifest["corpora"],"overall":totals}),flush=True)
+    print("FIVE_CORPUS_SUMMARY",json.dumps({"manifest":manifest["corpora"],"overall":totals,"by_source_pool":pooled}),flush=True)
 
 
 if __name__=="__main__":

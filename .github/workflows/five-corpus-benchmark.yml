@@ -73,7 +73,7 @@ jobs:
           if [[ -n "${{ inputs.candidate_run_id }}" ]]; then
             python -m pip install --no-deps candidate-wheel/*.whl
           else
-            python -m pip install --no-deps "https://github.com/Johnny-Kao/CodecCat/releases/download/v0.1.0a4/codeccat-0.1.0a4-cp310-abi3-linux_x86_64.whl"
+            python -m pip install --no-deps "https://github.com/Johnny-Kao/CodecCat/releases/download/v0.1.0a5/codeccat-0.1.0a5-cp310-abi3-linux_x86_64.whl"
           fi
           python -m pip install "chardet==7.7.0" "charset-normalizer==3.5.2"
       - name: Generate frozen seeded nonoverlapping test groups
@@ -99,10 +99,10 @@ jobs:
           pools=x["by_source_pool"]
           print("CANDIDATE_NATIVE_QUALITY",json.dumps({"overall":ours,"by_pool":{k:v["codeccat"] for k,v in pools.items()}}))
           assert ours["n"]==843, ("dataset not the same",ours["n"])
-          assert ours["correct_text"]>=805, ("overall decoding regression",ours)
+          assert ours["correct_text"]>=819, ("overall decoding regression",ours)
           assert pools["chardet"]["codeccat"]["correct_text"]>=622, "training-source regression"
           assert pools["charset_normalizer"]["codeccat"]["correct_text"]>=14, "upstream fixture regression"
-          assert pools["codeccat_external"]["codeccat"]["correct_text"]>=169, "external-source regression"
+          assert pools["codeccat_external"]["codeccat"]["correct_text"]>=183, "external-source regression"
           print("CANDIDATE_NATIVE_QUALITY_GATE_PASS")
           PY
       - name: Compare candidate to released baseline on fresh pinned GLib catalogs
@@ -111,7 +111,7 @@ jobs:
         run: |
           test "$(git -C benchmark-sources/glib rev-parse HEAD)" = "d34a927488b8b664cbd305dc880e86f34f8ca467"
           python -m venv .native-baseline
-          .native-baseline/bin/python -m pip install --no-deps "https://github.com/Johnny-Kao/CodecCat/releases/download/v0.1.0a3/codeccat-0.1.0a3-cp310-abi3-linux_x86_64.whl"
+          .native-baseline/bin/python -m pip install --no-deps "https://github.com/Johnny-Kao/CodecCat/releases/download/v0.1.0a4/codeccat-0.1.0a4-cp310-abi3-linux_x86_64.whl"
           python - <<'PY'
           import subprocess
           code = ("import hashlib,importlib.metadata as md; from importlib.resources import files; "
@@ -120,7 +120,7 @@ jobs:
           old = subprocess.check_output([".native-baseline/bin/python", "-c", code], text=True).split()
           new = subprocess.check_output(["python", "-c", code], text=True).split()
           print("PAIRED_RELEASE_MODEL_IDENTITY",old,new)
-          assert old[0] == "0.1.0a3" and new[0] == "0.1.0a4"
+          assert old[0] == "0.1.0a4" and new[0] == "0.1.0a5"
           assert old[1] == new[1], "Cannot attribute improvement to decoder: model changed"
           PY
           .native-baseline/bin/python experiments/native_utf8_external_gate.py --engine baseline

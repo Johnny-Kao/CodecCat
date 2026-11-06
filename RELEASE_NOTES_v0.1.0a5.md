@@ -13,3 +13,5 @@ Validation before tag:
 - New GNOME Software source (225 original translation-file windows): **198 → 216** correct texts, 18 helps, 0 harms with identical model SHA256: https://github.com/Johnny-Kao/CodecCat/actions/runs/42157052821
 
 This is an experimental Alpha release, not a general accuracy guarantee. See [detailed evidence](research/UTF8_EVIDENCE_V2_2026-11-06.md). Not published to PyPI.
+
+Post-release: [Tag build six-platform CI PASS](https://github.com/Johnny-Kao/CodecCat/actions/runs/42157726285) and [published-Wheel five-corpus PASS](https://github.com/Johnny-Kao/CodecCat/actions/runs/42158308518), with CodecCat 826/843 correctly decoded Unicode text, chardet 829/843 and charset-normalizer 698/843. These are fixed development samples, not a general independent accuracy estimate.

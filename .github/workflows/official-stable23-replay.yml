@@ -152,6 +152,10 @@ jobs:
           (root/"comparison.json").write_text(json.dumps(comparison,indent=2,sort_keys=True)+"\n")
           print("STABLE23_REPLAY_DIAGNOSTIC",json.dumps(comparison,sort_keys=True))
           PY
+      - name: Strict L2 and L3 reproduction gate (fail on any mismatch)
+        shell: bash
+        run: |
+          python datasets/official/replay_gate.py --reports replay-results
       - name: Upload reports and manifest metadata only
         uses: actions/upload-artifact@v4
         if: always()

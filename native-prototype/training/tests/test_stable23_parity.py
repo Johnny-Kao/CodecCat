@@ -16,7 +16,7 @@ _REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(_REPO / "src"))
 from codeccat.vnext_strong_l2 import TrainableDetector
 
-from codeccat_train.__main__ import fit_l2
+from codeccat_train.__main__ import fit_l2, historical_stable23_fingerprint
 
 
 def samples():
@@ -41,6 +41,7 @@ class Stable23NumericalParityTests(unittest.TestCase):
             for raw, encoding, group in training
         ]
         vectorizer, classifier = fit_l2(rows, seed=20261015)
+        self.assertEqual(historical_stable23_fingerprint(rows), reference.fingerprint)
 
         self.assertEqual(vectorizer.vocabulary_, reference.vectorizer.vocabulary_)
         self.assertEqual(vectorizer.ngram_range, reference.vectorizer.ngram_range)

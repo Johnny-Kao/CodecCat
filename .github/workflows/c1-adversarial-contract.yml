@@ -1,0 +1,55 @@
+name: CodecCat C1 adversarial contract research
+
+on:
+  pull_request:
+    paths:
+      - "experiments/c1_adversarial_contract.py"
+      - "research/C1_ADVERSARIAL_CONTRACT_RESULTS_2026-11-07.md"
+      - ".github/workflows/c1-adversarial-contract.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  adversarial:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install exact released Stable
+        run: python -m pip install --only-binary=:all: --no-deps codeccat==0.1.0
+      - name: Verify unchanged published model bytes
+        run: |
+          python - <<'PY'
+          import hashlib
+          from importlib.resources import files
+          sha=hashlib.sha256(files("codeccat").joinpath("models/default.ccm").read_bytes()).hexdigest()
+          assert sha=="16073306b5027bf93acc2883f57fbda0cb0cf2d77b9a7bb62cf1b07fcbb9748b"
+          print("FROZEN_STABLE_MODEL_PASS")
+          PY
+      - name: Run original Latin-1 C1 adversarial contract cases
+        run: python experiments/c1_adversarial_contract.py
+      - name: Verify result coverage and metadata-only safety
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path("research-results/c1-adversarial-contract.json").read_text())
+          assert report["raw_content_exported"] is False
+          assert report["outcomes"]["n"]==396
+          assert report["outcomes"]["c1_present_in_reference"]==396
+          print("C1_ADVERSARIAL_VALID")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c1-adversarial-contract-metadata
+          path: research-results/c1-adversarial-contract.json
+          if-no-files-found: warn
+          retention-days: 14

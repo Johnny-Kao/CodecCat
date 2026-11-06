@@ -26,6 +26,35 @@ jobs:
           ref: 4e685757780cb3c652fc6c9ec759f62888969ec9
           path: external-encoding-source
           sparse-checkout: test
+      - uses: actions/checkout@v4
+        with:
+          repository: GNOME/glib
+          ref: d34a927488b8b664cbd305dc880e86f34f8ca467
+          path: benchmark-sources/glib
+          sparse-checkout: po
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: benchmark-sources/chardet
+      - uses: actions/checkout@v4
+        with:
+          repository: jawah/charset_normalizer
+          ref: 7d74fe4a8341ae27a8f42c759793301dbd304e10
+          path: benchmark-sources/charset_normalizer
+          sparse-checkout: data
+      - uses: actions/checkout@v4
+        with:
+          repository: vim/vim
+          ref: 88d96a15f99851faca0cacbbbdcede3f8c25149b
+          path: benchmark-sources/vim
+          sparse-checkout: src/po
+      - uses: actions/checkout@v4
+        with:
+          repository: git/git
+          ref: 0ffa3e35c7c82ab8d0de226149fb03b3f7674d05
+          path: benchmark-sources/git
+          sparse-checkout: po
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"

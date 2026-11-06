@@ -101,8 +101,14 @@ def main() -> None:
         buckets=counts(rows)
         if buckets["exact"] != expected["exact_full_matches"]:
             raise ValueError(f"{label}: exact overlap join mismatch")
-        if buckets["exact"]+buckets["candidate"] != expected["candidate_near_overlap_windows"]:
-            raise ValueError(f"{label}: candidate overlap join mismatch")
+        actual_near=sum(
+            entry["candidate_shared_blocks"] >= screening["minimum_shared_spans_for_candidate"]
+            for entry in expected["flagged"]
+        )
+        if actual_near != expected["candidate_near_overlap_windows"]:
+            raise ValueError(f"{label}: sampled-span overlap count mismatch")
+        if buckets["exact"] + buckets["candidate"] != len(expected["flagged"]):
+            raise ValueError(f"{label}: overlapping sample join mismatch")
     summary={
         "schema":"codeccat-existing-corpus-failure-triage-v1",
         "runtime_version":"0.1.0",
@@ -116,7 +122,15 @@ def main() -> None:
         "uchardet":summarize_case_rows(uch_rows),
         "uchardet_excluded_unsupported_or_invalid":len(skips),
         "training_overlap_screen":{
-            name:{k:v for k,v in records.items() if k!="flagged"}
+            name:{
+                **{k:v for k,v in records.items() if k!="flagged"},
+                "exact_and_near_intersection":sum(
+                    (e["exact_full"] or e["exact_prefix"])
+                    and e["candidate_shared_blocks"] >= screening["minimum_shared_spans_for_candidate"]
+                    for e in records["flagged"]
+                ),
+                "flagged_union_windows":len(records["flagged"]),
+            }
             for name,records in source_results.items()
         },
         "interpretation":"These corpora were inspected previously. Exact matches invalidate any claim of a pristine 102-case uchardet holdout. Candidate overlaps require review. Unflagged windows are not proven independent; no promotion decision can use this alone.",

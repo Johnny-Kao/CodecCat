@@ -130,6 +130,8 @@ def main() -> None:
     detector = codeccat.CodecCat()
     scores = {name: Counter() for name in ("baseline", "chardet", "threshold_1", "threshold_2", "threshold_3")}
     by_codec = {}
+    failure_diagnostics = []
+    trained_labels = set(str(c) for c in detector._model.classifier.classes_)
     for name, codec, raw, truth in rows:
         found = detector.detect(raw)
         baseline = found.text == truth
@@ -138,6 +140,15 @@ def main() -> None:
             competitor = raw.decode(chardet_guess, "strict").lstrip("\ufeff") == truth
         except (UnicodeError, LookupError, TypeError):
             competitor = False
+        if not baseline:
+            failure_diagnostics.append({
+                "name": name,
+                "truth_codec": codec,
+                "truth_codec_in_trained_classes": codec in trained_labels,
+                "runtime_guess": found.encoding,
+                "chardet_guess": chardet_guess,
+                "runtime_abstained": found.text is None,
+            })
         options = {
             "baseline": baseline,
             "chardet": competitor,
@@ -156,6 +167,7 @@ def main() -> None:
                 scores[label]["harmed"] += int(baseline and not correct)
     report["scores"] = {k: dict(v) for k, v in scores.items()}
     report["by_codec"] = {k: dict(v) for k, v in by_codec.items()}
+    report["failures"] = failure_diagnostics
     report["status"] = "screen_negative_evaluated"
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")

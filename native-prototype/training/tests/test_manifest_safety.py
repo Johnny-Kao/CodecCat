@@ -43,6 +43,15 @@ class ManifestSafetyTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"label does not decode"):
             read_manifest(self.write(rows))
 
+    def test_duplicate_does_not_hide_source_group_across_splits(self):
+        rows = [
+            {"path":"a.bin","encoding":"cp1252","split":"train","group":"original"},
+            {"path":"a.bin","encoding":"cp1252","split":"train","group":"shared"},
+            {"path":"b.bin","encoding":"utf-8","split":"validation","group":"shared"},
+        ]
+        with self.assertRaisesRegex(ValueError,"source-group leakage"):
+            read_manifest(self.write(rows))
+
     def test_reject_duplicate_bytes_cross_splits(self):
         rows=self.base()
         rows[1]["path"]="a.bin"

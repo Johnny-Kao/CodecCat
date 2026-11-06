@@ -11,7 +11,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import SGDClassifier
 from sklearn.metrics import accuracy_score
 
-def read_manifest(manifest:Path):
+def read_manifest(manifest:Path,require_validation:bool=True):
     root=manifest.resolve().parent
     result=[];digests={};groups={}
     for number,line in enumerate(manifest.read_text(encoding="utf-8").splitlines(),1):
@@ -49,7 +49,8 @@ def read_manifest(manifest:Path):
         result.append((raw,record["encoding"],grp,split,sha))
     train=[r for r in result if r[3]=="train"]
     val=[r for r in result if r[3]=="validation"]
-    if not train or not val:raise ValueError("both train and validation records required")
+    if not train or (require_validation and not val):
+        raise ValueError("both train and validation records required")
     if len({r[1] for r in train})<2:raise ValueError("need >=2 training codec labels")
     if any(r[1] not in {t[1] for t in train} for r in val):
         raise ValueError("validation codec label absent from training")
@@ -112,8 +113,10 @@ def fit_l2(training_rows,seed:int):
     model.fit(x,labels)
     return vec,model
 
-def fit(manifest:Path,output:Path,report:Path,seed:int,precision:str="f64",residual_focus:bool=False):
-    train,validation=read_manifest(manifest)
+def fit(manifest:Path,output:Path,report:Path,seed:int,precision:str="f64",residual_focus:bool=False,train_only:bool=False):
+    train,validation=read_manifest(manifest,require_validation=not train_only)
+    if train_only and validation:
+        raise ValueError("--train-only requires a manifest containing train rows only")
     original_train_n=len(train)
     source_fingerprint=fingerprint_dataset(train + validation)
     removed={}
@@ -122,9 +125,11 @@ def fit(manifest:Path,output:Path,report:Path,seed:int,precision:str="f64",resid
         train,removed=residual_subset(train)
     effective_fingerprint=fingerprint_dataset(train)
     vec,model=fit_l2(train,seed)
-    xval=vec.transform([r[0][:4096].decode("latin1") for r in validation])
-    pred=model.predict(xval)
-    accuracy=accuracy_score([r[1] for r in validation],pred)
+    accuracy=None
+    if validation:
+        xval=vec.transform([r[0][:4096].decode("latin1") for r in validation])
+        pred=model.predict(xval)
+        accuracy=float(accuracy_score([r[1] for r in validation],pred))
     digest,size=export_ccm(output,vec,model,precision=precision)
     result={
         "schema":"codeccat-offline-train-v1",
@@ -139,7 +144,8 @@ def fit(manifest:Path,output:Path,report:Path,seed:int,precision:str="f64",resid
         "training_groups":len({r[2] for r in train}),
         "validation_groups":len({r[2] for r in validation}),
         "classes":list(model.classes_),
-        "validation_codec_label_accuracy":float(accuracy),
+        "validation_codec_label_accuracy":accuracy,
+        "train_only":train_only,
         "note":"Validation checks exact encoding LABEL, not full public Runtime text-level detection and not independent external generalization.",
         "manifest_sha256":hashlib.sha256(manifest.read_bytes()).hexdigest(),
         "dataset_content_fingerprint_sha256":source_fingerprint,
@@ -184,11 +190,13 @@ def main():
     p.add_argument("--output",type=Path,required=True)
     p.add_argument("--report",type=Path,required=True)
     p.add_argument("--seed",type=int,default=20261015)
+    p.add_argument("--train-only",action="store_true",
+                   help="fit every labeled row; requires train-only manifest and reports no validation accuracy")
     p.add_argument("--residual-focus",action="store_true",
                    help="replay historical Stable23 residual sample filtering (not official release approval)")
     p.add_argument("--precision",choices=("f64","f32"),default="f64",
                    help="f64 exports CCM1 (default); f32 exports compact CCM2 weights")
     a=p.parse_args(args)
-    print("CODECCAT_TRAIN_RESULT",json.dumps(fit(a.manifest,a.output,a.report,a.seed,precision=a.precision,residual_focus=a.residual_focus)),flush=True)
+    print("CODECCAT_TRAIN_RESULT",json.dumps(fit(a.manifest,a.output,a.report,a.seed,precision=a.precision,residual_focus=a.residual_focus,train_only=a.train_only)),flush=True)
 
 if __name__=="__main__":main()

@@ -75,7 +75,9 @@ def main() -> None:
         assert "-manylinux_2_28_" in wheel.name
         assembled[wheel.name] = wheel
     for wheel in sources["platform"]:
-        if "-linux_" in wheel.name:
+        if "-linux_" in wheel.name or "-manylinux_2_28_" in wheel.name:
+            # The historical dry-run supplies genuine manylinux Wheels in both
+            # inputs; production six-platform CI supplies generic linux names.
             continue
         assert "-macosx_" in wheel.name or "-win_" in wheel.name, wheel
         assert wheel.name not in assembled, wheel.name

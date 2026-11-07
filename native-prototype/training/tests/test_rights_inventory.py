@@ -40,9 +40,9 @@ class RightsInventoryTests(unittest.TestCase):
             manifest.write_text(json.dumps({
                 "path":"utf-8-japanese/legacy.xml",
                 "sha256":"a"*64,"prefix_sha256":"b"*64
-            })+"\n")
+            })+"\n", encoding="utf-8")
             catalog=root/"CATALOG.md"
-            catalog.write_text("#### `utf-8-japanese/` — 1 files\n\n| File | Source | Provenance | Size | Notes |\n|------|--------|------------|-----:|-------|\n| `legacy.xml` | chardet | wild | 2200 | |\n")
+            catalog.write_text("#### `utf-8-japanese/` — 1 files\n\n| File | Source | Provenance | Size | Notes |\n|------|--------|------------|-----:|-------|\n| `legacy.xml` | chardet | wild | 2200 | |\n", encoding="utf-8")
             summary=inventory.audit(manifest,catalog,root/"result")
             self.assertEqual(summary["training_records"],1)
             self.assertEqual(summary["rights_review_required_records"],1)
@@ -58,7 +58,7 @@ class RightsInventoryTests(unittest.TestCase):
             manifest=root/"manifest.jsonl"
             manifest.write_text(json.dumps({"path":"unknown/file.txt"})+"\n")
             catalog=root/"CATALOG.md"
-            catalog.write_text("#### `utf-8/` — 1 files\n| `known.txt` | test | wild | 1 | |\n")
+            catalog.write_text("#### `utf-8/` — 1 files\n| `known.txt` | test | wild | 1 | |\n", encoding="utf-8")
             with self.assertRaisesRegex(ValueError,"absent from the pinned catalog"):
                 inventory.audit(manifest,catalog,root/"result")
 

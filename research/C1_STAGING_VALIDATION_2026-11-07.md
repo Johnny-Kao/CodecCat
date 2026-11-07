@@ -20,9 +20,9 @@ Pre-registered protocol: [C1_REAL_HTML_PROTOCOL_2026-11-07.md](C1_REAL_HTML_PROT
 | Windows-1256 | 446 | 421 | 0 | 6 |
 | Shift_JIS | 532 | 239 | 0 | 0 |
 | GBK | 356 | 115 | 0 | 10 |
-| **TOTAL** | **1,886** | **1,315** | **0** | **17** |
+| **TOTAL** | **1,886** | **1,314** | **0** | **17** |
 
-Observed 17 warnings were all on cases differing from the archive label; **554 out of 571 label-disagreeing inputs were not warned**. This narrow C1 warning is not a general charset accuracy detector. Real HTML may contain mislabeled encodings or browser-specific fallback semantics; do not market these proxy numbers as population true/false-positive rates. No source HTML was exported to the repository or artifacts.
+Observed 17 warnings were all on cases differing from the archive label; **555 out of 572 label-disagreeing inputs were not warned**. This narrow C1 warning is not a general charset accuracy detector. Real HTML may contain mislabeled encodings or browser-specific fallback semantics; do not market these proxy numbers as population true/false-positive rates. No source HTML was exported to the repository or artifacts.
 
 ## Incremental warning-call cost (Linux CI, single-run measurements)
 

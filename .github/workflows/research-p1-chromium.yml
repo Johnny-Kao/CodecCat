@@ -1,0 +1,26 @@
+name: P1 true browser HTML charset reference
+on:
+  pull_request:
+    paths:
+      - "research/scripts/p1_chromium_actual.js"
+      - ".github/workflows/research-p1-chromium.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  chromium:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install browser research dependency (CI only)
+        run: |
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Verify actual browser document.characterSet for adversarial HTML
+        run: node research/scripts/p1_chromium_actual.js

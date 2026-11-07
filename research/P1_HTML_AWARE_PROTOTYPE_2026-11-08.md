@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-08  
 **Scope:** isolated research only. No `codeccat` Runtime source, native model, public API, release assets or `codeccat-train` changes.  
-**Implementation:** [`html_aware.py`](../prototypes/html_aware.py) (correct relative path: `research/prototypes/html_aware.py`).
+**Implementation:** [`html_aware.py`](prototypes/html_aware.py).
 
 ## Decision
 

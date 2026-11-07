@@ -18,7 +18,7 @@ This is a public, **non-binding** direction of work—not an issue backlog or re
 - [x] Optional **C1 interpretation ambiguity diagnostic** (`codeccat.diagnostics.inspect_ambiguity`), merged in [PR #47](https://github.com/Johnny-Kao/CodecCat/pull/47). This never substitutes decoded text and is **not yet available to `pip install codeccat==0.1.0` users**.
 - [x] Six-platform source-build and clean-install validation of the opt-in diagnostic with an unchanged default model and unchanged `Detection` contract.
 - [x] Historical original HTML archive research, with provenance screening and speed improvements; its labeled codecs are proxies, not independently established ground truth.
-- [ ] Future Runtime patch-release decision and publication (candidate `0.1.1`) after release notes and approval. **No PyPI publication is implied by merging the feature.**
+- [ ] Runtime patch release candidate `0.1.1` now under exact-tag, six-Wheel and sdist verification; it becomes published only after separate GitHub Release/PyPI checks.
 
 ## Offline trainer workstream (single core, dataset-specific use)
 

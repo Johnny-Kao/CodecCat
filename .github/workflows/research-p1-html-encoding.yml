@@ -1,0 +1,48 @@
+name: P1 research HTML charset and label root-cause audit
+on:
+  pull_request:
+    paths:
+      - "native-prototype/research_p1_html_encoding.py"
+      - ".github/workflows/research-p1-html-encoding.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  research:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: shabanali-faghani/IUST-HTMLCharDet
+          ref: 0a7f382e2d488d46f1e12bad647f0384c4a2288f
+          path: external-iust
+          sparse-checkout: eval/test-data/encoding-wise/corpus.zip
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: source-data
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install unchanged published CodecCat Runtime
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: --no-deps codeccat==0.1.1
+          python datasets/official/prepare_manifest.py --corpus source-data
+      - name: Audit all 1,886 independently sourced original HTML bytes
+        run: python native-prototype/research_p1_html_encoding.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: p1-html-encoding-research-metadata
+          path: research-results/p1-html-encoding-diagnostic.json
+          if-no-files-found: warn
+          retention-days: 30

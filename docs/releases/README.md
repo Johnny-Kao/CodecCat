@@ -1,6 +1,6 @@
 # Release notes
 
-Release notes are kept here so the repository root stays focused on usage and contribution. [Unreleased source changes](UNRELEASED.md) are documented separately and are **not** available in the published 0.1.0 Wheel. These notes document the **state at each release**; historical Alpha statements about PyPI and availability are preserved as originally written.
+Release notes are kept here so the repository root stays focused on usage and contribution. [The transition from 0.1.0 to 0.1.1](UNRELEASED.md) is documented separately; these source changes are now included in the published 0.1.1 Wheel but not in immutable 0.1.0. These notes document the **state at each release**; historical Alpha statements about PyPI and availability are preserved as originally written.
 
 | Version | Status | Notes | Published artifacts |
 | --- | --- | --- | --- |

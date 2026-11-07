@@ -27,6 +27,7 @@ function countsFor(obj,key){
   html5lib_browser_encoding_match:0,turbohtml_browser_encoding_match:0,
   prototype_fallback_cases:0,prototype_meta_cases:0,
   disagreement_selected_cases:0,agreement_control_cases:0,
+  cp932_unicode_browser_matches:0,cp932_unicode_browser_misses:0,
  };
  return obj[key];
 }
@@ -56,12 +57,24 @@ async function main(){
     const expectedText=new TextDecoder(browserEncoding,{fatal:false}).decode(data);
     const sameEncoding=normalized(browserEncoding)===normalized(e.prototype_encoding);
     const sameUnicode=digest(expectedText)===e.prototype_text_sha256;
+    const cp932UnicodeMatch=e.cp932_unicode_sha256!==null
+      && digest(expectedText)===e.cp932_unicode_sha256;
+    const domMetadata=await page.evaluate(()=>({
+      meta_charset_labels:Array.from(document.querySelectorAll("meta[charset]"))
+        .slice(0,8).map(m=>m.getAttribute("charset")),
+      meta_equiv_labels:Array.from(document.querySelectorAll("meta[http-equiv]"))
+        .slice(0,8).map(m=>m.getAttribute("content")),
+    }));
     const group=countsFor(groups,e.folder);
     group.n++;
     group.prototype_browser_encoding_match+=Number(sameEncoding);
     group.prototype_browser_encoding_miss+=Number(!sameEncoding);
     group.prototype_browser_unicode_match+=Number(sameUnicode);
     group.prototype_browser_unicode_miss+=Number(!sameUnicode);
+    if(e.cp932_unicode_sha256!==null){
+      group.cp932_unicode_browser_matches+=Number(cp932UnicodeMatch);
+      group.cp932_unicode_browser_misses+=Number(!cp932UnicodeMatch);
+    }
     group.html5lib_browser_encoding_match+=Number(normalized(browserEncoding)===normalized(e.html5lib));
     group.turbohtml_browser_encoding_match+=Number(normalized(browserEncoding)===normalized(e.turbohtml));
     group.prototype_fallback_cases+=Number(e.prototype_source==="fallback");
@@ -71,7 +84,14 @@ async function main(){
     if((!sameEncoding || !sameUnicode) && examples.length<40){
       examples.push({sha256:e.sha256,group:e.folder,
         browser_encoding:browserEncoding,prototype_encoding:e.prototype_encoding,
-        source:e.prototype_source,encoding_match:sameEncoding,unicode_match:sameUnicode});
+        source:e.prototype_source,encoding_match:sameEncoding,unicode_match:sameUnicode,
+        cp932_unicode_match:e.cp932_unicode_sha256===null?null:cp932UnicodeMatch,
+        utf8_strict_valid:e.utf8_strict_valid,
+        first_charset_ascii_offset:e.first_charset_ascii_offset,
+        meta_marker_count:e.meta_marker_count,
+        html5lib_selected:e.html5lib,turbohtml_selected:e.turbohtml,
+        parsed_meta_labels:domMetadata.meta_charset_labels,
+        parsed_http_equiv:domMetadata.meta_equiv_labels});
     }
   }
   const aggregate={
@@ -94,6 +114,7 @@ async function main(){
   fs.mkdirSync("research-results",{recursive:true});
   fs.writeFileSync("research-results/html-aware-prototype-browser-parity.json",JSON.stringify(aggregate,null,2)+"\n");
   console.log("P1_HTML_PROTOTYPE_BROWSER_PARITY",JSON.stringify({n:entries.length,groups}));
+  console.log("P1_HTML_PROTOTYPE_MISMATCH_DIAGNOSIS",JSON.stringify(examples));
   await page.close();
   await context.close();
  }finally{

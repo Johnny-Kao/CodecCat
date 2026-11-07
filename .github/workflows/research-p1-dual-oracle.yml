@@ -1,0 +1,58 @@
+name: P1 dual-oracle WHATWG HTML encoding study
+
+on:
+  pull_request:
+    paths:
+      - "research/scripts/p1_dual_oracle.py"
+      - "research/scripts/p1_whatwg_decoder.js"
+      - ".github/workflows/research-p1-dual-oracle.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: shabanali-faghani/IUST-HTMLCharDet
+          ref: 0a7f382e2d488d46f1e12bad647f0384c4a2288f
+          path: external-iust
+          sparse-checkout: eval/test-data/encoding-wise/corpus.zip
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: source-data
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify frozen historic training sources
+        shell: bash
+        run: |
+          python datasets/official/prepare_manifest.py --corpus source-data
+          python -m pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: --no-deps codeccat==0.1.1
+          python - <<'PY'
+          import importlib.metadata
+          assert importlib.metadata.version("codeccat")=="0.1.1"
+          PY
+      - name: Compare original HTML under Python and WHATWG decoder semantics
+        run: python research/scripts/p1_dual_oracle.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: p1-dual-oracle-metadata
+          path: research-results/p1-whatwg-dual-oracle.json
+          if-no-files-found: warn
+          retention-days: 30

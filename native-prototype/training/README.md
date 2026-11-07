@@ -4,14 +4,20 @@ Independent Python distribution for training and exporting CodecCat native
 `.ccm` models. **Not a runtime dependency** of `codeccat`. The train
 environment requires NumPy and scikit-learn; production inference does not.
 
-**Release candidate: `codeccat-train 0.1.0` (independent package).** The core offline Trainer and end-to-end published-Runtime model-loading workflow are implemented and verified. This repository branch contains a stable release candidate; **PyPI availability is not implied until a separate verified publishing run succeeds**. Historical official L2/L3 reproduction establishes *reproducibility*, not a better model or permission to publish third-party training texts.
+**Stable release: [`codeccat-train 0.1.0`](https://pypi.org/project/codeccat-train/0.1.0/)** is published independently on PyPI. The core offline Trainer and end-to-end published-Runtime model-loading workflow are implemented and verified. See the [successful OIDC publishing run](https://github.com/Johnny-Kao/CodecCat/actions/runs/42367573901). Historical official L2/L3 reproduction establishes *reproducibility*, not a better model or permission to publish third-party training texts.
 
 The same Trainer is used for both workflows: private community-supplied datasets
 remain the user's responsibility; the project-maintained dataset is governed by
 a separate rights and default-model acceptance decision. No user dataset or
 generated model is automatically submitted to the CodecCat project.
 
-From a checkout (works before and after the first PyPI publication):
+Install from PyPI (recommended):
+
+```bash
+python -m pip install codeccat-train==0.1.0
+```
+
+Or install from the repository checkout:
 
 ```bash
 python -m pip install ./native-prototype/training
@@ -51,7 +57,7 @@ for the native runtime and [rights and provenance policy](https://github.com/Joh
 - **Platform evidence:** training and Runtime interoperability checked on Linux
   x64/ARM64 and macOS ARM64; custom-model Runtime portability checked on
   macOS Intel and Windows x64.
-- **Stable-candidate release boundary:** the independent `0.1.0` source/Wheel and release CI must pass before tagging. It is not available via PyPI until its own Trusted Publisher is configured and a separate upload succeeds. Historical training provenance is documented with residual risk, not universally cleared.
+- **Stable distribution:** the independent `0.1.0` Wheel and sdist have passed versioned CI and were published using their own OIDC Trusted Publisher. Historical training provenance remains documented with residual risk, not universally cleared.
 - **Not an automatic Runtime update:** installing or training with this tool
   does not alter `codeccat` or the bundled Stable model. A candidate default
   requires a separately approved evaluation and release.

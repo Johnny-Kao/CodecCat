@@ -57,7 +57,8 @@ def _http_charset(header: str | None) -> str | None:
     matches = [str(v) for k, v in params[1:] if k.lower() == "charset"]
     if len(matches) != 1:
         return None
-    return _web_label(matches[0])
+    encoding = _web_label(matches[0])
+    return "utf-8" if encoding in ("utf-16le", "utf-16be") else encoding
 
 
 class _MetaFinder(HTMLParser):
@@ -139,13 +140,17 @@ def decode_html_prototype(
             chosen,source = meta,"meta"
         else:
             chosen,source = _web_label(fallback_encoding),"fallback"
+    did_replace = False
     try:
-        text,actual = webencodings.decode(data,chosen,errors=errors)
+        text,actual = webencodings.decode(data,chosen,errors="strict")
     except UnicodeError as exc:
-        raise HtmlDecodeError("decoding failed under chosen encoding") from exc
+        if errors == "strict":
+            raise HtmlDecodeError("decoding failed under chosen encoding") from exc
+        text,actual = webencodings.decode(data,chosen,errors="replace")
+        did_replace = True
     return HtmlDecodeResult(
         text=text, encoding=actual.name, source=source,
-        used_replacement=("\ufffd" in text), meta_encoding=meta,
+        used_replacement=did_replace, meta_encoding=meta,
         transport_encoding=transport,
         warning="prototype_only_not_whatwg_conformant" if source in ("meta","fallback") else None,
     )

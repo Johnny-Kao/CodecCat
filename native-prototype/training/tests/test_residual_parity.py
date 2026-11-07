@@ -1,4 +1,5 @@
 """Historical residual-selection parity without external training data."""
+import os
 import sys
 import unittest
 from pathlib import Path
@@ -7,10 +8,13 @@ _REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(_REPO / "src"))
 sys.path.insert(0, str(_REPO / "experiments" / "logic_first"))
 
-from vnext_residual_study import (
-    residual_subset as original_subset,
-    stable_structural_guess as original_guess,
-)
+if os.name != "nt":
+    # The historical research adapter imports Unix-only `resource`.
+    # Core Trainer portable tests run on Windows; research parity runs on Unix.
+    from vnext_residual_study import (
+        residual_subset as original_subset,
+        stable_structural_guess as original_guess,
+    )
 from codeccat_train.residual import (
     residual_subset as new_subset,
     stable_structural_guess as new_guess,
@@ -30,6 +34,7 @@ def rows():
     return result
 
 
+@unittest.skipIf(os.name == "nt", "historical research adapter requires Unix resource module")
 class ResidualReplayTests(unittest.TestCase):
     def test_exact_historical_selection_and_drop_counts(self):
         records = rows()

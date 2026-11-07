@@ -1,0 +1,119 @@
+name: Trainer stable distribution acceptance
+
+on:
+  pull_request:
+    paths:
+      - "native-prototype/training/**"
+      - ".github/workflows/trainer-stable-acceptance.yml"
+  push:
+    tags:
+      - "trainer-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wheel-and-sdist:
+    name: Trainer package on ${{ matrix.os }} / Python ${{ matrix.python }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: "ubuntu-24.04", python: "3.10"}
+          - {os: "ubuntu-24.04", python: "3.11"}
+          - {os: "ubuntu-24.04", python: "3.12"}
+          - {os: "ubuntu-24.04", python: "3.13"}
+          - {os: "ubuntu-24.04", python: "3.14"}
+          - {os: "ubuntu-24.04-arm", python: "3.12"}
+          - {os: "macos-15", python: "3.12"}
+          - {os: "macos-15-intel", python: "3.12"}
+          - {os: "windows-2025", python: "3.12"}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Build independent Trainer Wheel and source distribution
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check build==1.3.0 twine==7.0.0
+          python -m build native-prototype/training --outdir trainer-dist
+          python -m twine check --strict trainer-dist/*
+          python - <<'PY'
+          import glob,tarfile,zipfile,sys
+          from pathlib import Path
+          wheels=glob.glob("trainer-dist/*.whl")
+          sdists=glob.glob("trainer-dist/*.tar.gz")
+          assert len(wheels)==len(sdists)==1,(wheels,sdists)
+          with zipfile.ZipFile(wheels[0]) as z:
+              names=z.namelist()
+              assert any(x.endswith("codeccat_train/__main__.py") for x in names),names
+              assert all(not x.startswith("codeccat/") for x in names)
+              meta=z.read(next(x for x in names if x.endswith(".dist-info/METADATA"))).decode()
+              assert "Name: codeccat-train" in meta and "Version: 0.1.0" in meta
+              assert "Development Status :: 5 - Production/Stable" in meta
+              assert "Requires-Python: >=3.10" in meta
+              assert "numpy" in meta and "scikit-learn" in meta
+              assert not any("smoke-data" in x or "/tests/" in x for x in names)
+          with tarfile.open(sdists[0],"r:gz") as t:
+              names=t.getnames()
+              assert any(x.endswith("src/codeccat_train/__main__.py") for x in names)
+              assert any(x.endswith("README.md") for x in names)
+              assert not any("smoke-data" in x for x in names)
+          print("TRAINER_STABLE_DISTRIBUTION_AUDIT_PASS")
+          PY
+      - name: Install built Wheel and verify on published Runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check trainer-dist/*.whl
+          python -m pip install --disable-pip-version-check --only-binary=:all: --no-deps codeccat==0.1.0
+          python -m pip check
+          python - <<'PY'
+          from importlib.metadata import version
+          import codeccat,codeccat_train
+          assert version("codeccat-train")=="0.1.0"
+          assert version("codeccat")=="0.1.0"
+          print("TRAINER_STABLE_ISOLATED_RUNTIME_PASS")
+          PY
+          python -m unittest discover -s native-prototype/training/tests -v
+          python native-prototype/training/make_smoke_data.py
+          mkdir -p trainer-results
+          python -m codeccat_train fit --manifest native-prototype/training/smoke-data/manifest.jsonl --output trainer-results/custom.ccm --report trainer-results/training-report.json
+          python -m codeccat_train fit --manifest native-prototype/training/smoke-data/manifest.jsonl --output trainer-results/custom-f32.ccm --report trainer-results/training-report-f32.json --precision f32
+          # Runtime verification must remain isolated from numpy/sklearn/trainer.
+          python -m venv .runtime-env
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            RUNTIME_PY=".runtime-env/Scripts/python.exe"
+          else
+            RUNTIME_PY=".runtime-env/bin/python"
+          fi
+          "$RUNTIME_PY" -m pip install --disable-pip-version-check --only-binary=:all: --no-deps codeccat==0.1.0
+          "$RUNTIME_PY" native-prototype/training/tests/check_runtime_e2e.py
+          "$RUNTIME_PY" native-prototype/training/tests/check_ccm2_e2e.py
+          python -m codeccat_train evaluate --model trainer-results/custom.ccm --manifest native-prototype/training/smoke-data/manifest.jsonl --split validation --report trainer-results/evaluation.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("trainer-results/training-report.json").read_text())
+          s=json.loads(Path("trainer-results/training-report-f32.json").read_text())
+          e=json.loads(Path("trainer-results/evaluation.json").read_text())
+          assert r["training_tool_version"] == "0.1.0",r
+          assert s["model_schema"] == "CCM2"
+          assert e["results"]["candidate"]["n"] > 0
+          print("TRAINER_STABLE_E2E_PASS")
+          PY
+      - name: Upload immutable artifacts only on trusted stable tag
+        if: ${{ startsWith(github.ref, 'refs/tags/trainer-v') && matrix.os == 'ubuntu-24.04' && matrix.python == '3.12' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: trainer-stable-distribution
+          path: trainer-dist/*
+          if-no-files-found: error
+          retention-days: 30

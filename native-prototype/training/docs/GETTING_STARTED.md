@@ -1,8 +1,8 @@
-# Offline model training (experimental)
+# Offline model training with codeccat-train
 
 CodecCat offers **one** offline training tool for anyone's dataset. The CLI and model format are shared; official and user-owned datasets differ in provenance and what is allowed to ship as an official release.
 
-**Status (2026-11-07):** The offline training and candidate-evaluation workflow is **implemented and E2E-verified** with the published Runtime. The Trainer remains the source-distributed Alpha `codeccat-train==0.1.0a3` (**not separately published on PyPI or declared stable**). Exact historical official L2 CCM2 and optional L3 model replay has passed under pinned sources and dependencies; this is not data-rights clearance, stronger real-world accuracy, or authorization to promote a new default model. The separately published Runtime remains `codeccat==0.1.0`.
+**Release candidate (2026-11-07):** Offline training and candidate evaluation are E2E-verified against the published Runtime. The source tree is preparing independent `codeccat-train==0.1.0` Stable distribution, which must pass release CI and PyPI Trusted Publishing before it becomes publicly installable from PyPI. Exact historical official L2 CCM2 and optional L3 replay have passed under pinned sources and dependencies; this is not data-rights clearance, stronger real-world accuracy, or authorization to promote a new default model. The separately published Runtime remains `codeccat==0.1.0`.
 
 ## Quick local example
 

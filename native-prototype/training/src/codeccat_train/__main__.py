@@ -174,7 +174,7 @@ def fit(manifest:Path,output:Path,report:Path,seed:int,precision:str="f64",resid
         "dataset_fingerprint_scope":"SHA256 of ordered accepted bytes SHA256, encoding, group and split; no raw text",
         "model_sha256":digest,
         "model_bytes":size,
-        "training_tool_version":"0.1.0a3+source",
+        "training_tool_version":"0.1.0",
         "python_version":sys.version.split()[0],
         "numpy_version":np.__version__,
         "sklearn_version":__import__("sklearn").__version__,

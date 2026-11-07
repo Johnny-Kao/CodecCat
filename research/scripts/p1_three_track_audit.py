@@ -15,6 +15,7 @@ from html5lib._inputstream import HTMLBinaryInputStream
 
 sys.path.insert(0,str(Path("native-prototype").resolve()))
 from evaluate_c1_real_html import ARCHIVE,prepare,train_hashes,truth_from_label
+from audit_holdout_overlap import blocks
 from research_p1_html_encoding import declared,canon,source_mask
 
 OUTPUT=Path("research-results/p1-three-track-audit.json")
@@ -45,7 +46,6 @@ def norm(name:str)->str:
     return canon(name) or name.lower().replace("_","-")
 
 def audit_overlap(raw:bytes, historic):
-    from datasets.official.audit_holdout_overlap import blocks
     full,prefixes,spans=historic
     digest=hashlib.sha256(raw).hexdigest()
     near=Counter(p for b in blocks(raw) for p in spans.get(b,()))

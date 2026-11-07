@@ -1,0 +1,58 @@
+name: Research HTML-aware prototype Chromium parity
+on:
+  pull_request:
+    paths:
+      - "research/prototypes/**"
+      - ".github/workflows/research-html-aware-browser-parity.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  chromium:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: shabanali-faghani/IUST-HTMLCharDet
+          ref: 0a7f382e2d488d46f1e12bad647f0384c4a2288f
+          path: external-iust
+          sparse-checkout: eval/test-data/encoding-wise/corpus.zip
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: source-data
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install research-only parsers and unchanged published Runtime
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir html5lib==1.1 turbohtml==1.15.4 webencodings==0.5.1
+          python -m pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: --no-deps codeccat==0.1.1
+          python datasets/official/prepare_manifest.py --corpus source-data
+      - name: Select source-screened parser disagreements and reference controls
+        run: |
+          python research/scripts/p1_prepare_browser_corpus.py
+          python research/prototypes/prepare_browser_comparison.py
+      - name: Setup isolated headless Chromium (no page JavaScript or external network)
+        run: |
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Compare encoding and Unicode under real browser
+        run: node research/prototypes/browser_parity.js
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: html-prototype-chromium-metadata-only
+          path: research-results/html-aware-prototype-browser-parity.json
+          if-no-files-found: warn
+          retention-days: 30

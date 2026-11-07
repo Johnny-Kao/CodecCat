@@ -1,0 +1,170 @@
+name: Staging opt-in C1 diagnostics full Wheel contract
+on:
+  pull_request:
+    paths:
+      - "native-prototype/**"
+      - ".github/workflows/staging-c1-diagnostics.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: staging-c1-diagnostics-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  root-wheel:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: zed-industries/encodings-tests
+          ref: ad57f2dd75d9d9b78e5d2cc5d2b579881dc09912
+          path: fixture-zed
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: jspillers/char_test
+          ref: a0544667291c27352fa33224d6bcd06b0f9c4670
+          path: fixture-char-test
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: shabanali-faghani/IUST-HTMLCharDet
+          ref: 0a7f382e2d488d46f1e12bad647f0384c4a2288f
+          path: external-iust
+          sparse-checkout: eval/test-data/encoding-wise/corpus.zip
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: source-data
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Restore SHA256-verified frozen release reference (no retraining)
+        shell: bash
+        run: |
+          mkdir -p ci-fixtures native-prototype/model native-prototype/python/codeccat/models
+          curl -fsSL --retry 3 -o /tmp/native-reference.tar.gz "https://github.com/Johnny-Kao/CodecCat/releases/download/v0.1.0a4/native-reference-v0.1.0a4.tar.gz"
+          echo "e3dd654817fb0e3324910b1a39af9bc19185400582d5a066c533d7cc5dd81c8c  /tmp/native-reference.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/native-reference.tar.gz -C ci-fixtures
+          echo "16073306b5027bf93acc2883f57fbda0cb0cf2d77b9a7bb62cf1b07fcbb9748b  ci-fixtures/default.ccm" | sha256sum -c -
+          cp ci-fixtures/default.ccm ci-fixtures/default.ccm.meta.json ci-fixtures/language-l3.json native-prototype/python/codeccat/models/
+          cp ci-fixtures/stable23-f64.ccm native-prototype/model/stable23.ccm
+          cp ci-fixtures/api-parity-goldens.jsonl ci-fixtures/api-model-fingerprint.txt ci-fixtures/l2-numeric-goldens.jsonl native-prototype/
+          echo "FROZEN_MODEL_ROOT_WHEEL_PASS"
+      - name: Build wheel strictly from repository root
+        run: |
+          python -m pip install build==1.3.0
+          python -m build --wheel --outdir dist .
+          python -m pip install wheel twine==6.2.0
+          python - <<'PY'
+          import glob, zipfile
+          wheels = glob.glob("dist/*.whl")
+          assert len(wheels) == 1, wheels
+          with zipfile.ZipFile(wheels[0]) as whl:
+              names = whl.namelist()
+              assert any(x.startswith("codeccat/_codeccat_native") for x in names), "native extension absent"
+              assert "codeccat/models/default.ccm" in names, "default model absent"
+              metadata = next(x for x in names if x.endswith(".dist-info/METADATA"))
+              data = whl.read(metadata).decode()
+              assert "Name: codeccat" in data
+              import json
+              from pathlib import Path
+              version=json.loads(Path("release-config.json").read_text())["version"]
+              assert f"Version: {version}" in data
+              assert "Provides-Extra: legacy" in data
+              assert "Requires-Dist: scikit-learn" not in data
+              assert "Requires-Dist: scipy" not in data
+              print("ROOT_WHEEL_METADATA_PASS", wheels[0])
+          PY
+      - name: Audit wheel for bundled raw corpus and model feature bounds
+        run: |
+          python native-prototype/audit_release_wheel.py dist/*.whl
+          python -m twine check dist/*.whl
+          python - <<'PY'
+          import glob, zipfile
+          wheels = glob.glob("dist/*.whl")
+          assert len(wheels) == 1
+          with zipfile.ZipFile(wheels[0]) as z:
+              licenses = [x for x in z.namelist() if x.endswith("/LICENSE") or x.endswith("/LICENSE.txt")]
+              assert licenses, "MIT license not included in wheel"
+              text = z.read(licenses[0]).decode("utf-8")
+              assert "MIT License" in text and "Johnny Kao" in text
+              meta = next(x for x in z.namelist() if x.endswith(".dist-info/METADATA"))
+              data = z.read(meta).decode("utf-8")
+              assert "License-Expression: MIT" in data or "License: MIT" in data
+              assert "Project-URL: Issues" in data
+          print("WHEEL_LICENSE_AND_METADATA_PASS")
+          PY
+      - name: Verify pinned historical corpus before provenance screen
+        run: python datasets/official/prepare_manifest.py --corpus source-data
+      - name: Test installed root wheel with no ML dependencies
+        shell: bash
+        run: |
+          python -m venv .root-clean
+          .root-clean/bin/python -m pip install dist/*.whl
+          .root-clean/bin/python native-prototype/api_parity.py verify
+          .root-clean/bin/python native-prototype/verify_native.py verify
+          .root-clean/bin/python native-prototype/release_reliability.py
+          .root-clean/bin/python native-prototype/stable_contract.py
+          .root-clean/bin/python native-prototype/verify_opt_in_diagnostics.py
+          .root-clean/bin/python native-prototype/evaluate_opt_in_diagnostics.py
+          .root-clean/bin/python native-prototype/evaluate_c1_real_html.py
+          .root-clean/bin/python -m pip check
+          .root-clean/bin/python - <<'PY'
+          import codeccat, importlib.util
+          assert all(importlib.util.find_spec(m) is None for m in ("numpy", "scipy", "sklearn", "joblib"))
+          assert codeccat.detect(b"hello").text == "hello"
+          print("ROOT_WHEEL_CLEAN_INSTALL_PASS")
+          PY
+      - name: Inspect separately sourced historical real HTML archive safely
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile,json,collections
+          file=Path("external-iust/eval/test-data/encoding-wise/corpus.zip")
+          assert file.is_file() and file.stat().st_size < 60_000_000
+          with zipfile.ZipFile(file) as z:
+              all_entries=z.infolist()
+              entries=[e for e in all_entries if not e.is_dir()]
+              assert len(entries)<10000
+              assert sum(e.file_size for e in entries)<500_000_000
+              assert all(e.file_size<6_000_000 for e in entries)
+              top=collections.Counter(e.filename.split("/")[0] for e in entries)
+              first2=collections.Counter("/".join(e.filename.split("/")[:2]) for e in entries)
+              print("IUST_REAL_HTML_ARCHIVE_STRUCTURE",json.dumps({
+                  "n":len(entries),"total_uncompressed":sum(e.file_size for e in entries),
+                  "top":top.most_common(12),"first2":first2.most_common(35),
+                  "names":[e.filename for e in entries[:30]]
+              },sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: staging-c1-diagnostics-wheel-test-only
+          path: dist/*.whl
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: staging-c1-original-fixture-metadata
+          path: research-results/staging-c1-labeled-fixtures.json
+          if-no-files-found: warn
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: staging-c1-real-html-metadata
+          path: research-results/staging-c1-real-html.json
+          if-no-files-found: warn
+          retention-days: 30
+

@@ -89,6 +89,27 @@ def main() -> None:
             s["label_disagree_label_is_ranked_candidate"] += int(not agreed and canon(label) in candidate)
             s["label_disagree_label_absent_from_candidates"] += int(not agreed and canon(label) not in candidate)
             s["label_disagree_model_abstained"] += int(not agreed and actual.text is None)
+            if group == "Shift_JIS":
+                # CP932 and strict Python shift_jis often name the same
+                # Japanese legacy family but have distinct Unicode mappings.
+                try:
+                    cp932_text = raw.decode("cp932", "strict")
+                    s["strict_cp932_can_decode"] += 1
+                    s["decoded_text_exactly_cp932"] += int(actual.text == cp932_text)
+                    s["shiftjis_cp932_text_differs"] += int(cp932_text != gold)
+                    s["label_disagree_exactly_cp932"] += int(
+                        not agreed and actual.text == cp932_text
+                    )
+                except UnicodeError:
+                    s["strict_cp932_unavailable"] += 1
+            if group == "GBK" and actual.encoding == "gb2312":
+                s["predicted_gb2312"] += 1
+                try:
+                    gb2312_text = raw.decode("gb2312", "strict")
+                    s["gb2312_strict_supported"] += 1
+                    s["gb2312_vs_gbk_unicode_differs"] += int(gb2312_text != gold)
+                except UnicodeError:
+                    s["gb2312_strict_unavailable"] += 1
             if not agreed:
                 miss_classes[group][str(actual.encoding)] += 1
             masked, tags = source_mask(raw)

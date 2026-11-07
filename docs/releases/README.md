@@ -4,6 +4,7 @@ Release notes are kept here so the repository root stays focused on usage and co
 
 | Version | Status | Notes | Published artifacts |
 | --- | --- | --- | --- |
+| [Runtime v0.1.1](v0.1.1.md) | Release candidate | Opt-in C1 ambiguity diagnostic, identical model; unshipped until separately verified | Pending |
 | [Trainer 0.1.0](TRAINER-v0.1.0.md) | Stable (independent package) | Offline training & model evaluation, no Runtime change | [PyPI](https://pypi.org/project/codeccat-train/0.1.0/) · [Tag](https://github.com/Johnny-Kao/CodecCat/tree/trainer-v0.1.0) |
 | [v0.1.0](v0.1.0.md) | Stable | First stable API and manylinux Wheels | [GitHub](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0) · [PyPI](https://pypi.org/project/codeccat/0.1.0/) |
 | [v0.1.0a5](v0.1.0a5.md) | Alpha | Short-text UTF-8 evidence improvements | [GitHub](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0a5) |

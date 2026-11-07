@@ -62,6 +62,17 @@ class HtmlPrototypeTests(unittest.TestCase):
         with self.assertRaises(HtmlDecodeError):
             decode_html_prototype(raw,errors="strict")
 
+    def test_literal_replacement_character_is_not_a_decoding_error(self):
+        raw=b"<meta charset=utf-8>" + bytes([0xef,0xbf,0xbd])
+        result=decode_html_prototype(raw)
+        self.assertIn("\ufffd",result.text)
+        self.assertFalse(result.used_replacement)
+
+    def test_html_utf16_transport_label_normalized_without_bom(self):
+        raw=b"<p>Hello</p>"
+        result=decode_html_prototype(raw,content_type="text/html; charset=utf-16le")
+        self.assertEqual((result.encoding,result.source),("utf-8","transport"))
+
     def test_caller_controlled_limits_and_types(self):
         with self.assertRaises(TypeError):decode_html_prototype("not bytes")
         with self.assertRaises(HtmlDecodeError):decode_html_prototype(b"x"*12,max_bytes=10)

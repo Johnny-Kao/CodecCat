@@ -1,22 +1,17 @@
-# codeccat-train (offline only)
+# codeccat-train — independent offline training toolkit
 
 Independent Python distribution for training and exporting CodecCat native
 `.ccm` models. **Not a runtime dependency** of `codeccat`. The train
 environment requires NumPy and scikit-learn; production inference does not.
 
-**Implementation status (2026-11-07):** The core offline Trainer and end-to-end
-published-Runtime model-loading workflow are implemented and verified.
-The trainer remains a **source-installable Alpha (`0.1.0a3`)**, not an
-independently published stable PyPI package. Its historical official L2/L3
-reproduction tests establish *reproducibility*, not a better new model or
-permission to publish third-party training texts.
+**Release candidate: `codeccat-train 0.1.0` (independent package).** The core offline Trainer and end-to-end published-Runtime model-loading workflow are implemented and verified. This repository branch contains a stable release candidate; **PyPI availability is not implied until a separate verified publishing run succeeds**. Historical official L2/L3 reproduction establishes *reproducibility*, not a better model or permission to publish third-party training texts.
 
 The same Trainer is used for both workflows: private community-supplied datasets
 remain the user's responsibility; the project-maintained dataset is governed by
 a separate rights and default-model acceptance decision. No user dataset or
 generated model is automatically submitted to the CodecCat project.
 
-From a checkout (experimental source distribution; not on PyPI):
+From a checkout (works before and after the first PyPI publication):
 
 ```bash
 python -m pip install ./native-prototype/training
@@ -56,9 +51,7 @@ for the native runtime and [rights and provenance policy](https://github.com/Joh
 - **Platform evidence:** training and Runtime interoperability checked on Linux
   x64/ARM64 and macOS ARM64; custom-model Runtime portability checked on
   macOS Intel and Windows x64.
-- **Not yet a Stable Trainer release:** no separate `codeccat-train` stable PyPI
-  publication or independent release/rollback process. Historical training
-  provenance is documented with residual risk, not universally cleared.
+- **Stable-candidate release boundary:** the independent `0.1.0` source/Wheel and release CI must pass before tagging. It is not available via PyPI until its own Trusted Publisher is configured and a separate upload succeeds. Historical training provenance is documented with residual risk, not universally cleared.
 - **Not an automatic Runtime update:** installing or training with this tool
   does not alter `codeccat` or the bundled Stable model. A candidate default
   requires a separately approved evaluation and release.

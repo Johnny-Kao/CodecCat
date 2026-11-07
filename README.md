@@ -136,7 +136,7 @@ On a future Wheel containing this feature:
 from codeccat import detect
 from codeccat.diagnostics import inspect_ambiguity
 
-raw = b"Price: \\x80; total."
+raw = b"Price: \x80; total."
 result = detect(raw)
 diagnostic = inspect_ambiguity(raw, result)
 

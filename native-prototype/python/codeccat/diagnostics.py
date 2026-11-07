@@ -7,6 +7,7 @@ No new model and no optional dependencies are needed.
 from __future__ import annotations
 
 import codecs
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -23,8 +24,12 @@ class AmbiguityDiagnostic:
     alternative_encodings: tuple[str, ...]
 
 
+_C1_PATTERN = re.compile(r"[\x80-\x9f]")
+
+
 def _c1(text: str) -> bool:
-    return any("\u0080" <= char <= "\u009f" for char in text)
+    """Search C1 controls in native regex code rather than Python per-character loops."""
+    return _C1_PATTERN.search(text) is not None
 
 
 def inspect_ambiguity(

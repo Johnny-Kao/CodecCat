@@ -32,6 +32,18 @@ def main():
         entry["prototype_source"]=result.source
         entry["prototype_text_sha256"]=hashlib.sha256(result.text.encode("utf-8")).hexdigest()
         entry["prototype_replacements"]=result.used_replacement
+        # Counterfactual only. Preserve the baseline output while comparing
+        # CP932 mapping to WHATWG Shift_JIS in the browser.
+        entry["cp932_unicode_sha256"]=hashlib.sha256(
+            data.decode("cp932","replace").encode("utf-8")
+        ).hexdigest() if result.encoding=="shift_jis" else None
+        try:
+            data.decode("utf-8","strict")
+            entry["utf8_strict_valid"]=True
+        except UnicodeError:
+            entry["utf8_strict_valid"]=False
+        entry["first_charset_ascii_offset"]=data.lower().find(b"charset")
+        entry["meta_marker_count"]=data.lower().count(b"<meta")
     MANIFEST.write_text(json.dumps(entries,separators=(",",":")),encoding="utf-8")
     print("P1_HTML_PROTOTYPE_PREPARED",json.dumps({
         "n":len(entries),

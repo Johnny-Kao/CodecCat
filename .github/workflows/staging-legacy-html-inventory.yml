@@ -1,0 +1,49 @@
+name: Staging natural Legacy HTML corpus inventory
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/staging-legacy-html-inventory.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: shabanali-faghani/IUST-HTMLCharDet
+          ref: 0a7f382e2d488d46f1e12bad647f0384c4a2288f
+          path: external-iust
+          sparse-checkout: eval/test-data/encoding-wise/corpus.zip
+          persist-credentials: false
+      - name: Read historical web corpus ZIP metadata only
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile,json,collections
+          path=Path("external-iust/eval/test-data/encoding-wise/corpus.zip")
+          assert path.is_file() and path.stat().st_size < 60_000_000
+          with zipfile.ZipFile(path) as z:
+              entries=z.infolist()
+              files=[e for e in entries if not e.is_dir()]
+              assert len(files)<10000 and sum(e.file_size for e in files)<500_000_000
+              assert all(e.file_size < 6_000_000 for e in files)
+              parts=collections.Counter(e.filename.split("/")[0] for e in files)
+              second=collections.Counter("/".join(e.filename.split("/")[:2]) for e in files)
+              extensions=collections.Counter(Path(e.filename).suffix.lower() for e in files)
+              print("LEGACY_HTML_INVENTORY",json.dumps({
+                  "n":len(files),"total_raw_bytes":sum(e.file_size for e in files),
+                  "root_directories":parts.most_common(20),
+                  "second_levels":second.most_common(35),
+                  "extensions":extensions.most_common(12),
+                  "examples":[e.filename for e in files[:32]],
+              },ensure_ascii=True,sort_keys=True))
+          PY

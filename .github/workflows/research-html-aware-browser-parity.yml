@@ -51,6 +51,8 @@ jobs:
         run: node research/prototypes/browser_parity.js
       - name: Probe Chromium no-meta fallbacks and conflicting declarations
         run: node research/prototypes/browser_encoding_probes.js
+      - name: Test causal charset label ablations on six screened original HTML sources
+        run: node research/prototypes/browser_six_meta_ablation.js
       - uses: actions/upload-artifact@v4
         if: always()
         with:

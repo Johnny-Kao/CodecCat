@@ -10,6 +10,9 @@ function norm(x){
  let v=(x||"").toLowerCase().replaceAll("_","-");
  if(["shift-jis","shift_jis","windows-31j","cp932"].includes(v))return "shift-jis";
  if(["gb2312","gbk","cp936"].includes(v))return "gbk";
+ if(["cp1251","windows-1251"].includes(v))return "windows-1251";
+ if(["cp1256","windows-1256"].includes(v))return "windows-1256";
+ if(["cp1252","windows-1252"].includes(v))return "windows-1252";
  return v;
 }
 function bucket(group){

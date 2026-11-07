@@ -1,0 +1,57 @@
+name: P1 real browser arbitration of HTML encoding disagreements
+on:
+  pull_request:
+    paths:
+      - "research/scripts/p1_prepare_browser_corpus.py"
+      - "research/scripts/p1_browser_corpus.js"
+      - ".github/workflows/research-p1-browser-corpus.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: shabanali-faghani/IUST-HTMLCharDet
+          ref: 0a7f382e2d488d46f1e12bad647f0384c4a2288f
+          path: external-iust
+          sparse-checkout: eval/test-data/encoding-wise/corpus.zip
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: source-data
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install research-only original-source parsers
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir html5lib==1.1 turbohtml==1.15.4
+          python -m pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: --no-deps codeccat==0.1.1
+          python datasets/official/prepare_manifest.py --corpus source-data
+      - name: Build local-only original HTML fixture set (never upload)
+        run: python research/scripts/p1_prepare_browser_corpus.py
+      - name: Install pinned real Chromium, no external page networking
+        run: |
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Compare actual browser charset with parser selections
+        run: node research/scripts/p1_browser_corpus.js
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: p1-real-browser-arbitration-metadata-only
+          path: research-results/p1-real-browser-arbitration.json
+          if-no-files-found: warn
+          retention-days: 30

@@ -1,0 +1,76 @@
+name: P1 HTML prescan cross-implementation & external GBK source study
+on:
+  pull_request:
+    paths:
+      - "research/scripts/p1_turbo_gbk_compare.py"
+      - ".github/workflows/research-p1-turbo-gbk.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: shabanali-faghani/IUST-HTMLCharDet
+          ref: 0a7f382e2d488d46f1e12bad647f0384c4a2288f
+          path: external-iust
+          sparse-checkout: eval/test-data/encoding-wise/corpus.zip
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: source-data
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Independently install released Runtime and pinned research-only HTML parsers
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: --no-deps codeccat==0.1.1
+          python -m pip install --disable-pip-version-check --no-cache-dir html5lib==1.1 turbohtml==1.15.4
+          python datasets/official/prepare_manifest.py --corpus source-data
+      - name: Retrieve pinned original GBK-labeled HTML from independent sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import urllib.request
+          sources={
+            "CatPapers":("junyanz/CatPapers","372ac4b632f58334321ebb433fd4892725c4a6ae",["data/header.html","cat_papers.html"]),
+            "KitJs":("xueduany/KitJs","f1b5a426fec806848e21503d67fb812d8cc6e3f1",["urlencode.html"]),
+            "netkiller":("netkiller/netkiller.github.io","4277b0c07df2b26e8f46115a077d54c9a61e2d99",["architect/h5.html"]),
+            "coolshell":("chenshuo/coolshell","5b87ce80c5a6d9629d081244a2b53c93afc596f0",["articles/4261.html"]),
+          }
+          for label,(repo,sha,files) in sources.items():
+            for path in files:
+              url=f"https://raw.githubusercontent.com/{repo}/{sha}/{path}"
+              dest=Path("external-gbk")/label/path
+              dest.parent.mkdir(parents=True,exist_ok=True)
+              try:
+                with urllib.request.urlopen(urllib.request.Request(url,headers={"User-Agent":"CodecCat-P1-research"}),timeout=20) as r:
+                  data=r.read(6_000_001)
+                if len(data)>6_000_000:raise ValueError("too-large")
+                dest.write_bytes(data)
+                print("PINNED_EXTERNAL_GBK_SOURCE",label,path,len(data))
+              except Exception as error:
+                print("PINNED_EXTERNAL_GBK_SOURCE_UNAVAILABLE",label,path,type(error).__name__)
+          PY
+      - name: Compare adversarial HTML semantics and historical/original new sources
+        run: python research/scripts/p1_turbo_gbk_compare.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: p1-external-HTML-GBK-metadata
+          path: research-results/p1-html-gbk-independent.json
+          retention-days: 30
+          if-no-files-found: warn

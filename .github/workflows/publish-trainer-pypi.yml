@@ -1,0 +1,138 @@
+name: Publish independent CodecCat Trainer to PyPI
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Reviewed immutable trainer-vX.Y.Z tag"
+        required: true
+        type: string
+      publish:
+        description: "Actually upload to PyPI (false = verify only)"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: trainer-pypi-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+          path: tagged-source
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify immutable tag, version, workflow and successful tag CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "Johnny-Kao/CodecCat"
+          test "$GITHUB_REF" = "refs/heads/main"
+          [[ "$TAG" =~ ^trainer-v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          expected_version="${TAG#trainer-v}"
+          actual=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq '.object.sha')
+          kind=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq '.object.type')
+          if [[ "$kind" == "tag" ]]; then
+            actual=$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$actual" --jq '.object.sha')
+          else
+            test "$kind" = "commit"
+          fi
+          test "$actual" = "$(git -C tagged-source rev-parse HEAD)"
+          TAG="$TAG" VERSION="$expected_version" python - <<'PY'
+          import os,tomllib
+          from pathlib import Path
+          version=tomllib.loads(Path("tagged-source/native-prototype/training/pyproject.toml").read_text())["project"]["version"]
+          assert version==os.environ["VERSION"],(version,os.environ["VERSION"])
+          assert Path("tagged-source/docs/releases/TRAINER-v"+version+".md").is_file()
+          print("TRAINER_TAG_VERSION_PASS")
+          PY
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$actual&per_page=100" > /tmp/runs.json
+          python - <<'PY'
+          import json,os
+          runs=json.load(open('/tmp/runs.json'))['workflow_runs']
+          good=[r for r in runs if r['path']=='.github/workflows/trainer-stable-acceptance.yml' and r['conclusion']=='success' and r['event']=='push' and r['head_branch']==os.environ['TAG']]
+          assert good,"missing successful exact-tag trainer acceptance matrix"
+          print("TRAINER_TAG_CI_PASS",good[0]['id'])
+          PY
+      - name: Download only exact-tag trainer distributions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha=$(git -C tagged-source rev-parse HEAD)
+          run_id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$sha&per_page=100" --jq '[.workflow_runs[] | select(.path==".github/workflows/trainer-stable-acceptance.yml" and .conclusion=="success" and .event=="push")][0].id')
+          [[ "$run_id" =~ ^[0-9]+$ ]]
+          gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --name trainer-stable-distribution --dir dist
+      - name: Independently audit exact distributions and hashes
+        shell: bash
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check twine==7.0.0
+          python -m twine check --strict dist/*
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,os,tarfile,zipfile,tomllib
+          paths=list(Path("dist").iterdir())
+          assert len(paths)==2,paths
+          version=os.environ['TAG'].removeprefix("trainer-v")
+          wheel=[p for p in paths if p.suffix=='.whl']
+          sdist=[p for p in paths if p.name.endswith('.tar.gz')]
+          assert len(wheel)==len(sdist)==1
+          assert wheel[0].name.startswith(f'codeccat_train-{version}-')
+          assert sdist[0].name==f'codeccat_train-{version}.tar.gz'
+          with zipfile.ZipFile(wheel[0]) as z:
+              names=z.namelist()
+              meta=z.read(next(n for n in names if n.endswith('.dist-info/METADATA'))).decode()
+              assert f'Version: {version}' in meta and 'Name: codeccat-train' in meta
+              assert any(n.endswith('/LICENSE') for n in names)
+              assert not any('smoke-data' in n or 'training_text' in n for n in names)
+          with tarfile.open(sdist[0]) as z:
+              assert all('smoke-data' not in n for n in z.getnames())
+          for path in paths:
+              print("TRAINER_ARTIFACT_SHA256",path.name,hashlib.sha256(path.read_bytes()).hexdigest())
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: audited-trainer-distributions
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: verify
+    if: ${{ inputs.publish == true && github.ref == 'refs/heads/main' }}
+    environment:
+      name: pypi-trainer
+      url: https://pypi.org/project/codeccat-train/
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: audited-trainer-distributions
+          path: dist/
+      - name: Publish audited packages using project-specific PyPI Trusted Publisher
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3

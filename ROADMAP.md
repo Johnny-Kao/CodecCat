@@ -13,14 +13,21 @@ This is a public, **non-binding** direction of work—not an issue backlog or re
 - [x] Fixed-source reproducible decoding and performance comparison with documented training-source overlap.
 - [x] Community contribution, disclosure, review, roadmap and release-note conventions.
 
+## Implemented in source, not yet in the published PyPI 0.1.0
+
+- [x] Optional **C1 interpretation ambiguity diagnostic** (`codeccat.diagnostics.inspect_ambiguity`), merged in [PR #47](https://github.com/Johnny-Kao/CodecCat/pull/47). This never substitutes decoded text and is **not yet available to `pip install codeccat==0.1.0` users**.
+- [x] Six-platform source-build and clean-install validation of the opt-in diagnostic with an unchanged default model and unchanged `Detection` contract.
+- [x] Historical original HTML archive research, with provenance screening and speed improvements; its labeled codecs are proxies, not independently established ground truth.
+- [ ] Future Runtime patch-release decision and publication (candidate `0.1.1`) after release notes and approval. **No PyPI publication is implied by merging the feature.**
+
 ## Offline trainer workstream (single core, dataset-specific use)
 
 The public `codeccat` Runtime and the experimental source-only `codeccat-train` tool are **separate installs**. Official and custom models use the same training tool; datasets and release authorization differ.
 
 | Phase | Scope | Status |
 | --- | --- | --- |
-| P0 | Train a custom CCM1 model from a grouped manifest and load/decode it with published Stable `codeccat==0.1.0`; isolated CI, deterministic same-env smoke, safe manifest failures | **Source-level E2E tests implemented; CI verified** |
-| P1 | Official dataset sources and rights manifest, pinned dependencies/profile, test/holdout isolation and text-level model comparison | **Official L2 and optional L3 exact replay passed; provenance and comparison implemented; source-rights risk documented and accepted by maintainer** |
+| P0 | Train a custom CCM1 model from a grouped manifest and load/decode it with published Stable `codeccat==0.1.0`; isolated CI, deterministic same-env smoke, safe manifest failures | **Core Trainer implemented; source-install E2E CI verified; still Alpha-only distribution** |
+| P1 | Official dataset sources and rights manifest, pinned dependencies/profile, test/holdout isolation and text-level model comparison | **Official L2 and optional L3 exact replay passed; provenance and comparison implemented; source-rights residual risk documented and accepted by maintainer** |
 | P2 | Community model submission checks, review criteria, independent candidate release and automated rollback/compatibility tests | **Model proposal/review rules added; independent model-release automation still planned** |
 
 [Training guide](native-prototype/training/docs/GETTING_STARTED.md) · [Trainer source](native-prototype/training/) · [model provenance](RIGHTS_AND_PROVENANCE.md).

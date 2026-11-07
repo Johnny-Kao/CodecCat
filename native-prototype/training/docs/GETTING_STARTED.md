@@ -2,7 +2,7 @@
 
 CodecCat offers **one** offline training tool for anyone's dataset. The CLI and model format are shared; official and user-owned datasets differ in provenance and what is allowed to ship as an official release.
 
-**Status:** Source-distributed trainer prototype `codeccat-train==0.1.0a3`. It is **not yet published on PyPI**, and has reproduced the published L2 CCM2 and optional L3 reference artifacts byte-for-byte in the pinned historical CI environment. This does not establish data licensing or grant permission to promote new models. Public Native `codeccat==0.1.0` remains unchanged.
+**Status (2026-11-07):** The offline training and candidate-evaluation workflow is **implemented and E2E-verified** with the published Runtime. The Trainer remains the source-distributed Alpha `codeccat-train==0.1.0a3` (**not separately published on PyPI or declared stable**). Exact historical official L2 CCM2 and optional L3 model replay has passed under pinned sources and dependencies; this is not data-rights clearance, stronger real-world accuracy, or authorization to promote a new default model. The separately published Runtime remains `codeccat==0.1.0`.
 
 ## Quick local example
 
@@ -79,7 +79,7 @@ The evaluation manifest uses the same JSONL keys with `"split":"test"` (or expli
 By default, `codeccat-train fit` writes `CCM1` (float64 weights). Supply `--precision f32` to write a `CCM2` model with float32 weights, compatible with the published Runtime:
 
 ```bash
-codeccat-train fit --manifest my-data/manifest.jsonl --output custom-f32.ccm \\
+codeccat-train fit --manifest my-data/manifest.jsonl --output custom-f32.ccm \
   --report training-f32.json --precision f32
 ```
 

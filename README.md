@@ -126,6 +126,29 @@ A source-level paired GNOME Software test showed 18 additional correct decodes w
 
 See [full benchmark methodology and limitations](docs/BENCHMARKS.md) and the [frozen external-source protocol](research/SOURCE_DISJOINT_BENCHMARK_PROTOCOL_2026-11-07.md).
 
+## Optional ambiguity diagnostic (source code; not in PyPI 0.1.0)
+
+The repository now contains an **opt-in**, non-mutating C1-control ambiguity diagnostic. It is part of the source code after [PR #47](https://github.com/Johnny-Kao/CodecCat/pull/47), but **is not included in the published `codeccat==0.1.0` Wheel**. The code and six-platform compatibility tests have passed; this is not a replacement for a model-accuracy upgrade.
+
+On a future Wheel containing this feature:
+
+```python
+from codeccat import detect
+from codeccat.diagnostics import inspect_ambiguity
+
+raw = b"Price: \x80; total."
+result = detect(raw)
+diagnostic = inspect_ambiguity(raw, result)
+
+if diagnostic.warning:
+    print(diagnostic.reason, diagnostic.alternative_encodings)
+    # Check a trusted source encoding before choosing another interpretation.
+```
+
+The function inspects only **already returned model candidates** when selected text contains C1 controls (U+0080–U+009F) and an alternative strictly decodes those bytes without C1 controls. It **does not** change `result.encoding`, `result.text`, `result.candidates`, `result.ambiguous`, BOM handling, or L3 behavior. **A warning does not prove the current decoding is wrong.** Some legal ISO-8859-1 text intentionally contains these controls, and lack of a warning does not prove correctness.
+
+A fixed historical HTML study screened 2,675 files and evaluated 1,886 eligible files after deduplication, strict label decoding, and historical training-source overlap checks. The warning flagged **17 of 572 label-disagreeing results** and none of 1,314 label-agreeing results. Archive labels are not independently verified ground truth, so these numbers are **not** a real-world sensitivity or false-positive rate. See [the validation record](research/C1_STAGING_VALIDATION_2026-11-07.md) and [protocol](research/C1_REAL_HTML_PROTOCOL_2026-11-07.md).
+
 ## Detection semantics
 
 Character encoding is not always uniquely identifiable from bytes alone.
@@ -160,11 +183,35 @@ Model and source provenance, including third-party rights considerations, are do
 
 See [Rights and Provenance](RIGHTS_AND_PROVENANCE.md).
 
-## Train your own model (experimental)
+## Train your own model (offline, source distribution)
 
-The offline `codeccat-train` source package can train a numeric model from your own labeled text samples. It is **not a production dependency**, is **not yet published separately on PyPI**, and has been verified to reproduce both historical official L2 and optional L3 model artifacts byte-for-byte with pinned source data and the historical environment. This does not automatically approve a new official model. Models can be loaded with `CodecCat.from_files("custom.ccm")` without replacing the bundled model.
+**The training workflow is implemented and E2E-tested, but `codeccat-train` is still a separately installable Alpha source package (`0.1.0a3`), not a published stable PyPI package.** It is not included in the default `pip install codeccat` and is not required for production inference. The runtime stays dependency-light; training uses NumPy and scikit-learn in its own environment.
 
-See the [offline training guide](native-prototype/training/docs/GETTING_STARTED.md), [Trainer README](native-prototype/training/README.md), [model contribution rules](docs/MODEL_SUBMISSIONS.md) and [roadmap](ROADMAP.md).
+From a repository checkout, with your own labeled byte files and a [grouped JSONL manifest](native-prototype/training/docs/GETTING_STARTED.md):
+
+```bash
+python -m venv .trainer-env
+.trainer-env/bin/python -m pip install ./native-prototype/training
+.trainer-env/bin/python -m codeccat_train fit \\
+  --manifest my-data/manifest.jsonl \\
+  --output custom.ccm \\
+  --report training-report.json
+```
+
+Then load the model using an independent environment containing the **published** Runtime:
+
+```python
+from codeccat import CodecCat
+custom_detector = CodecCat.from_files("custom.ccm")
+result = custom_detector.detect("café".encode("utf-8"))
+print(result.encoding, result.text)
+```
+
+The Trainer also supports `--precision f32` (compact CCM2), `evaluate` (candidate-vs-unchanged Stable with paired improvements/regressions on labeled bytes), and optional `fit-l3` (separately trained language artifact, disabled by default). The common training engine can be used with **your private dataset** or a separately approved official dataset; supplying your data does not grant the project rights to it.
+
+**Verified:** separate training/Runtime environments, deterministic training, safe manifest checks, native custom-model loading, Linux x64/ARM64 and macOS/Windows checks, and exact historical official L2/L3 artifact reconstruction under pinned sources and dependencies. **Not established:** public stable Trainer distribution, universal legal clearance for historical datasets, or improved real-world accuracy of a new model. Custom models do not automatically replace the shipped default model.
+
+See [quick start](native-prototype/training/docs/GETTING_STARTED.md), [Trainer README](native-prototype/training/README.md), [model contribution rules](docs/MODEL_SUBMISSIONS.md), [rights/provenance](RIGHTS_AND_PROVENANCE.md) and [roadmap](ROADMAP.md).
 
 ## Contributing and maintenance
 

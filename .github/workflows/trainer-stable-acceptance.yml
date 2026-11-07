@@ -84,18 +84,26 @@ jobs:
           PY
           python -m unittest discover -s native-prototype/training/tests -v
           python native-prototype/training/make_smoke_data.py
-          mkdir -p trainer-ci-artifacts
-          python -m codeccat_train fit --manifest native-prototype/training/smoke-data/manifest.jsonl --output trainer-ci-artifacts/custom.ccm --report trainer-ci-artifacts/fit.json
-          python -m codeccat_train fit --manifest native-prototype/training/smoke-data/manifest.jsonl --output trainer-ci-artifacts/custom-f32.ccm --report trainer-ci-artifacts/fit-f32.json --precision f32
-          python native-prototype/training/tests/check_runtime_e2e.py
-          python native-prototype/training/tests/check_ccm2_e2e.py
-          python -m codeccat_train evaluate --model trainer-ci-artifacts/custom.ccm --manifest native-prototype/training/smoke-data/manifest.jsonl --split validation --report trainer-ci-artifacts/evaluation.json
+          mkdir -p trainer-results
+          python -m codeccat_train fit --manifest native-prototype/training/smoke-data/manifest.jsonl --output trainer-results/custom.ccm --report trainer-results/training-report.json
+          python -m codeccat_train fit --manifest native-prototype/training/smoke-data/manifest.jsonl --output trainer-results/custom-f32.ccm --report trainer-results/training-report-f32.json --precision f32
+          # Runtime verification must remain isolated from numpy/sklearn/trainer.
+          python -m venv .runtime-env
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            RUNTIME_PY=".runtime-env/Scripts/python.exe"
+          else
+            RUNTIME_PY=".runtime-env/bin/python"
+          fi
+          "$RUNTIME_PY" -m pip install --disable-pip-version-check --only-binary=:all: --no-deps codeccat==0.1.0
+          "$RUNTIME_PY" native-prototype/training/tests/check_runtime_e2e.py
+          "$RUNTIME_PY" native-prototype/training/tests/check_ccm2_e2e.py
+          python -m codeccat_train evaluate --model trainer-results/custom.ccm --manifest native-prototype/training/smoke-data/manifest.jsonl --split validation --report trainer-results/evaluation.json
           python - <<'PY'
           import json
           from pathlib import Path
-          r=json.loads(Path("trainer-ci-artifacts/fit.json").read_text())
-          s=json.loads(Path("trainer-ci-artifacts/fit-f32.json").read_text())
-          e=json.loads(Path("trainer-ci-artifacts/evaluation.json").read_text())
+          r=json.loads(Path("trainer-results/training-report.json").read_text())
+          s=json.loads(Path("trainer-results/training-report-f32.json").read_text())
+          e=json.loads(Path("trainer-results/evaluation.json").read_text())
           assert r["training_tool_version"] == "0.1.0",r
           assert s["model_schema"] == "CCM2"
           assert e["results"]["candidate"]["n"] > 0

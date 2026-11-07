@@ -139,6 +139,12 @@ jobs:
           .clean/bin/python -m pip check
 
   release-assembly-dry-run:
+    # Historical 0.1.0 fixture simulation intentionally combines old Wheels
+    # with an sdist built at the same 0.1.0 version. For subsequent versions,
+    # mixing immutable 0.1.0 Wheels with a 0.1.1 sdist is invalid; the actual
+    # release is instead assembled and audited using three exact-tag CI runs
+    # in publish-stable-release.yml.
+    if: ${{ github.ref_type != 'tag' }}
     needs: build-and-install
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -160,7 +166,19 @@ jobs:
         with:
           name: source-distribution
           path: downloaded-sdist
+      - name: Inspect version for historical fixture applicability
+        id: historical
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json,os
+          version=json.load(open("release-config.json"))["version"]
+          with open(os.environ["GITHUB_OUTPUT"],"a") as output:
+              output.write(f"applicable={'true' if version=='0.1.0' else 'false'}\n")
+          print("HISTORICAL_FIXTURE_ONLY_APPLIES_TO_0_1_0",version)
+          PY
       - name: Prepare read-only historical reference for next-release assembly dry-run
+        if: ${{ steps.historical.outputs.applicable == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -174,6 +192,7 @@ jobs:
           cp original-dist/*.whl sample-platform/
           cp original-dist/*manylinux*.whl sample-linux/
       - name: Assemble six authentic historical Wheels with newly built sdist
+        if: ${{ steps.historical.outputs.applicable == 'true' }}
         shell: bash
         run: |
           set -euo pipefail

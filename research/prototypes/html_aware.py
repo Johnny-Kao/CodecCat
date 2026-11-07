@@ -62,7 +62,7 @@ def _http_charset(header: str | None) -> str | None:
 
 class _MetaFinder(HTMLParser):
     def __init__(self):
-        super().__init__(convert_charrefs=False, scripting=True)
+        super().__init__(convert_charrefs=False)
         self.encoding: str | None = None
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]):

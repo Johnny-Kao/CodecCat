@@ -27,7 +27,13 @@ EXTRA = [
 ]
 RELEASE_DIR = ROOT / "docs/releases"
 release_notes = sorted(RELEASE_DIR.glob("v*.md"))
-assert len(release_notes) == 5, ("expected archived v0.1.0 release notes", release_notes)
+# Preserve all historical 0.1.0 notes, but allow future versioned notes.
+historical = {"v0.1.0.md", "v0.1.0a2.md", "v0.1.0a3.md",
+              "v0.1.0a4.md", "v0.1.0a5.md"}
+assert historical.issubset({x.name for x in release_notes}), (
+    "missing historical release note", release_notes)
+assert all(re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+(?:a[0-9]+)?\.md", x.name)
+           for x in release_notes), ("unexpected release note", release_notes)
 assert not list(ROOT.glob("RELEASE_NOTES_*.md")), "release notes must stay under docs/releases/"
 files = EXTRA + [RELEASE_DIR / "README.md"] + release_notes
 

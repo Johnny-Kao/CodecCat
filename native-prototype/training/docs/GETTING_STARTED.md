@@ -2,7 +2,7 @@
 
 CodecCat offers **one** offline training tool for anyone's dataset. The CLI and model format are shared; official and user-owned datasets differ in provenance and what is allowed to ship as an official release.
 
-**Release candidate (2026-11-07):** Offline training and candidate evaluation are E2E-verified against the published Runtime. The source tree is preparing independent `codeccat-train==0.1.0` Stable distribution, which must pass release CI and PyPI Trusted Publishing before it becomes publicly installable from PyPI. Exact historical official L2 CCM2 and optional L3 replay have passed under pinned sources and dependencies; this is not data-rights clearance, stronger real-world accuracy, or authorization to promote a new default model. The separately published Runtime remains `codeccat==0.1.0`.
+**Published Stable (2026-11-07):** Offline training and candidate evaluation are E2E-verified against the published Runtime. The independently installable [`codeccat-train==0.1.0`](https://pypi.org/project/codeccat-train/0.1.0/) is now available on PyPI via verified OIDC Trusted Publishing. Exact historical official L2 CCM2 and optional L3 replay have passed under pinned sources and dependencies; this is not data-rights clearance, stronger real-world accuracy, or authorization to promote a new default model. The separately published Runtime remains `codeccat==0.1.0`.
 
 ## Quick local example
 
@@ -10,7 +10,7 @@ Use Python 3.12 and keep the trainer out of production environments:
 
 ```bash
 python -m venv .trainer-env
-.trainer-env/bin/python -m pip install ./native-prototype/training
+.trainer-env/bin/python -m pip install codeccat-train==0.1.0
 .trainer-env/bin/python native-prototype/training/make_smoke_data.py
 .trainer-env/bin/python -m codeccat_train \
   --manifest native-prototype/training/smoke-data/manifest.jsonl \

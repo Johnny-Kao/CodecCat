@@ -61,7 +61,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: native-cross-platform-reference
+          name: staging-c1-six-platform-reference
           path: ci-fixtures
       - uses: actions/setup-python@v5
         with:

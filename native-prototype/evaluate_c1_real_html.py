@@ -152,7 +152,7 @@ def evaluate(z, eligible, counts):
 
 
 def main():
-    assert importlib.metadata.version("codeccat") == "0.1.0"
+    assert importlib.metadata.version("codeccat") == json.loads(Path("release-config.json").read_text())["version"]
     from importlib.resources import files
     assert digest(files("codeccat").joinpath("models/default.ccm").read_bytes()) == (
         "16073306b5027bf93acc2883f57fbda0cb0cf2d77b9a7bb62cf1b07fcbb9748b"

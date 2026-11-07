@@ -22,13 +22,13 @@ This is a public, **non-binding** direction of work—not an issue backlog or re
 
 ## Offline trainer workstream (single core, dataset-specific use)
 
-The public `codeccat` Runtime and the experimental source-only `codeccat-train` tool are **separate installs**. Official and custom models use the same training tool; datasets and release authorization differ.
+The public `codeccat` Runtime and the independently published Stable [`codeccat-train 0.1.0`](https://pypi.org/project/codeccat-train/0.1.0/) tool are **separate installs**. Official and custom models use the same training tool; datasets and release authorization differ.
 
 | Phase | Scope | Status |
 | --- | --- | --- |
-| P0 | Train a custom CCM1 model from a grouped manifest and load/decode it with published Stable `codeccat==0.1.0`; isolated CI, deterministic same-env smoke, safe manifest failures | **Core Trainer implemented; source-install E2E CI verified; still Alpha-only distribution** |
+| P0 | Train a custom CCM1 model from a grouped manifest and load/decode it with published Stable `codeccat==0.1.0`; isolated CI, deterministic same-env smoke, safe manifest failures | **Core Trainer complete; E2E CI verified; independent PyPI Stable 0.1.0 published** |
 | P1 | Official dataset sources and rights manifest, pinned dependencies/profile, test/holdout isolation and text-level model comparison | **Official L2 and optional L3 exact replay passed; provenance and comparison implemented; source-rights residual risk documented and accepted by maintainer** |
-| P2 | Community model submission checks, review criteria, independent candidate release and automated rollback/compatibility tests | **Model proposal/review rules added; independent model-release automation still planned** |
+| P2 | Community model submission checks, review criteria, independent candidate release and automated rollback/compatibility tests | **Model proposal/review rules added; independent Trainer package Stable released; automatic candidate-model promotion/rollback still deliberately not enabled** |
 
 [Training guide](native-prototype/training/docs/GETTING_STARTED.md) · [Trainer source](native-prototype/training/) · [model provenance](RIGHTS_AND_PROVENANCE.md).
 

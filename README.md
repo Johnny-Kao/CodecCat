@@ -183,15 +183,15 @@ Model and source provenance, including third-party rights considerations, are do
 
 See [Rights and Provenance](RIGHTS_AND_PROVENANCE.md).
 
-## Train your own model (offline, source distribution)
+## Train your own model (independent PyPI package)
 
-**The training workflow is implemented and E2E-tested, but `codeccat-train` is still a separately installable Alpha source package (`0.1.0a3`), not a published stable PyPI package.** It is not included in the default `pip install codeccat` and is not required for production inference. The runtime stays dependency-light; training uses NumPy and scikit-learn in its own environment.
+**`codeccat-train 0.1.0` is independently published on [PyPI](https://pypi.org/project/codeccat-train/0.1.0/)** (Trainer release [CI](https://github.com/Johnny-Kao/CodecCat/actions/runs/42367573901)). It is not included in the default `pip install codeccat` and is not required for production inference. The runtime stays dependency-light; training uses NumPy and scikit-learn in its own environment.
 
 From a repository checkout, with your own labeled byte files and a [grouped JSONL manifest](native-prototype/training/docs/GETTING_STARTED.md):
 
 ```bash
 python -m venv .trainer-env
-.trainer-env/bin/python -m pip install ./native-prototype/training
+.trainer-env/bin/python -m pip install codeccat-train==0.1.0
 .trainer-env/bin/python -m codeccat_train fit \\
   --manifest my-data/manifest.jsonl \\
   --output custom.ccm \\
@@ -209,7 +209,7 @@ print(result.encoding, result.text)
 
 The Trainer also supports `--precision f32` (compact CCM2), `evaluate` (candidate-vs-unchanged Stable with paired improvements/regressions on labeled bytes), and optional `fit-l3` (separately trained language artifact, disabled by default). The common training engine can be used with **your private dataset** or a separately approved official dataset; supplying your data does not grant the project rights to it.
 
-**Verified:** separate training/Runtime environments, deterministic training, safe manifest checks, native custom-model loading, Linux x64/ARM64 and macOS/Windows checks, and exact historical official L2/L3 artifact reconstruction under pinned sources and dependencies. **Not established:** public stable Trainer distribution, universal legal clearance for historical datasets, or improved real-world accuracy of a new model. Custom models do not automatically replace the shipped default model.
+**Verified:** separate training/Runtime environments, deterministic training, safe manifest checks, native custom-model loading, Linux x64/ARM64 and macOS/Windows checks, and exact historical official L2/L3 artifact reconstruction under pinned sources and dependencies. **Not established:** universal legal clearance for historical datasets, or improved real-world accuracy of a new model. Custom models do not automatically replace the shipped default model.
 
 See [quick start](native-prototype/training/docs/GETTING_STARTED.md), [Trainer README](native-prototype/training/README.md), [model contribution rules](docs/MODEL_SUBMISSIONS.md), [rights/provenance](RIGHTS_AND_PROVENANCE.md) and [roadmap](ROADMAP.md).
 

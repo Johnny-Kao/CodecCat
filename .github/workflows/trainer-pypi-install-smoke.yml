@@ -1,0 +1,64 @@
+name: Published Trainer 0.1.0 independent install smoke
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/trainer-pypi-install-smoke.yml"
+      - "README.md"
+      - "native-prototype/training/README.md"
+      - "native-prototype/training/docs/GETTING_STARTED.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  published-wheel:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install from real PyPI and verify versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m venv .published-env
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            PY=".published-env/Scripts/python.exe"
+          else
+            PY=".published-env/bin/python"
+          fi
+          "$PY" -m pip install --disable-pip-version-check --no-cache-dir --index-url https://pypi.org/simple codeccat-train==0.1.0 codeccat==0.1.0
+          "$PY" -m pip check
+          "$PY" - <<'PY'
+          from importlib.metadata import version
+          assert version("codeccat-train")=="0.1.0"
+          assert version("codeccat")=="0.1.0"
+          print("PUBLISHED_TRAINER_AND_RUNTIME_VERSION_PASS")
+          PY
+          "$PY" native-prototype/training/make_smoke_data.py
+          mkdir -p published-trainer-results
+          "$PY" -m codeccat_train fit --manifest native-prototype/training/smoke-data/manifest.jsonl --output published-trainer-results/custom.ccm --report published-trainer-results/report.json
+          "$PY" -m codeccat_train fit --manifest native-prototype/training/smoke-data/manifest.jsonl --output published-trainer-results/custom-f32.ccm --report published-trainer-results/report-f32.json --precision f32
+          "$PY" - <<'PY'
+          import json
+          from pathlib import Path
+          from codeccat import CodecCat
+          p=Path("published-trainer-results")
+          assert (p/"custom.ccm").read_bytes()[:4] == b"CCM1"
+          assert (p/"custom-f32.ccm").read_bytes()[:4] == b"CCM2"
+          assert json.loads((p/"report.json").read_text())["training_tool_version"]=="0.1.0"
+          for model in ("custom.ccm", "custom-f32.ccm"):
+              detector=CodecCat.from_files(p/model)
+              assert detector.model_fingerprint
+              assert detector.detect("café crème".encode("cp1252")).text is not None
+          print("PYPI_FIRST_INSTALL_TRAIN_AND_LOAD_PASS")
+          PY

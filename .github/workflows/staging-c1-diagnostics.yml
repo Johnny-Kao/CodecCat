@@ -38,6 +38,12 @@ jobs:
           path: external-iust
           sparse-checkout: eval/test-data/encoding-wise/corpus.zip
           persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: chardet/test-data
+          ref: b0c0d206913ba118ffea2f7d306883e7a4a76db7
+          path: source-data
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -98,6 +104,8 @@ jobs:
               assert "Project-URL: Issues" in data
           print("WHEEL_LICENSE_AND_METADATA_PASS")
           PY
+      - name: Verify pinned historical corpus before provenance screen
+        run: python datasets/official/prepare_manifest.py --corpus source-data
       - name: Test installed root wheel with no ML dependencies
         shell: bash
         run: |
@@ -109,6 +117,7 @@ jobs:
           .root-clean/bin/python native-prototype/stable_contract.py
           .root-clean/bin/python native-prototype/verify_opt_in_diagnostics.py
           .root-clean/bin/python native-prototype/evaluate_opt_in_diagnostics.py
+          .root-clean/bin/python native-prototype/evaluate_c1_real_html.py
           .root-clean/bin/python -m pip check
           .root-clean/bin/python - <<'PY'
           import codeccat, importlib.util
@@ -149,6 +158,13 @@ jobs:
         with:
           name: staging-c1-original-fixture-metadata
           path: research-results/staging-c1-labeled-fixtures.json
+          if-no-files-found: warn
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: staging-c1-real-html-metadata
+          path: research-results/staging-c1-real-html.json
           if-no-files-found: warn
           retention-days: 30
 

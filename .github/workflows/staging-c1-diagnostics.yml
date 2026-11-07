@@ -31,6 +31,13 @@ jobs:
           ref: a0544667291c27352fa33224d6bcd06b0f9c4670
           path: fixture-char-test
           persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: shabanali-faghani/IUST-HTMLCharDet
+          ref: 0a7f382e2d488d46f1e12bad647f0384c4a2288f
+          path: external-iust
+          sparse-checkout: eval/test-data/encoding-wise/corpus.zip
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -108,6 +115,28 @@ jobs:
           assert all(importlib.util.find_spec(m) is None for m in ("numpy", "scipy", "sklearn", "joblib"))
           assert codeccat.detect(b"hello").text == "hello"
           print("ROOT_WHEEL_CLEAN_INSTALL_PASS")
+          PY
+      - name: Inspect separately sourced historical real HTML archive safely
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile,json,collections
+          file=Path("external-iust/eval/test-data/encoding-wise/corpus.zip")
+          assert file.is_file() and file.stat().st_size < 60_000_000
+          with zipfile.ZipFile(file) as z:
+              all_entries=z.infolist()
+              entries=[e for e in all_entries if not e.is_dir()]
+              assert len(entries)<10000
+              assert sum(e.file_size for e in entries)<500_000_000
+              assert all(e.file_size<6_000_000 for e in entries)
+              top=collections.Counter(e.filename.split("/")[0] for e in entries)
+              first2=collections.Counter("/".join(e.filename.split("/")[:2]) for e in entries)
+              print("IUST_REAL_HTML_ARCHIVE_STRUCTURE",json.dumps({
+                  "n":len(entries),"total_uncompressed":sum(e.file_size for e in entries),
+                  "top":top.most_common(12),"first2":first2.most_common(35),
+                  "names":[e.filename for e in entries[:30]]
+              },sort_keys=True))
           PY
       - uses: actions/upload-artifact@v4
         if: success()

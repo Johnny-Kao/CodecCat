@@ -66,7 +66,7 @@ def get_inputs():
 
 
 def main():
-    assert importlib.metadata.version("codeccat") == "0.1.0"
+    assert importlib.metadata.version("codeccat") == json.loads(Path("release-config.json").read_text())["version"]
     detector = codeccat.CodecCat()
     inputs, skips = get_inputs()
     results = defaultdict(Counter)
@@ -104,7 +104,7 @@ def main():
         raise ValueError("unexpected fixture selection")
     report = {
         "schema": "codeccat-opt-in-c1-original-labeled-fixtures-v1",
-        "release_version": "0.1.0", "status": "diagnostic_only",
+        "release_version": importlib.metadata.version("codeccat"), "status": "diagnostic_only",
         "groups": {name: dict(s) for name,s in sorted(results.items())},
         "timing_microseconds": {name: {
             "median": round(statistics.median(samples), 3),

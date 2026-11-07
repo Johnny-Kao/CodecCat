@@ -1,0 +1,64 @@
+name: Research opt-in HTML-aware decoding prototype
+on:
+  pull_request:
+    paths:
+      - "research/prototypes/**"
+      - ".github/workflows/research-html-aware-prototype.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contract:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-24.04, python: "3.10"}
+          - {os: ubuntu-24.04, python: "3.14"}
+          - {os: macos-15, python: "3.12"}
+          - {os: windows-2025, python: "3.12"}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install independent research-only web label resolver
+        run: python -m pip install --disable-pip-version-check --no-cache-dir webencodings==0.5.1
+      - name: Validate explicit HTML contract without changing CodecCat Runtime
+        run: python -m unittest discover -s research/prototypes -p 'test_html_aware.py' -v
+  published-runtime-parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Installed Runtime and prototype remain separate
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: --no-deps codeccat==0.1.1
+          python -m pip install --disable-pip-version-check --no-cache-dir webencodings==0.5.1
+          python - <<'PY'
+          from importlib.metadata import version
+          from pathlib import Path
+          import sys
+          import codeccat
+          from dataclasses import asdict
+          assert version("codeccat")=="0.1.1"
+          assert not hasattr(codeccat,"decode_html_prototype")
+          raw=b'<meta charset=gbk><p>abc</p>'
+          baseline=codeccat.detect(raw)
+          before=asdict(baseline)
+          sys.path.insert(0,str(Path("research/prototypes").resolve()))
+          from html_aware import decode_html_prototype
+          r=decode_html_prototype(raw)
+          assert r.encoding=="gbk"
+          assert asdict(baseline)==before
+          print("HTML_PROTOTYPE_OPT_IN_RUNTIME_ISOLATION_PASS")
+          PY

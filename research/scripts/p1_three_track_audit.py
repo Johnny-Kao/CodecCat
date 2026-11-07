@@ -62,10 +62,25 @@ def independent_cases(historic):
         item={"source":category,"path":str(p),"bytes":len(raw),
               "sha256":hashlib.sha256(raw).hexdigest(),"label":label,
               "historical_training_screen_negative":audit_overlap(raw,historic)}
+        if len(raw) < 64:
+            item["status"]="excluded_short_or_empty"
+            out.append(item)
+            continue
+        if not item["historical_training_screen_negative"]:
+            item["status"]="excluded_training_overlap_candidate"
+            out.append(item)
+            continue
         try:
             expected=raw.decode(label,"strict")
         except UnicodeError:
             item["status"]="label_invalid";out.append(item);continue
+        # Valid GBK bytes alone don't prove source text was Chinese.
+        han=sum(0x3400 <= ord(ch) <= 0x9fff for ch in expected)
+        item["chinese_han_count"]=han
+        if label=="gbk" and han < 2:
+            item["status"]="excluded_insufficient_chinese_evidence"
+            out.append(item)
+            continue
         pred=codeccat.detect(raw)
         item.update(status="evaluated",selected=pred.encoding,
                     candidates=list(pred.candidates),
@@ -137,7 +152,7 @@ def main():
                    "groups":{k:dict(v) for k,v in sorted(groups.items())},
                    "adversarial":adversarial,"nonmatching_metadata":dict(mismatches),
                    "limitations":"html5lib implementation isn't a browser; no real HTTP headers; archive labels not independently verified; no lossless correctness claim"},
-        "track_3":{"description":"new piconv source bytes + previously examined CPython fixture + charset-normalizer negative control",
+        "track_3":{"description":"new piconv source bytes + previously examined CPython fixture + charset-normalizer negative control; minimum 64 bytes, negative historical overlap, strict label decoding and >=2 Han codepoints for GBK",
                    "cases":independent,
                    "limitations":"very small heterogeneous samples; labels from own projects; CPython previously examined; overlap screen is finite; insufficient to infer new-model production accuracy"},
         "raw_bytes_exported":False,

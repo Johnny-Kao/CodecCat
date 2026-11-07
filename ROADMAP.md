@@ -1,6 +1,6 @@
 # CodecCat roadmap
 
-**Status: v0.1.0 Stable published on [PyPI](https://pypi.org/project/codeccat/0.1.0/) and [GitHub Releases](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0/).**
+**Status: Runtime v0.1.1 Stable published on [PyPI](https://pypi.org/project/codeccat/0.1.1/) and [GitHub Releases](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.1/).**
 
 This is a public, **non-binding** direction of work—not an issue backlog or release-date promise. Proposals should be opened as [Issues](https://github.com/Johnny-Kao/CodecCat/issues/new/choose); scope and priorities can change with evidence and contributor capacity.
 
@@ -13,12 +13,12 @@ This is a public, **non-binding** direction of work—not an issue backlog or re
 - [x] Fixed-source reproducible decoding and performance comparison with documented training-source overlap.
 - [x] Community contribution, disclosure, review, roadmap and release-note conventions.
 
-## Implemented in source, not yet in the published PyPI 0.1.0
+## Newly shipped in Runtime v0.1.1
 
-- [x] Optional **C1 interpretation ambiguity diagnostic** (`codeccat.diagnostics.inspect_ambiguity`), merged in [PR #47](https://github.com/Johnny-Kao/CodecCat/pull/47). This never substitutes decoded text and is **not yet available to `pip install codeccat==0.1.0` users**.
+- [x] Optional **C1 interpretation ambiguity diagnostic** (`codeccat.diagnostics.inspect_ambiguity`), merged in [PR #47](https://github.com/Johnny-Kao/CodecCat/pull/47) and shipped in Runtime v0.1.1. It never substitutes decoded text; it is not included in the original 0.1.0 Wheel.
 - [x] Six-platform source-build and clean-install validation of the opt-in diagnostic with an unchanged default model and unchanged `Detection` contract.
 - [x] Historical original HTML archive research, with provenance screening and speed improvements; its labeled codecs are proxies, not independently established ground truth.
-- [ ] Runtime patch release candidate `0.1.1` now under exact-tag, six-Wheel and sdist verification; it becomes published only after separate GitHub Release/PyPI checks.
+- [x] Runtime patch release `0.1.1` published after exact-tag six-Wheel, manylinux, sdist, model SHA256 and separate GitHub Release/PyPI OIDC verification.
 
 ## Offline trainer workstream (single core, dataset-specific use)
 

@@ -1,6 +1,6 @@
-# Unreleased changes after v0.1.0
+# Released changes in Runtime v0.1.1
 
-**Not a published release.** These notes distinguish changes already merged into the source repository from the immutable [PyPI 0.1.0](https://pypi.org/project/codeccat/0.1.0/) distribution. No version has been tagged or uploaded for the changes below.
+**Published 2026-11-07:** The Runtime changes below are available in [codeccat 0.1.1](https://pypi.org/project/codeccat/0.1.1/), released from immutable [v0.1.1](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.1) after SHA256-verified GitHub Release/PyPI Trusted Publishing. The original 0.1.0 assets remain unchanged.
 
 ## Runtime source changes
 
@@ -18,5 +18,5 @@
 
 ## Release decision
 
-An eventual **Runtime 0.1.1** would be a reasonable patch candidate because the public 0.1.x interface remains backward-compatible; however, this draft is **not approval to publish**. Version/tag, hashes, release notes, target platform matrix, manual publication and PyPI Trusted Publishing must be reviewed and executed in a separate release step. Updating documentation or merging PR #47 alone does not require changing the already published version.
+**Runtime 0.1.1 has been published** with the backward-compatible optional diagnostic. Six platform Wheels and the sdist were assembled from three successful exact-tag workflows and uploaded to PyPI unchanged using OIDC. See [v0.1.1 release notes](v0.1.1.md). Further API/model work requires its own release decision.
 

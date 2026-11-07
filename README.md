@@ -40,15 +40,15 @@ Install the latest Stable release from [PyPI](https://pypi.org/project/codeccat/
 python -m pip install codeccat
 ```
 
-To pin the currently published first Stable release (before v0.1.1 publication):
+To pin the current Stable release:
 
 ```bash
-python -m pip install codeccat==0.1.0
+python -m pip install codeccat==0.1.1
 ```
 
-CodecCat ships binary Wheels for Python **3.10–3.14** on supported Linux (glibc 2.28+, x86-64/ARM64), macOS (Intel/Apple Silicon) and Windows (x86-64/ARM64). The first PyPI release has **no sdist**, so unsupported platforms cannot fall back to building it from source. **Future Stable releases** now have a source-distribution round-trip CI (source archive → native Wheel → clean install, Python 3.10–3.14) and a reviewed manual GitHub Release / PyPI OIDC publication pipeline. This future release pipeline has passed its dry-run; it does not retroactively add an sdist to v0.1.0.
+CodecCat ships binary Wheels for Python **3.10–3.14** on supported Linux (glibc 2.28+, x86-64/ARM64), macOS (Intel/Apple Silicon) and Windows (x86-64/ARM64). The current **0.1.1 Stable release includes an sdist**, so systems outside the supported Wheel matrix can attempt a source build if they have a compatible Rust/PyO3 toolchain; this does not guarantee support for every architecture. The initial 0.1.0 release had six Wheels only and remains immutable. The source-distribution round-trip CI validates Python 3.10–3.14.
 
-For offline installs and artifact SHA256 checks, use [GitHub Stable v0.1.0](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0).
+For offline installs and artifact SHA256 checks, use [GitHub Stable v0.1.1](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.1).
 
 
 ## Usage
@@ -126,11 +126,11 @@ A source-level paired GNOME Software test showed 18 additional correct decodes w
 
 See [full benchmark methodology and limitations](docs/BENCHMARKS.md) and the [frozen external-source protocol](research/SOURCE_DISJOINT_BENCHMARK_PROTOCOL_2026-11-07.md).
 
-## Optional ambiguity diagnostic (included in v0.1.1 release candidate)
+## Optional ambiguity diagnostic (v0.1.1 Stable)
 
-The repository contains an **opt-in**, non-mutating C1-control ambiguity diagnostic after [PR #47](https://github.com/Johnny-Kao/CodecCat/pull/47). It is included in the **v0.1.1 release candidate**, but **not in the published `codeccat==0.1.0` Wheel**. Do not assume PyPI has v0.1.1 until its release has been verified. This diagnostic is not a model-accuracy upgrade.
+The **published [v0.1.1 Stable](https://pypi.org/project/codeccat/0.1.1/)** includes the **opt-in**, non-mutating C1-control ambiguity diagnostic from [PR #47](https://github.com/Johnny-Kao/CodecCat/pull/47). It is not available in the older `codeccat==0.1.0` Wheel. This diagnostic does not retrain the model or alter default decoding.
 
-On a v0.1.1 Wheel containing this feature:
+With `codeccat==0.1.1`:
 
 ```python
 from codeccat import detect

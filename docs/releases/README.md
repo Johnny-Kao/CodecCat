@@ -1,10 +1,10 @@
 # Release notes
 
-Release notes are kept here so the repository root stays focused on usage and contribution. [Unreleased source changes](UNRELEASED.md) are documented separately and are **not** available in the published 0.1.0 Wheel. These notes document the **state at each release**; historical Alpha statements about PyPI and availability are preserved as originally written.
+Release notes are kept here so the repository root stays focused on usage and contribution. [The transition from 0.1.0 to 0.1.1](UNRELEASED.md) is documented separately; these source changes are now included in the published 0.1.1 Wheel but not in immutable 0.1.0. These notes document the **state at each release**; historical Alpha statements about PyPI and availability are preserved as originally written.
 
 | Version | Status | Notes | Published artifacts |
 | --- | --- | --- | --- |
-| [Runtime v0.1.1](v0.1.1.md) | Release candidate | Opt-in C1 ambiguity diagnostic, identical model; unshipped until separately verified | Pending |
+| [Runtime v0.1.1](v0.1.1.md) | Stable | Optional C1 ambiguity diagnostic, unchanged default model, six Wheels and sdist | [GitHub](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.1) · [PyPI](https://pypi.org/project/codeccat/0.1.1/) |
 | [Trainer 0.1.0](TRAINER-v0.1.0.md) | Stable (independent package) | Offline training & model evaluation, no Runtime change | [PyPI](https://pypi.org/project/codeccat-train/0.1.0/) · [Tag](https://github.com/Johnny-Kao/CodecCat/tree/trainer-v0.1.0) |
 | [v0.1.0](v0.1.0.md) | Stable | First stable API and manylinux Wheels | [GitHub](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0) · [PyPI](https://pypi.org/project/codeccat/0.1.0/) |
 | [v0.1.0a5](v0.1.0a5.md) | Alpha | Short-text UTF-8 evidence improvements | [GitHub](https://github.com/Johnny-Kao/CodecCat/releases/tag/v0.1.0a5) |

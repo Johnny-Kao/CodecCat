@@ -1,0 +1,92 @@
+name: Published Runtime 0.1.1 fresh PyPI install verification
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/runtime-pypi-011-install-smoke.yml"
+      - "README.md"
+      - "ROADMAP.md"
+      - "docs/releases/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  published-runtime:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-24.04, python: "3.10"}
+          - {os: ubuntu-24.04, python: "3.14"}
+          - {os: macos-15, python: "3.12"}
+          - {os: windows-2025, python: "3.12"}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Fresh install from actual PyPI Wheels, not source checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m venv .published-clean
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            PY=".published-clean/Scripts/python.exe"
+          else
+            PY=".published-clean/bin/python"
+          fi
+          "$PY" -m pip install --disable-pip-version-check --no-cache-dir --index-url https://pypi.org/simple --only-binary=:all: --no-deps codeccat==0.1.1
+          "$PY" -m pip check
+          "$PY" - <<'PY'
+          import hashlib,importlib.metadata,importlib.resources,importlib.util
+          from dataclasses import asdict
+          from codeccat import detect,decode
+          from codeccat.diagnostics import inspect_ambiguity,AmbiguityDiagnostic
+          assert importlib.metadata.version("codeccat")=="0.1.1"
+          assert all(importlib.util.find_spec(x) is None
+                     for x in ("numpy","sklearn","scipy","joblib"))
+          h=hashlib.sha256(importlib.resources.files("codeccat").joinpath("models/default.ccm").read_bytes()).hexdigest()
+          assert h=="16073306b5027bf93acc2883f57fbda0cb0cf2d77b9a7bb62cf1b07fcbb9748b",h
+          assert decode("日本語".encode("utf-8"))=="日本語"
+          raw=b"Price: \x80; total."
+          result=detect(raw)
+          before=asdict(result)
+          warning=inspect_ambiguity(raw,result)
+          assert isinstance(warning,AmbiguityDiagnostic)
+          assert isinstance(warning.warning,bool)
+          assert asdict(result)==before
+          print("ACTUAL_PYPI_RUNTIME_0_1_1_INSTALL_AND_DIAGNOSTIC_PASS")
+          PY
+
+  provenance-match:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Compare every PyPI file checksum to published GitHub Release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/Johnny-Kao/CodecCat/releases/tags/v0.1.1 --jq '[.assets[] | {name,digest}]' > gh-digests.json
+          python - <<'PY'
+          import json,urllib.request
+          from pathlib import Path
+          release={x["name"]:x["digest"].removeprefix("sha256:") for x in json.loads(Path("gh-digests.json").read_text())}
+          with urllib.request.urlopen("https://pypi.org/pypi/codeccat/0.1.1/json",timeout=20) as r: project=json.load(r)
+          assert project["info"]["version"]=="0.1.1"
+          published={x["filename"]:x["digests"]["sha256"] for x in project["urls"]}
+          assert len(published)==7,sorted(published)
+          assert set(release)==set(published)|{"MODEL_PROVENANCE.json","SHA256SUMS"}
+          assert all(release[name]==digest for name,digest in published.items())
+          assert len([n for n in published if n.endswith(".whl")])==6
+          assert "codeccat-0.1.1.tar.gz" in published
+          print("RELEASE_GITHUB_PYPI_ALL_SEVEN_SHA256_MATCH")
+          PY

@@ -64,6 +64,17 @@ async function main(){
         .slice(0,8).map(m=>m.getAttribute("charset")),
       meta_equiv_labels:Array.from(document.querySelectorAll("meta[http-equiv]"))
         .slice(0,8).map(m=>m.getAttribute("content")),
+      meta_locations:Array.from(document.querySelectorAll("meta"))
+        .filter(m=>m.hasAttribute("charset")||/content-type/i.test(m.getAttribute("http-equiv")||""))
+        .slice(0,8).map(m=>({
+          parent_tag:m.parentElement?.tagName||null,
+          in_head:!!m.closest("head"),
+          in_body:!!m.closest("body"),
+          content_type:(m.getAttribute("content")||"").slice(0,90),
+          charset:(m.getAttribute("charset")||"").slice(0,60),
+        })),
+      head_meta_count:document.head?.querySelectorAll("meta").length||0,
+      body_meta_count:document.body?.querySelectorAll("meta").length||0,
     }));
     const group=countsFor(groups,e.folder);
     group.n++;
@@ -91,7 +102,10 @@ async function main(){
         meta_marker_count:e.meta_marker_count,
         html5lib_selected:e.html5lib,turbohtml_selected:e.turbohtml,
         parsed_meta_labels:domMetadata.meta_charset_labels,
-        parsed_http_equiv:domMetadata.meta_equiv_labels});
+        parsed_http_equiv:domMetadata.meta_equiv_labels,
+        meta_locations:domMetadata.meta_locations,
+        head_meta_count:domMetadata.head_meta_count,
+        body_meta_count:domMetadata.body_meta_count});
     }
   }
   const aggregate={

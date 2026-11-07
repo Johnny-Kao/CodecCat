@@ -1,6 +1,6 @@
 {
   "schema": "codeccat-stable-release-v1",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "model_sha256": "16073306b5027bf93acc2883f57fbda0cb0cf2d77b9a7bb62cf1b07fcbb9748b",
   "training_source": "chardet/test-data",
   "training_commit": "b0c0d206913ba118ffea2f7d306883e7a4a76db7",

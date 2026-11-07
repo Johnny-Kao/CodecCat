@@ -1,0 +1,22 @@
+# Unreleased changes after v0.1.0
+
+**Not a published release.** These notes distinguish changes already merged into the source repository from the immutable [PyPI 0.1.0](https://pypi.org/project/codeccat/0.1.0/) distribution. No version has been tagged or uploaded for the changes below.
+
+## Runtime source changes
+
+- Added opt-in `codeccat.diagnostics.inspect_ambiguity(original_bytes, result)`, returning explanatory metadata about ambiguous C1-control interpretations among already ranked codecs.
+- The diagnostic does **not** replace text or codec decisions, does not mutate the `Detection` result, and is not a calibrated prediction of whether decoding is wrong.
+- Kept original `codeccat.detect()`, `codeccat.decode()`, BOM, default model, and L3 opt-in behavior intact.
+- Reduced extra diagnostic scan cost on long documents by using compiled regular-expression search; checked the same original historical HTML corpus before/after without changing output.
+- Verified Linux/macOS/Windows x64 and ARM64 clean native Wheels, Python 3.10–3.14, model identity, existing API contracts, build/install and source-distribution dry runs. See [PR #47](https://github.com/Johnny-Kao/CodecCat/pull/47), [six-platform CI](https://github.com/Johnny-Kao/CodecCat/actions/runs/42343752787) and [validation methodology](../../research/C1_STAGING_VALIDATION_2026-11-07.md).
+
+## Offline training tool (separate package)
+
+- `codeccat-train` remains **0.1.0a3 source-distributed Alpha**; it was not published on PyPI by the Runtime PR. It can train private labeled data, export CCM1/CCM2, evaluate candidates against the published Runtime, and train optional L3.
+- Historical L2 and L3 model replays were reproduced under pinned environments, but no newly trained candidate has been approved to replace the existing official default model.
+- Independent Trainer release engineering, separately assessed provenance and user-data permissions, and future model-quality gates remain separate from the Runtime patch release.
+
+## Release decision
+
+An eventual **Runtime 0.1.1** would be a reasonable patch candidate because the public 0.1.x interface remains backward-compatible; however, this draft is **not approval to publish**. Version/tag, hashes, release notes, target platform matrix, manual publication and PyPI Trusted Publishing must be reviewed and executed in a separate release step. Updating documentation or merging PR #47 alone does not require changing the already published version.
+

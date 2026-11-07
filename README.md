@@ -40,7 +40,7 @@ Install the latest Stable release from [PyPI](https://pypi.org/project/codeccat/
 python -m pip install codeccat
 ```
 
-To pin the initial Stable release:
+To pin the currently published first Stable release (before v0.1.1 publication):
 
 ```bash
 python -m pip install codeccat==0.1.0
@@ -126,11 +126,11 @@ A source-level paired GNOME Software test showed 18 additional correct decodes w
 
 See [full benchmark methodology and limitations](docs/BENCHMARKS.md) and the [frozen external-source protocol](research/SOURCE_DISJOINT_BENCHMARK_PROTOCOL_2026-11-07.md).
 
-## Optional ambiguity diagnostic (source code; not in PyPI 0.1.0)
+## Optional ambiguity diagnostic (included in v0.1.1 release candidate)
 
-The repository now contains an **opt-in**, non-mutating C1-control ambiguity diagnostic. It is part of the source code after [PR #47](https://github.com/Johnny-Kao/CodecCat/pull/47), but **is not included in the published `codeccat==0.1.0` Wheel**. The code and six-platform compatibility tests have passed; this is not a replacement for a model-accuracy upgrade.
+The repository contains an **opt-in**, non-mutating C1-control ambiguity diagnostic after [PR #47](https://github.com/Johnny-Kao/CodecCat/pull/47). It is included in the **v0.1.1 release candidate**, but **not in the published `codeccat==0.1.0` Wheel**. Do not assume PyPI has v0.1.1 until its release has been verified. This diagnostic is not a model-accuracy upgrade.
 
-On a future Wheel containing this feature:
+On a v0.1.1 Wheel containing this feature:
 
 ```python
 from codeccat import detect
